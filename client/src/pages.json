@@ -1,0 +1,91 @@
+{
+	"easycom": {
+		"autoscan": true,
+		"custom": {
+			"^u--?(.*)": "uview-plus/components/u-$1/u-$1.vue",
+			"^up-(.*)": "uview-plus/components/u-$1/u-$1.vue"
+		}
+	},
+	"pages": [
+		{
+			"path": "pages/index/index",
+			"style": {
+				"navigationBarTitleText": "甲友乐",
+				"navigationStyle": "custom",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/login/login",
+			"style": {
+				"navigationBarTitleText": "欢迎加入",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/record/add",
+			"style": {
+				"navigationBarTitleText": "上传化验单"
+			}
+		},
+		{
+			"path": "pages/record/list",
+			"style": {
+				"navigationBarTitleText": "历史趋势"
+			}
+		},
+		{
+			"path": "pages/medication/plan",
+			"style": {
+				"navigationBarTitleText": "用药提醒"
+			}
+		},
+		{
+			"path": "pages/checkup/calendar",
+			"style": {
+				"navigationBarTitleText": "复查日历",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/assess/symptom",
+			"style": {
+				"navigationBarTitleText": "症状自测",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/wiki/list",
+			"style": {
+				"navigationBarTitleText": "甲友百科",
+				"navigationStyle": "custom"
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "甲友乐",
+		"navigationBarBackgroundColor": "#FFFFFF",
+		"backgroundColor": "#F8F8F8"
+	},
+	"tabBar": {
+		"color": "#909399",
+		"selectedColor": "#3c9cff",
+		"backgroundColor": "#FFFFFF",
+		"borderStyle": "white",
+		"list": [
+			{
+				"pagePath": "pages/index/index",
+				"text": "首页",
+				"iconPath": "static/tabbar/home.png",
+				"selectedIconPath": "static/tabbar/home-active.png"
+			},
+			{
+				"pagePath": "pages/record/list",
+				"text": "趋势",
+				"iconPath": "static/tabbar/chart.png",
+				"selectedIconPath": "static/tabbar/chart-active.png"
+			}
+		]
+	}
+}

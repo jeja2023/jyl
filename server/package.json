@@ -1,0 +1,33 @@
+{
+  "name": "jyl-server",
+  "version": "1.0.0",
+  "description": "甲友乐后端服务 - 甲状腺健康管理平台",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": [
+    "甲状腺",
+    "健康管理",
+    "koa",
+    "nodejs"
+  ],
+  "author": "JYL Team",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "@koa/cors": "^5.0.0",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.2.3",
+    "jsonwebtoken": "^9.0.3",
+    "koa": "^3.1.1",
+    "koa-bodyparser": "^4.4.1",
+    "koa-router": "^14.0.0",
+    "mysql2": "^3.16.2",
+    "sequelize": "^6.37.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}

@@ -1,0 +1,42 @@
+@import 'uview-plus/theme.scss';
+
+/* 
+ * 甲友乐 Premium Design System 
+ */
+
+// 品牌核心色 - 采用更具医疗高级感的科技蓝
+$jyl-primary: #3E7BFF;
+$jyl-light-primary: #EEF4FF;
+$jyl-gradient: linear-gradient(135deg, #3E7BFF 0%, #689DFF 100%);
+
+// 辅助色
+$jyl-success: #27C24C;
+$jyl-warning: #FF902B;
+$jyl-error: #F05050;
+$jyl-info: #23B7E5;
+
+// 背景色
+$jyl-bg-gray: #F6F8FC;
+$jyl-card-shadow: 0 8px 24px rgba(149, 157, 165, 0.1);
+
+// 文字颜色
+$jyl-main-text: #1D2129;
+$jyl-content-text: #4E5969;
+$jyl-sub-text: #86909C;
+
+/* 原有变量适配 */
+$uni-color-primary: $jyl-primary;
+$uni-bg-color: $jyl-bg-gray;
+
+/* 常用混合宏 */
+@mixin flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@mixin premium-card {
+    background: #FFFFFF;
+    border-radius: 24rpx;
+    box-shadow: $jyl-card-shadow;
+}
