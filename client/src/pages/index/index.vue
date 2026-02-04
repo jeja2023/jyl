@@ -20,7 +20,7 @@ const fetchArticles = async () => {
         });
         articles.value = res.list;
     } catch (e) {
-        console.error('Fetch wiki failed', e);
+        console.error('获取百科文章失败', e);
     }
 };
 
@@ -94,7 +94,7 @@ const viewDetail = async (item) => {
       currentWiki.value = res;
       showWikiDetail.value = true;
   } catch(e) {
-      // quiet
+      // 捕获异常
   } finally {
       uni.hideLoading();
   }
