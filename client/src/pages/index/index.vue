@@ -1,3 +1,147 @@
+<script setup>
+import { ref, onMounted } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
+import { useUserStore } from '@/store/index.js';
+import http from '@/utils/request.js';
+import { wikiArticles } from '@/utils/wiki-data.js';
+
+const userStore = useUserStore();
+const lastRecord = ref(null);
+const showWikiDetail = ref(false);
+const currentWiki = ref({});
+const hasNotice = ref(false);
+
+const articles = ref([]);
+
+const fetchArticles = async () => {
+    try {
+        const res = await http.get('/api/wiki/list', {
+            params: { page: 1, pageSize: 2 }
+        });
+        articles.value = res.list;
+    } catch (e) {
+        console.error('Fetch wiki failed', e);
+    }
+};
+
+const checkReminders = async () => {
+  if (!userStore.isLogin) {
+    hasNotice.value = false;
+    return;
+  }
+  try {
+    // 检查是否有开启中的服药计划
+    const res = await http.get('/api/medication/list');
+    hasNotice.value = res.some(item => item.isActive);
+  } catch (err) {
+    // console.error('检查提醒失败:', err);
+  }
+};
+
+const fetchLastRecord = async () => {
+  if (!userStore.isLogin) return;
+  try {
+    const res = await http.get('/api/record/list', { params: { limit: 1 } });
+    if (res.list && res.list.length > 0) {
+      lastRecord.value = res.list[0];
+    }
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+// 页面显示时刷新数据
+onShow(() => {
+  fetchArticles(); // 总是刷新文章
+  if (userStore.isLogin) {
+    fetchLastRecord();
+    checkReminders();
+  }
+});
+
+const goToLogin = () => {
+  uni.navigateTo({ url: '/pages/login/login' });
+};
+
+const navigateToAdd = () => {
+  if (!userStore.isLogin) return goToLogin();
+  uni.navigateTo({ url: '/pages/record/add' });
+};
+
+const goToMedication = () => {
+  if (!userStore.isLogin) return goToLogin();
+  uni.navigateTo({ url: '/pages/medication/plan' });
+};
+
+const goToCalendar = () => {
+  if (!userStore.isLogin) return goToLogin();
+  uni.navigateTo({ url: '/pages/checkup/calendar' });
+};
+
+const goToAssess = () => {
+  if (!userStore.isLogin) return goToLogin();
+  uni.navigateTo({ url: '/pages/assess/symptom' });
+};
+
+const goToWiki = () => {
+  uni.navigateTo({ url: '/pages/wiki/list' });
+};
+
+const viewDetail = async (item) => {
+  uni.showLoading({ title: '加载中' });
+  try {
+      const res = await http.get(`/api/wiki/${item.id}`);
+      currentWiki.value = res;
+      showWikiDetail.value = true;
+  } catch(e) {
+      // quiet
+  } finally {
+      uni.hideLoading();
+  }
+};
+
+// 功能开发中提示
+const showTip = (msg) => {
+  uni.$u.toast(msg);
+};
+
+const getTshColor = (tsh) => {
+  if (!tsh) return 'color-gray';
+  if (tsh > 4.2) return 'color-error';
+  if (tsh < 0.27) return 'color-warning';
+  return 'color-success';
+};
+
+const getTshStatus = (tsh) => {
+  if (!tsh) return '未录入';
+  if (tsh > 4.2) return '偏高';
+  if (tsh < 0.27) return '偏低';
+  return '正常';
+};
+
+// FT4 正常范围：12-22 pmol/L
+const getFt4Status = (ft4) => {
+  if (!ft4) return '未录入';
+  if (ft4 > 22) return '偏高';
+  if (ft4 < 12) return '偏低';
+  return '正常';
+};
+
+// FT3 正常范围：3.1-6.8 pmol/L
+const getFt3Status = (ft3) => {
+  if (!ft3) return '未录入';
+  if (ft3 > 6.8) return '偏高';
+  if (ft3 < 3.1) return '偏低';
+  return '正常';
+};
+
+onMounted(() => {
+  fetchArticles();
+  fetchLastRecord();
+  checkReminders();
+});
+</script>
+
 <template>
   <view class="home-container">
     <!-- 顶部状态栏 - 增加安全区适配 -->
@@ -10,14 +154,13 @@
       <view class="content-box">
         <view class="user-section" v-if="userStore.isLogin">
           <view class="avatar-box">
-             <u-avatar :text="userStore.userInfo.nickname.substring(0,1)" fontSize="20" bg-color="#ffffff" color="#3E7BFF" size="48"></u-avatar>
+             <u-avatar :text="userStore.userInfo && userStore.userInfo.nickname ? userStore.userInfo.nickname.substring(0,1) : '友'" fontSize="20" bg-color="#ffffff" color="#3E7BFF" size="48"></u-avatar>
           </view>
           <view class="text-info">
             <view class="welcome-box">
-               <text class="greeting">你好, {{ userStore.userInfo.nickname }}</text>
+               <text class="greeting">你好, {{ userStore.userInfo ? userStore.userInfo.nickname : '甲友' }}</text>
                <view class="status-dot pulsed"></view>
             </view>
-            <view class="badge">{{ userStore.userInfo.patientType }}</view>
           </view>
         </view>
         <view class="user-section" v-else @click="goToLogin">
@@ -32,13 +175,24 @@
         <view class="action-icons">
            <view class="icon-circle" @click="goToMedication">
               <u-icon name="bell" size="22" color="#fff"></u-icon>
-              <view class="red-dot"></view>
+              <view class="red-dot" v-if="hasNotice"></view>
            </view>
         </view>
       </view>
     </view>
 
     <view class="main-body">
+      <!-- 显著位置免责声明 -->
+      <view class="disclaimer-bar">
+        <u-notice-bar 
+          text="温馨提示：甲友乐仅作为病友指标管理监测工具。本应用不提供医疗建议、不具医疗诊断作用，任何决策请咨询医生。" 
+          color="#F53F3F" 
+          bgColor="#FFF2F0"
+          mode="closable"
+          speed="100"
+        ></u-notice-bar>
+      </view>
+
       <!-- 核心指标卡片 -->
       <view class="premium-card indicator-card">
         <view class="card-header">
@@ -122,7 +276,11 @@
 
       <view class="article-track">
         <view class="article-card" v-for="(item, index) in articles.slice(0, 2)" :key="index" @click="viewDetail(item)">
-          <image :src="item.cover" mode="aspectFill" class="article-img"></image>
+          <image v-if="item.cover" :src="item.cover" mode="aspectFill" class="article-img"></image>
+          <view v-else class="article-img placeholder">
+             <u-icon name="image" size="30" color="#E5E6EB"></u-icon>
+          </view>
+          
           <view class="article-content">
             <text class="a-title">{{ item.title }}</text>
             <text class="a-summary">{{ item.summary }}</text>
@@ -144,9 +302,11 @@
           <scroll-view scroll-y="true" class="detail-content-scroll">
             <view class="detail-meta">
               <view class="tag">{{ currentWiki.category || '科普' }}</view>
-              <text class="date">2024-01-20</text>
+              <text class="date">{{ currentWiki.createdAt ? new Date(currentWiki.createdAt).toLocaleDateString() : '' }}</text>
             </view>
-            <view class="detail-body" v-html="currentWiki.content"></view>
+            <view class="detail-body">
+                <u-parse :content="currentWiki.content"></u-parse>
+            </view>
             <view class="disclaimer">
               <u-icon name="info-circle" size="14" color="#C9CDD4"></u-icon>
               <text>本内容仅供科普参考，不能替代医生诊断</text>
@@ -158,122 +318,14 @@
   </view>
 </template>
 
-<style>
-/* 页面基础样式 */
-page {
-  min-height: 100%;
-  background: linear-gradient(180deg, #F0F5FF 0%, #F6F8FC 30%);
-}
-</style>
-
-<script setup>
-import { ref, onMounted } from 'vue';
-import { useUserStore } from '@/store/index.js';
-import http from '@/utils/request.js';
-import { wikiArticles } from '@/utils/wiki-data.js';
-
-const userStore = useUserStore();
-const lastRecord = ref(null);
-const showWikiDetail = ref(false);
-const currentWiki = ref({});
-
-const articles = wikiArticles;
-
-const fetchLastRecord = async () => {
-  if (!userStore.isLogin) return;
-  try {
-    const res = await http.get('/api/record/list', { params: { limit: 1 } });
-    if (res.list && res.list.length > 0) {
-      lastRecord.value = res.list[0];
-    }
-  } catch (err) {
-    console.error(err);
-  }
-};
-
-import { onShow } from '@dcloudio/uni-app';
-onShow(() => {
-  if (userStore.isLogin) {
-    fetchLastRecord();
-  }
-});
-
-const goToLogin = () => {
-  uni.navigateTo({ url: '/pages/login/login' });
-};
-
-const navigateToAdd = () => {
-  if (!userStore.isLogin) return goToLogin();
-  uni.navigateTo({ url: '/pages/record/add' });
-};
-
-const goToMedication = () => {
-  if (!userStore.isLogin) return goToLogin();
-  uni.navigateTo({ url: '/pages/medication/plan' });
-};
-
-const goToCalendar = () => {
-  if (!userStore.isLogin) return goToLogin();
-  uni.navigateTo({ url: '/pages/checkup/calendar' });
-};
-
-const goToAssess = () => {
-  if (!userStore.isLogin) return goToLogin();
-  uni.navigateTo({ url: '/pages/assess/symptom' });
-};
-
-const goToWiki = () => {
-  uni.navigateTo({ url: '/pages/wiki/list' });
-};
-
-const viewDetail = (item) => {
-  currentWiki.value = item;
-  showWikiDetail.value = true;
-};
-
-// 功能开发中提示
-const showTip = (msg) => {
-  uni.$u.toast(msg);
-};
-
-const getTshColor = (tsh) => {
-  if (!tsh) return 'color-gray';
-  if (tsh > 4.2) return 'color-error';
-  if (tsh < 0.27) return 'color-warning';
-  return 'color-success';
-};
-
-const getTshStatus = (tsh) => {
-  if (!tsh) return '未录入';
-  if (tsh > 4.2) return '偏高';
-  if (tsh < 0.27) return '偏低';
-  return '正常';
-};
-
-// FT4 正常范围：12-22 pmol/L
-const getFt4Status = (ft4) => {
-  if (!ft4) return '未录入';
-  if (ft4 > 22) return '偏高';
-  if (ft4 < 12) return '偏低';
-  return '正常';
-};
-
-// FT3 正常范围：3.1-6.8 pmol/L
-const getFt3Status = (ft3) => {
-  if (!ft3) return '未录入';
-  if (ft3 > 6.8) return '偏高';
-  if (ft3 < 3.1) return '偏低';
-  return '正常';
-};
-
-onMounted(() => {
-  fetchLastRecord();
-});
-</script>
-
 <style lang="scss" scoped>
+/* 页面基础背景 */
+page {
+  background: #F8FAFF;
+}
+
 .home-container {
-  background: linear-gradient(180deg, #F0F5FF 0%, #F6F8FC 30%);
+  background: #F8FAFF;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -281,24 +333,26 @@ onMounted(() => {
   padding-bottom: calc(env(safe-area-inset-bottom) + 120rpx);
 }
 
+/* 顶部品牌区域 */
 .premium-header {
-  height: 280rpx;
-  background: linear-gradient(145deg, #4A89FF 0%, #3E7BFF 40%, #6FA3FF 100%);
+  height: 380rpx;
+  background: linear-gradient(135deg, #3E7BFF 0%, #2A5DDF 100%);
   position: relative;
-  padding: 0 36rpx;
+  padding: 0 40rpx;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border-radius: 0 0 60rpx 60rpx;
+  box-shadow: 0 10rpx 30rpx rgba(62, 123, 255, 0.2);
   
-  // 装饰性光效
   &::before {
     content: '';
     position: absolute;
-    top: -100rpx;
-    right: -80rpx;
-    width: 320rpx;
-    height: 320rpx;
+    top: -150rpx;
+    right: -100rpx;
+    width: 450rpx;
+    height: 450rpx;
     background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
     border-radius: 50%;
   }
@@ -306,10 +360,10 @@ onMounted(() => {
   &::after {
     content: '';
     position: absolute;
-    bottom: -50rpx;
-    left: -60rpx;
-    width: 200rpx;
-    height: 200rpx;
+    bottom: -80rpx;
+    left: -40rpx;
+    width: 280rpx;
+    height: 280rpx;
     background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
     border-radius: 50%;
   }
@@ -323,14 +377,15 @@ onMounted(() => {
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    bottom: 50rpx;
-    font-size: 120rpx;
+    top: 140rpx;
+    font-size: 140rpx;
     font-weight: 900;
-    color: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.05);
     pointer-events: none;
     z-index: 1;
-    letter-spacing: 20rpx;
+    letter-spacing: 30rpx;
     white-space: nowrap;
+    text-transform: uppercase;
   }
 
   .content-box {
@@ -339,7 +394,7 @@ onMounted(() => {
     align-items: center;
     position: relative;
     z-index: 10;
-    margin-top: 32rpx;
+    margin-top: 40rpx;
   }
   
   .user-section {
@@ -347,161 +402,142 @@ onMounted(() => {
     align-items: center;
     
     .avatar-box {
-      width: 96rpx;
-      height: 96rpx;
-      border: 3rpx solid rgba(255,255,255,0.5);
+      width: 110rpx;
+      height: 110rpx;
+      border: 4rpx solid rgba(255,255,255,0.8);
       border-radius: 50%;
-      margin-right: 24rpx;
-      @include flex-center;
+      margin-right: 28rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       overflow: hidden;
       flex-shrink: 0;
-      box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.15);
-      background: rgba(255,255,255,0.1);
+      box-shadow: 0 12rpx 32rpx rgba(0,0,0,0.2);
+      background: rgba(255,255,255,0.2);
       backdrop-filter: blur(10rpx);
 
       &.bg-placeholder {
-        background: rgba(255,255,255,0.2);
+        background: rgba(255,255,255,0.3);
       }
     }
     
     .text-info {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      
       .welcome-box {
         display: flex;
         align-items: center;
-        margin-bottom: 8rpx;
       }
       
       .greeting {
-        font-size: 38rpx;
-        font-weight: 700;
+        font-size: 42rpx;
+        font-weight: 800;
         color: #FFFFFF;
-        text-shadow: 0 2rpx 8rpx rgba(0,0,0,0.12);
-        line-height: 1.3;
-        letter-spacing: 1rpx;
+        text-shadow: 0 4rpx 12rpx rgba(0,0,0,0.15);
       }
       
       .status-dot {
-        width: 12rpx;
-        height: 12rpx;
+        width: 14rpx;
+        height: 14rpx;
         background: #4AE68A;
         border-radius: 50%;
-        margin-left: 14rpx;
-        box-shadow: 0 0 12rpx #4AE68A, 0 0 24rpx rgba(74, 230, 138, 0.4);
-      }
-      
-      .pulsed {
+        margin-left: 16rpx;
+        box-shadow: 0 0 15rpx #4AE68A;
         animation: pulse-green 2s infinite;
-      }
-      
-      .badge {
-        display: inline-flex;
-        align-items: center;
-        background: rgba(255,255,255,0.2);
-        padding: 6rpx 18rpx;
-        border-radius: 30rpx;
-        font-size: 22rpx;
-        color: #FFFFFF;
-        backdrop-filter: blur(10rpx);
-        width: fit-content;
-        border: 1rpx solid rgba(255,255,255,0.25);
       }
       
       .subtitle {
         font-size: 26rpx;
-        color: rgba(255,255,255,0.9);
-        margin-top: 6rpx;
+        color: rgba(255,255,255,0.85);
+        margin-top: 8rpx;
+        font-weight: 500;
       }
     }
   }
   
   .icon-circle {
-    width: 84rpx;
-    height: 84rpx;
-    background: rgba(255,255,255,0.18);
+    width: 90rpx;
+    height: 90rpx;
+    background: rgba(255,255,255,0.15);
     border-radius: 50%;
-    @include flex-center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     position: relative;
-    backdrop-filter: blur(10rpx);
-    border: 1rpx solid rgba(255,255,255,0.2);
-    transition: all 0.3s;
+    backdrop-filter: blur(15rpx);
+    border: 1rpx solid rgba(255,255,255,0.3);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     
     &:active {
-      transform: scale(0.92);
+      transform: scale(0.9);
       background: rgba(255,255,255,0.25);
     }
     
     .red-dot {
       position: absolute;
-      top: 16rpx;
-      right: 16rpx;
-      width: 16rpx;
-      height: 16rpx;
+      top: 18rpx;
+      right: 18rpx;
+      width: 18rpx;
+      height: 18rpx;
       background: #FF5C5C;
-      border: 3rpx solid rgba(255,255,255,0.9);
+      border: 4rpx solid #3E7BFF;
       border-radius: 50%;
-      box-shadow: 0 2rpx 8rpx rgba(255,92,92,0.5);
+      box-shadow: 0 0 10rpx rgba(255,92,92,0.8);
     }
   }
 }
 
-.main-body {
-  flex: 1;
-  padding: 0 28rpx;
-  position: relative;
-  margin-top: -65rpx;
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
+.disclaimer-bar {
+  margin-bottom: 32rpx;
+  border-radius: 20rpx;
+  overflow: hidden;
+  box-shadow: 0 4rpx 12rpx rgba(245, 63, 63, 0.05);
 }
 
+/* 主体内容区域 */
+.main-body {
+  flex: 1;
+  padding: 0 32rpx;
+  position: relative;
+  margin-top: -100rpx;
+  z-index: 20;
+}
+
+/* 指标卡片 */
 .indicator-card {
-  padding: 28rpx 32rpx;
-  margin-bottom: 24rpx;
-  flex-shrink: 0;
+  padding: 36rpx;
+  margin-bottom: 32rpx;
   background: #FFFFFF;
-  border-radius: 28rpx;
-  box-shadow: 0 8rpx 32rpx rgba(62, 123, 255, 0.08), 0 2rpx 8rpx rgba(0,0,0,0.04);
+  border-radius: 40rpx;
+  box-shadow: 0 20rpx 40rpx rgba(62, 123, 255, 0.1);
+  border: 1rpx solid rgba(62, 123, 255, 0.05);
   
   .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20rpx;
+    margin-bottom: 32rpx;
     
     .title-row {
       display: flex;
       align-items: center;
-      
       .label {
-        font-size: 30rpx;
-        font-weight: 700;
+        font-size: 32rpx;
+        font-weight: 800;
         color: #1D2129;
-        margin-left: 14rpx;
-        letter-spacing: 1rpx;
+        margin-left: 16rpx;
       }
     }
     
     .header-right {
       display: flex;
       align-items: center;
-      padding: 8rpx 16rpx;
-      background: linear-gradient(135deg, #EEF4FF 0%, #E8F0FF 100%);
-      border-radius: 30rpx;
-      transition: all 0.3s;
-      
-      &:active {
-        transform: scale(0.96);
-      }
+      padding: 10rpx 24rpx;
+      background: #F2F7FF;
+      border-radius: 40rpx;
       
       .empty-link { 
         font-size: 24rpx; 
         color: #3E7BFF; 
-        margin-right: 6rpx;
-        font-weight: 500;
+        font-weight: 600;
       }
     }
   }
@@ -509,11 +545,8 @@ onMounted(() => {
   .indicator-values {
     display: flex;
     justify-content: space-around;
-    align-items: center;
-    padding: 16rpx 0;
-    background: linear-gradient(135deg, #FAFBFF 0%, #F8FAFF 100%);
-    border-radius: 20rpx;
-
+    padding: 24rpx 0;
+    
     .v-item {
       display: flex;
       flex-direction: column;
@@ -523,387 +556,300 @@ onMounted(() => {
       .v-label {
         font-size: 24rpx;
         color: #86909C;
-        margin-bottom: 14rpx;
-        font-weight: 500;
+        margin-bottom: 20rpx;
+        font-weight: 600;
+        letter-spacing: 1rpx;
       }
 
       .v-main {
         display: flex;
         align-items: baseline;
-        margin-bottom: 14rpx;
+        margin-bottom: 12rpx;
         
         .v-num {
-          font-size: 40rpx;
+          font-size: 48rpx;
           font-weight: 800;
           color: #1D2129;
-          margin-right: 6rpx;
-          font-family: 'DIN Alternate', -apple-system, sans-serif;
+          font-family: 'DIN Condensed', -apple-system, sans-serif;
         }
         .v-unit {
           font-size: 20rpx;
-          color: #A0A8B5;
+          color: #C9CDD4;
+          margin-left: 4rpx;
         }
       }
 
       .v-tag {
         font-size: 20rpx;
-        padding: 6rpx 16rpx;
-        border-radius: 12rpx;
-        font-weight: 600;
+        padding: 6rpx 20rpx;
+        border-radius: 50rpx;
+        font-weight: 700;
       }
     }
 
     .v-divider {
       width: 2rpx;
-      height: 70rpx;
-      background: linear-gradient(180deg, transparent 0%, #E8EBF0 50%, transparent 100%);
+      height: 80rpx;
+      background: #F2F3F5;
+      align-self: center;
     }
   }
   
   .empty-box {
-    padding: 30rpx 0;
-    @include flex-center;
+    padding: 40rpx 0;
+    display: flex;
     flex-direction: column;
-    background: linear-gradient(135deg, #FAFBFF 0%, #F5F8FF 100%);
-    border-radius: 20rpx;
-    margin-top: 8rpx;
-
+    align-items: center;
+    
     .plus-anim-box {
-      width: 120rpx;
-      height: 120rpx;
       position: relative;
-      @include flex-center;
-      margin-bottom: 20rpx;
+      width: 100rpx;
+      height: 100rpx;
+      margin-bottom: 24rpx;
+    }
 
-      .circle-btn {
-        width: 96rpx;
-        height: 96rpx;
-        background: linear-gradient(145deg, #FFFFFF 0%, #F0F4FF 100%);
-        border-radius: 50%;
-        @include flex-center;
-        z-index: 2;
-        transition: all 0.3s;
-        box-shadow: 0 6rpx 20rpx rgba(62, 123, 255, 0.15);
-        border: 2rpx solid rgba(62, 123, 255, 0.1);
-        
-        &:active { 
-          transform: scale(0.9); 
-          box-shadow: 0 4rpx 12rpx rgba(62, 123, 255, 0.2);
-        }
-      }
-
-      .ripple {
-        position: absolute;
-        width: 90rpx;
-        height: 90rpx;
-        background: rgba(62, 123, 255, 0.15);
-        border-radius: 50%;
-        animation: ripple 2.5s infinite;
-      }
+    .circle-btn {
+      width: 100rpx;
+      height: 100rpx;
+      background: #F2F7FF;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    
+    .ripple {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border: 2rpx dashed #3E7BFF;
+      border-radius: 50%;
+      animation: rotate 10s linear infinite;
     }
     
     .tip { 
-      font-size: 26rpx; 
+      font-size: 28rpx; 
       color: #86909C; 
-      letter-spacing: 1rpx;
+      font-weight: 500;
     }
   }
 }
 
-@keyframes ripple {
-  0% { transform: scale(1); opacity: 0.8; }
-  100% { transform: scale(1.8); opacity: 0; }
-}
-
+/* 快捷金刚区 */
 .shortcut-grid {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 28rpx;
-  flex-shrink: 0;
+  margin-bottom: 48rpx;
+  padding: 10rpx 0;
   
   .grid-card {
-    width: 160rpx;
-    @include flex-center;
+    display: flex;
     flex-direction: column;
-    text-align: center;
-    transition: all 0.3s;
-    
-    &:active {
-      transform: translateY(-4rpx);
-    }
+    align-items: center;
     
     .icon-bg {
-      width: 100rpx;
-      height: 100rpx;
-      border-radius: 32rpx;
-      @include flex-center;
-      margin-bottom: 14rpx;
-      box-shadow: 0 12rpx 28rpx rgba(0,0,0,0.1);
-      position: relative;
-      overflow: hidden;
+      width: 110rpx;
+      height: 110rpx;
+      border-radius: 38rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20rpx;
+      box-shadow: 0 15rpx 30rpx rgba(0,0,0,0.1);
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       
-      // 光泽效果
-      &::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 50%;
-        background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 100%);
-        border-radius: 32rpx 32rpx 0 0;
-      }
-    }
-    
-    .blue-gradient { 
-      background: linear-gradient(145deg, #5A93FF 0%, #3E7BFF 100%); 
-      box-shadow: 0 12rpx 28rpx rgba(62, 123, 255, 0.35);
-    }
-    .orange-gradient { 
-      background: linear-gradient(145deg, #FFAD33 0%, #FF9500 100%); 
-      box-shadow: 0 12rpx 28rpx rgba(255, 149, 0, 0.35);
-    }
-    .green-gradient { 
-      background: linear-gradient(145deg, #4DE89A 0%, #2ED477 100%); 
-      box-shadow: 0 12rpx 28rpx rgba(46, 212, 119, 0.35);
-    }
-    .purple-gradient { 
-      background: linear-gradient(145deg, #B380FF 0%, #9D68FF 100%); 
-      box-shadow: 0 12rpx 28rpx rgba(157, 104, 255, 0.35);
+      &:active { transform: scale(0.9); }
+      
+      &.blue-gradient { background: linear-gradient(135deg, #6FA3FF 0%, #3E7BFF 100%); }
+      &.orange-gradient { background: linear-gradient(135deg, #FFC069 0%, #FF9500 100%); }
+      &.green-gradient { background: linear-gradient(135deg, #73D13D 0%, #2ED477 100%); }
+      &.purple-gradient { background: linear-gradient(135deg, #B37FEB 0%, #9D68FF 100%); }
     }
     
     text {
       font-size: 26rpx;
-      font-weight: 600;
-      color: #1D2129;
-      letter-spacing: 1rpx;
+      font-weight: 700;
+      color: #4E5969;
     }
   }
 }
 
+/* 百科板块 */
 .section-title {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20rpx;
-  flex-shrink: 0;
+  align-items: flex-end;
+  margin-bottom: 30rpx;
+  padding: 0 10rpx;
   
   text { 
-    font-size: 32rpx; 
-    font-weight: 800; 
+    font-size: 38rpx; 
+    font-weight: 900; 
     color: #1D2129; 
-    letter-spacing: 2rpx;
+    position: relative;
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 4rpx;
+      left: 0;
+      width: 100%;
+      height: 12rpx;
+      background: rgba(62, 123, 255, 0.15);
+      z-index: -1;
+    }
   }
   
   .more-btn {
     display: flex;
     align-items: center;
-    padding: 8rpx 16rpx;
-    background: #F5F7FA;
-    border-radius: 24rpx;
-    transition: all 0.3s;
-    
-    &:active {
-      background: #E8EBF0;
-    }
-    
-    text { 
-      font-size: 24rpx; 
-      color: #86909C; 
-      font-weight: 500; 
-      margin-right: 4rpx; 
-    }
+    font-size: 26rpx;
+    color: #86909C;
+    font-weight: 600;
   }
 }
 
 .article-track {
   display: flex;
   flex-direction: column;
-  gap: 18rpx;
+  gap: 28rpx;
 }
 
 .article-card {
   background: #FFFFFF;
-  border-radius: 20rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.05);
-  padding: 16rpx;
+  border-radius: 36rpx;
+  padding: 24rpx;
   display: flex;
   align-items: center;
-  min-height: 140rpx;
-  flex-shrink: 0;
-  box-sizing: border-box;
+  box-shadow: 0 10rpx 30rpx rgba(0,0,0,0.03);
   transition: all 0.3s;
   
   &:active {
-    transform: scale(0.98);
-    box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+    transform: translateY(-4rpx);
+    box-shadow: 0 15rpx 35rpx rgba(0,0,0,0.08);
   }
   
   .article-img {
-    width: 180rpx;
-    height: 140rpx;
-    border-radius: 14rpx;
-    margin-right: 20rpx;
-    flex-shrink: 0;
-    background: linear-gradient(135deg, #F5F7FA 0%, #E8EBF0 100%);
+    width: 200rpx;
+    height: 160rpx;
+    border-radius: 24rpx;
+    margin-right: 24rpx;
+    background: #F2F3F5;
     object-fit: cover;
+    &.placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
   }
   
   .article-content {
     flex: 1;
+    height: 160rpx;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    height: 140rpx;
-    overflow: hidden;
-    padding: 2rpx 0;
     
     .a-title {
-      font-size: 26rpx;
-      font-weight: 700;
+      font-size: 30rpx;
+      font-weight: 800;
       color: #1D2129;
-      line-height: 1.4;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-      letter-spacing: 0.5rpx;
+      line-height: 1.3;
     }
     
     .a-summary {
       font-size: 22rpx;
       color: #86909C;
-      display: -webkit-box;
-      -webkit-line-clamp: 1;
-      line-clamp: 1;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-      margin-top: 4rpx;
-      line-height: 1.3;
+      font-weight: 500;
     }
     
     .a-footer {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-top: auto;
-      
       .a-tag {
         font-size: 18rpx;
+        padding: 4rpx 16rpx;
+        background: #F2F7FF;
         color: #3E7BFF;
-        background: linear-gradient(135deg, #EEF4FF 0%, #E6EDFF 100%);
-        padding: 4rpx 10rpx;
-        border-radius: 8rpx;
-        font-weight: 500;
+        border-radius: 40rpx;
+        font-weight: 700;
       }
-      
-      .a-read { 
-        font-size: 18rpx;  
-        color: #B8BFC9; 
+      .a-read {
+        font-size: 20rpx;
+        color: #C9CDD4;
+        font-weight: 600;
       }
     }
   }
 }
 
-// 详情弹窗样式优化
+/* 详情弹窗 */
 .detail-popup {
-  max-height: 80vh;
-  display: flex;
-  flex-direction: column;
-  padding: 32rpx;
+  background: #FFFFFF;
+  border-radius: 50rpx 50rpx 0 0;
+  overflow: hidden;
+  max-height: 85vh;
   
   .detail-header {
+    padding: 45rpx 40rpx 30rpx;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding-bottom: 24rpx;
     border-bottom: 1rpx solid #F2F3F5;
-    
     .detail-title {
-      font-size: 36rpx;
-      font-weight: 700;
+      font-size: 38rpx;
+      font-weight: 900;
       color: #1D2129;
-      flex: 1;
       line-height: 1.4;
-      padding-right: 20rpx;
+      flex: 1;
     }
   }
   
   .detail-content-scroll {
-    height: 70vh; /* 设置固定高度确保滚动生效 */
-    padding-top: 24rpx;
-    overflow-y: scroll;
-    -webkit-overflow-scrolling: touch; /* 增强iOS滚动流畅度 */
-    
+    padding: 30rpx 40rpx 80rpx;
     .detail-meta {
       display: flex;
       align-items: center;
-      margin-bottom: 24rpx;
-      
+      margin-bottom: 30rpx;
       .tag {
-        background: linear-gradient(135deg, #EEF4FF 0%, #E6EDFF 100%);
-        color: #3E7BFF;
-        padding: 8rpx 20rpx;
-        border-radius: 12rpx;
-        font-size: 24rpx;
-        font-weight: 500;
-        margin-right: 16rpx;
+        padding: 6rpx 20rpx;
+        background: #3E7BFF;
+        color: #FFF;
+        font-size: 22rpx;
+        border-radius: 50rpx;
+        font-weight: 700;
+        margin-right: 20rpx;
       }
-      
-      .date {
-        font-size: 24rpx;
-        color: #A0A8B5;
-      }
+      .date { font-size: 24rpx; color: #86909C; }
     }
-    
-    .detail-body {
-      font-size: 28rpx;
-      color: #4E5969;
-      line-height: 1.8;
-    }
-    
+    .detail-body { font-size: 32rpx; line-height: 1.8; color: #4E5969; }
     .disclaimer {
+      margin-top: 40rpx;
       display: flex;
       align-items: center;
-      margin-top: 32rpx;
-      padding: 20rpx;
-      background: #F8FAFC;
-      border-radius: 16rpx;
-      
-      text {
-        font-size: 24rpx;
-        color: #A0A8B5;
-        margin-left: 10rpx;
-      }
+      justify-content: center;
+      gap: 10rpx;
+      font-size: 24rpx;
+      color: #C9CDD4;
     }
   }
 }
 
-// 颜色工具 - 优化配色
-.color-error { color: #FF5C5C !important; }
-.color-warning { color: #FFAD33 !important; }
-.color-success { color: #4AE68A !important; }
-.color-gray { color: #86909C !important; }
+/* 颜色工具 */
+.color-gray { color: #C9CDD4 !important; }
+.color-success { color: #00B42A !important; }
+.color-warning { color: #FF7D00 !important; }
+.color-error { color: #F53F3F !important; }
 
-.color-error-bg { 
-  background: linear-gradient(135deg, rgba(255, 92, 92, 0.12) 0%, rgba(255, 92, 92, 0.08) 100%); 
-  color: #FF5C5C; 
-}
-.color-warning-bg { 
-  background: linear-gradient(135deg, rgba(255, 173, 51, 0.12) 0%, rgba(255, 173, 51, 0.08) 100%); 
-  color: #FFAD33; 
-}
-.color-success-bg { 
-  background: linear-gradient(135deg, rgba(74, 230, 138, 0.12) 0%, rgba(74, 230, 138, 0.08) 100%); 
-  color: #2ED477; 
-}
-.color-gray-bg { background: #F2F3F8; color: #86909C; }
+.color-success-bg { background: linear-gradient(135deg, rgba(74, 230, 138, 0.12) 0%, rgba(74, 230, 138, 0.08) 100%); color: #2ED477; }
+.color-warning-bg { background: #FFF7E8; color: #FF7D00; }
+.color-error-bg { background: #FFECE8; color: #F53F3F; }
 .gray-bg { background: #F2F3F8; color: #86909C; }
 
 @keyframes pulse-green {
-  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 230, 138, 0.7); }
-  70% { transform: scale(1); box-shadow: 0 0 0 12rpx rgba(74, 230, 138, 0); }
-  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 230, 138, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(74, 230, 138, 0.4); }
+  70% { box-shadow: 0 0 0 15rpx rgba(74, 230, 138, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(74, 230, 138, 0); }
 }
 </style>

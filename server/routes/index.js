@@ -4,22 +4,38 @@ const RecordController = require('../controllers/RecordController');
 const MedicationController = require('../controllers/MedicationController');
 const CheckupController = require('../controllers/CheckupController');
 const HealthTipController = require('../controllers/HealthTipController');
+const OcrController = require('../controllers/OcrController');
+const UploadController = require('../controllers/UploadController');
 const auth = require('../middlewares/auth');
 
 const router = new Router({ prefix: '/api' });
 
-// --- 公放路由 ---
+// --- 公开路由（无需登录）---
+// 传统用户名密码
 router.post('/auth/register', AuthController.register);
 router.post('/auth/login', AuthController.login);
+
+// 手机号验证码登录
+router.post('/auth/sms/send', AuthController.sendSmsCode);
+router.post('/auth/sms/register', AuthController.smsRegister); // 手机号注册
+router.post('/auth/sms/login', AuthController.smsLogin); // 验证码登录 (备用)
+
+// 微信小程序登录
+router.post('/auth/wechat/login', AuthController.wechatLogin);
+router.post('/auth/wechat/phone', AuthController.wechatPhoneLogin);
 
 // --- 需登录路由 ---
 // 用户信息
 router.get('/auth/profile', auth, AuthController.profile);
+router.post('/auth/profile/update', auth, AuthController.updateProfile);
+router.post('/auth/setPassword', auth, AuthController.setPassword);
+router.post('/auth/bindPhone', auth, AuthController.bindPhone);
 
 // 健康记录相关
 router.post('/record/add', auth, RecordController.create);
 router.get('/record/list', auth, RecordController.list);
 router.get('/record/trend', auth, RecordController.trend);
+router.get('/record/:id', auth, RecordController.detail);
 
 // 服药计划相关
 router.post('/medication/add', auth, MedicationController.create);
@@ -37,4 +53,37 @@ router.delete('/checkup/delete', auth, CheckupController.delete);
 router.get('/tip/random', auth, HealthTipController.random);
 router.post('/tip/seed', auth, HealthTipController.seed); // 方便初始化
 
+// OCR识别（化验单/B超报告自动识别）
+router.post('/ocr/recognize', auth, OcrController.recognize);
+
+// 文件上传（保存报告原件）
+router.post('/upload/report', auth, UploadController.uploadReport);
+router.get('/upload/report/:filename', auth, UploadController.getReport);
+
+// 百科文章
+const WikiController = require('../controllers/WikiController');
+const admin = require('../middlewares/auth').admin;
+
+// 公开接口 (非通配符)
+router.get('/wiki/list', WikiController.list); // 公开：列表
+router.post('/wiki/init', WikiController.initData); // 初始化数据
+
+// 用户投稿接口（需登录）
+router.post('/wiki/submit', auth, WikiController.submit); // 用户投稿
+router.get('/wiki/mine', auth, WikiController.myArticles); // 我的投稿
+router.post('/wiki/edit', auth, WikiController.editMyArticle); // 编辑投稿
+router.post('/wiki/remove', auth, WikiController.removeMyArticle); // 删除投稿
+
+// 管理员审核接口
+router.get('/wiki/pending', auth, admin, WikiController.pendingList); // 待审核列表
+router.post('/wiki/approve', auth, admin, WikiController.approve); // 审核通过
+router.post('/wiki/reject', auth, admin, WikiController.reject); // 审核拒绝
+router.post('/wiki/create', auth, admin, WikiController.create); // 直接发布
+router.post('/wiki/update', auth, admin, WikiController.update); // 更新文章
+router.post('/wiki/delete', auth, admin, WikiController.delete); // 删除文章
+
+// 公开接口 (通配符 - 必须放最后)
+router.get('/wiki/:id', WikiController.detail); // 公开：详情
+
 module.exports = router;
+

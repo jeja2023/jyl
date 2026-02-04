@@ -35,6 +35,12 @@
 			}
 		},
 		{
+			"path": "pages/record/detail",
+			"style": {
+				"navigationBarTitleText": "记录详情"
+			}
+		},
+		{
 			"path": "pages/medication/plan",
 			"style": {
 				"navigationBarTitleText": "用药提醒"
@@ -58,6 +64,53 @@
 			"path": "pages/wiki/list",
 			"style": {
 				"navigationBarTitleText": "甲友百科",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/wiki/submission",
+			"style": {
+				"navigationBarTitleText": "投稿",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/wiki/my-articles",
+			"style": {
+				"navigationBarTitleText": "我的投稿",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/wiki/review",
+			"style": {
+				"navigationBarTitleText": "内容审核",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/my/index",
+			"style": {
+				"navigationBarTitleText": "个人中心",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/my/profile",
+			"style": {
+				"navigationBarTitleText": "个人信息"
+			}
+		},
+		{
+			"path": "pages/my/settings",
+			"style": {
+				"navigationBarTitleText": "账号设置"
+			}
+		},
+		{
+			"path": "pages/my/about",
+			"style": {
+				"navigationBarTitleText": "关于甲友乐",
 				"navigationStyle": "custom"
 			}
 		}
@@ -85,6 +138,12 @@
 				"text": "趋势",
 				"iconPath": "static/tabbar/chart.png",
 				"selectedIconPath": "static/tabbar/chart-active.png"
+			},
+			{
+				"pagePath": "pages/my/index",
+				"text": "我的",
+				"iconPath": "static/tabbar/user.png",
+				"selectedIconPath": "static/tabbar/user-active.png"
 			}
 		]
 	}

@@ -334,7 +334,7 @@ onMounted(() => {
 <style lang="scss" scoped>
 .container {
   min-height: 100vh;
-  background-color: #f5f7fa;
+  background-color: #F8FAFF;
   display: flex;
   flex-direction: column;
 }
@@ -343,31 +343,33 @@ onMounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 30rpx;
+  padding: 32rpx;
 }
 
-/* 每日贴士 */
+/* 每日贴士卡片升级 */
 .daily-tip-card {
   position: relative;
-  background: linear-gradient(135deg, #3c9cff 0%, #68b5ff 100%);
-  border-radius: 24rpx;
-  padding: 40rpx;
+  background: linear-gradient(135deg, #3E7BFF 0%, #2A5DDF 100%);
+  border-radius: 40rpx;
+  padding: 48rpx;
   display: flex;
   align-items: flex-start;
-  margin-bottom: 40rpx;
-  box-shadow: 0 12rpx 24rpx rgba(60, 156, 255, 0.2);
+  margin-bottom: 48rpx;
+  box-shadow: 0 20rpx 40rpx rgba(62, 123, 255, 0.2);
   overflow: hidden;
   
   .tip-icon {
-    width: 72rpx;
-    height: 72rpx;
+    width: 80rpx;
+    height: 80rpx;
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 50%;
+    backdrop-filter: blur(10px);
+    border-radius: 24rpx;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-right: 24rpx;
     flex-shrink: 0;
+    box-shadow: 0 8rpx 16rpx rgba(0,0,0,0.1);
   }
   
   .tip-content {
@@ -375,27 +377,29 @@ onMounted(() => {
     z-index: 1;
     
     .tip-title {
-      color: #fff;
-      font-size: 32rpx;
-      font-weight: 700;
+      color: #FFFFFF;
+      font-size: 34rpx;
+      font-weight: 900;
       margin-bottom: 12rpx;
       display: block;
+      letter-spacing: 2rpx;
     }
     
     .tip-desc {
       color: rgba(255, 255, 255, 0.9);
       font-size: 26rpx;
-      line-height: 1.5;
+      line-height: 1.6;
+      font-weight: 500;
     }
   }
   
   .tip-decoration {
     position: absolute;
-    right: -20rpx;
-    bottom: -40rpx;
-    width: 200rpx;
-    height: 200rpx;
-    background: rgba(255, 255, 255, 0.1);
+    right: -40rpx;
+    top: -40rpx;
+    width: 240rpx;
+    height: 240rpx;
+    background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
     border-radius: 50%;
   }
 }
@@ -405,85 +409,84 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24rpx;
+  margin-bottom: 32rpx;
+  padding: 0 8rpx;
   
   .header-left {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     
     .title {
-      font-size: 34rpx;
-      font-weight: 700;
-      color: #333;
+      font-size: 36rpx;
+      font-weight: 900;
+      color: #1D2129;
       margin-right: 16rpx;
     }
     
     .badge {
-      background: #e6f7ff;
-      color: #3c9cff;
+      background: #EEF4FF;
+      color: #3E7BFF;
       font-size: 24rpx;
-      padding: 4rpx 16rpx;
-      border-radius: 20rpx;
-      font-weight: 600;
+      padding: 4rpx 20rpx;
+      border-radius: 30rpx;
+      font-weight: 800;
     }
   }
   
   .header-right {
     display: flex;
     align-items: center;
+    background: #FFFFFF;
+    padding: 12rpx 24rpx;
+    border-radius: 30rpx;
+    box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.03);
     
     .add-text {
-      font-size: 28rpx;
-      color: #3c9cff;
-      font-weight: 600;
-      margin-left: 8rpx;
+      font-size: 26rpx;
+      color: #3E7BFF;
+      font-weight: 800;
+      margin-left: 10rpx;
     }
   }
 }
 
-/* 列表容器 */
-.plan-list {
-  flex: 1;
-}
-
-.list-inner {
-  padding-bottom: 40rpx;
-}
-
+/* 计划卡片升级 */
 .plan-card {
-  background: #fff;
-  border-radius: 24rpx;
-  padding: 30rpx;
-  margin-bottom: 24rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
-  transition: all 0.3s;
+  background: #FFFFFF;
+  border-radius: 40rpx;
+  padding: 40rpx;
+  margin-bottom: 32rpx;
+  box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(62, 123, 255, 0.05);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   
   &:active {
-    transform: scale(0.98);
+    transform: scale(0.97);
   }
   
   .card-main {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24rpx;
+    margin-bottom: 32rpx;
     
     .time-wrapper {
         display: flex;
         align-items: baseline;
         
         .time {
-            font-size: 52rpx;
-            font-weight: 800;
-            color: #333;
-            letter-spacing: 1px;
+            font-size: 64rpx;
+            font-weight: 900;
+            color: #1D2129;
+            font-family: 'DIN Condensed', sans-serif;
+            line-height: 1;
         }
         
         .ampm {
-            font-size: 24rpx;
-            color: #999;
-            margin-left: 12rpx;
-            font-weight: 600;
+            font-size: 26rpx;
+            color: #86909C;
+            margin-left: 16rpx;
+            font-weight: 700;
         }
     }
   }
@@ -491,44 +494,51 @@ onMounted(() => {
   .card-info {
     display: flex;
     align-items: center;
-    background: #f9fafc;
-    border-radius: 12rpx;
-    padding: 16rpx 24rpx;
+    background: #F8FAFF;
+    border-radius: 24rpx;
+    padding: 24rpx 32rpx;
     
     .info-item {
         display: flex;
-        align-items: center;
+        flex-direction: column;
+        flex: 1;
         
         .info-label {
-            font-size: 24rpx;
-            color: #999;
-            margin-right: 12rpx;
+            font-size: 20rpx;
+            color: #C9CDD4;
+            margin-bottom: 4rpx;
+            font-weight: 700;
+            text-transform: uppercase;
         }
         
         .info-value {
-            font-size: 28rpx;
-            color: #333;
-            font-weight: 600;
+            font-size: 30rpx;
+            color: #1D2129;
+            font-weight: 800;
         }
     }
     
     .info-divider {
         width: 2rpx;
-        height: 24rpx;
-        background: #e0e0e0;
-        margin: 0 24rpx;
+        height: 48rpx;
+        background: #EEF4FF;
+        margin: 0 32rpx;
     }
   }
   
   .card-note {
-    margin-top: 20rpx;
+    margin-top: 24rpx;
     display: flex;
     align-items: center;
+    padding: 12rpx 20rpx;
+    background: rgba(144, 147, 153, 0.05);
+    border-radius: 12rpx;
     
     .note-text {
         font-size: 24rpx;
-        color: #909399;
-        margin-left: 8rpx;
+        color: #86909C;
+        margin-left: 12rpx;
+        font-weight: 500;
     }
   }
 }
@@ -538,72 +548,67 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding-top: 100rpx;
+  padding: 120rpx 0;
   
   .empty-text {
     font-size: 28rpx;
-    color: #999;
-    margin-top: 24rpx;
+    color: #C9CDD4;
+    margin-top: 32rpx;
+    font-weight: 600;
   }
 }
 
-/* 弹窗样式 */
+/* 弹窗升级 */
 .popup-container {
-  padding: 30rpx;
-  background: #fff;
-  border-radius: 24rpx 24rpx 0 0;
+  padding: 60rpx 48rpx;
+  background: #FFFFFF;
+  border-radius: 50rpx 50rpx 0 0;
 }
 
 .popup-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 40rpx;
+  margin-bottom: 48rpx;
   
   .popup-title {
-    font-size: 34rpx;
-    font-weight: 700;
-    color: #333;
-  }
-  
-  .close-icon {
-      padding: 10rpx;
+    font-size: 40rpx;
+    font-weight: 900;
+    color: #1D2129;
   }
 }
 
 .form-container {
     .form-item {
-        margin-bottom: 32rpx;
+        margin-bottom: 40rpx;
         
         .label {
             font-size: 28rpx;
-            color: #333;
-            font-weight: 600;
-            margin-bottom: 16rpx;
+            color: #1D2129;
+            font-weight: 800;
+            margin-bottom: 20rpx;
             display: block;
         }
         
-        &.half {
-            flex: 1;
-        }
+        &.half { flex: 1; }
     }
     
-    .form-row {
-        display: flex;
-        gap: 24rpx;
-    }
+    .form-row { display: flex; gap: 32rpx; }
 }
 
 .time-picker-trigger {
-    height: 72rpx;
-    border: 1px solid #dadbde;
-    border-radius: 100rpx;
+    height: 100rpx;
+    background: #F8FAFF;
+    border: none;
+    border-radius: 50rpx;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 30rpx;
-    color: #333;
-    font-size: 28rpx;
+    padding: 0 40rpx;
+    color: #1D2129;
+    font-size: 32rpx;
+    font-weight: 800;
+    font-family: 'DIN Condensed', sans-serif;
 }
 
 /* 隐藏滚动条 */
@@ -611,7 +616,5 @@ onMounted(() => {
   display: none;
   width: 0 !important;
   height: 0 !important;
-  -webkit-appearance: none;
-  background: transparent;
 }
 </style>

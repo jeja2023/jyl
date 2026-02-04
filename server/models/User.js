@@ -11,17 +11,39 @@ const User = sequelize.define('User', {
     username: {
         type: DataTypes.STRING,
         unique: true,
-        allowNull: false,
-        comment: '用户名/手机号'
+        allowNull: true,  // 允许为空，支持微信/手机号登录
+        comment: '用户名'
     },
     password: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,  // 允许为空，微信登录不需要密码
         comment: '加密后的密码'
+    },
+    phone: {
+        type: DataTypes.STRING(11),
+        unique: true,
+        allowNull: true,
+        comment: '手机号码'
+    },
+    openid: {
+        type: DataTypes.STRING,
+        unique: true,
+        allowNull: true,
+        comment: '微信小程序openid'
+    },
+    unionid: {
+        type: DataTypes.STRING,
+        unique: true,
+        allowNull: true,
+        comment: '微信unionid（跨应用）'
     },
     nickname: {
         type: DataTypes.STRING,
         comment: '昵称'
+    },
+    avatar: {
+        type: DataTypes.STRING,
+        comment: '头像URL'
     },
     // --- 甲状腺专属字段 ---
     patientType: {
@@ -45,6 +67,10 @@ const User = sequelize.define('User', {
         type: DataTypes.ENUM('user', 'admin'),
         defaultValue: 'user',
         comment: '用户角色'
+    },
+    lastLoginAt: {
+        type: DataTypes.DATE,
+        comment: '最后登录时间'
     }
 }, {
     timestamps: true,

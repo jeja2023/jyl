@@ -10,71 +10,126 @@
       <view class="logo-area">
         <image src="/static/logo.png" mode="aspectFit" class="logo-img"></image>
         <view class="brand-name">甲友乐</view>
-        <view class="brand-slogan">陪伴每一个甲功平稳的日子</view>
+        <view class="brand-slogan">指标管理 · 趋势监测 · 经验交流</view>
+        <view class="medical-disclaimer-tip">非医疗诊断工具，不提供医疗建议</view>
+      </view>
+
+      <!-- #ifdef MP-WEIXIN -->
+      <!-- 微信小程序环境：显示微信登录 -->
+      <view class="wechat-login-area">
+        <view class="login-tip">使用微信账号快速登录</view>
+        
+        <u-button 
+          type="primary" 
+          :loading="loading" 
+          shape="circle" 
+          class="wechat-btn"
+          @click="handleWechatLogin"
+        >
+          <u-icon name="weixin-fill" size="24" color="#FFFFFF" style="margin-right: 12rpx;"></u-icon>
+          微信一键登录
+        </u-button>
+        
+        <button 
+          class="phone-auth-btn" 
+          open-type="getPhoneNumber" 
+          @getphonenumber="onGetPhoneNumber"
+        >
+          <u-icon name="phone" size="18" color="#3E7BFF" style="margin-right: 8rpx;"></u-icon>
+          使用微信手机号登录
+        </button>
+      </view>
+      <!-- #endif -->
+
+      <!-- #ifndef MP-WEIXIN -->
+      <!-- 登录方式切换 -->
+      <view class="login-tabs">
+        <text :class="{active: loginType === 'password'}" @click="loginType = 'password'">账号登录</text>
+        <text :class="{active: loginType === 'phone'}" @click="loginType = 'phone'">手机注册</text>
       </view>
 
       <view class="form-container">
-        <view class="tab-scroller">
-          <view class="tab-item" :class="{active: currentTab === 0}" @click="currentTab = 0">用户登录</view>
-          <view class="tab-item" :class="{active: currentTab === 1}" @click="currentTab = 1">快速注册</view>
-          <view class="tab-slider" :style="{left: currentTab * 50 + '%'}"></view>
-        </view>
-
-        <view class="form-fields" v-if="currentTab === 0">
+        <!-- 账号登录表单 -->
+        <view v-if="loginType === 'password'" class="form-fields">
           <view class="input-group">
             <u-icon name="account" size="20" color="#86909C"></u-icon>
-            <u--input placeholder="用户名 / 手机号" border="none" v-model="loginForm.username" class="custom-input"></u--input>
+            <u--input placeholder="手机号 / 用户名" border="none" v-model="loginForm.username" class="custom-input"></u--input>
           </view>
           <view class="input-group">
             <u-icon name="lock" size="20" color="#86909C"></u-icon>
             <u--input placeholder="登录密码" type="password" border="none" v-model="loginForm.password" class="custom-input"></u--input>
           </view>
-          <view class="aux-links">
-             <text>忘记密码？</text>
-          </view>
-          <u-button type="primary" :loading="loading" text="立即登录" shape="circle" class="submit-btn" @click="handleLogin"></u-button>
         </view>
 
-        <view class="form-fields" v-else>
+        <!-- 手机号注册表单 -->
+        <view v-else class="form-fields">
           <view class="input-group">
-            <u-icon name="account" size="20" color="#86909C"></u-icon>
-            <u--input placeholder="请设定用户名" border="none" v-model="regForm.username" class="custom-input"></u--input>
+            <u-icon name="phone" size="20" color="#86909C"></u-icon>
+            <u--input placeholder="手机号" border="none" v-model="phoneForm.phone" type="number" maxlength="11" class="custom-input"></u--input>
           </view>
           <view class="input-group">
             <u-icon name="lock" size="20" color="#86909C"></u-icon>
-            <u--input placeholder="设定 6-16 位密码" type="password" border="none" v-model="regForm.password" class="custom-input"></u--input>
+            <u--input placeholder="验证码" border="none" v-model="phoneForm.code" type="number" maxlength="6" class="custom-input"></u--input>
+            <view class="code-btn" @click="handleSendCode">
+              {{ codeTime > 0 ? `${codeTime}s后重发` : '获取验证码' }}
+            </view>
           </view>
-          <view class="input-group picker-group" @click="showPicker = true">
-            <u-icon name="list-dot" size="20" color="#86909C"></u-icon>
-            <text class="picker-val" :class="{placeholder: !regForm.patientType}">{{ regForm.patientType || '选择您的疾病类型' }}</text>
-            <u-icon name="arrow-right" size="14" color="#86909C"></u-icon>
+          <view class="input-group">
+            <u-icon name="edit-pen" size="20" color="#86909C"></u-icon>
+            <u--input placeholder="设置登录密码 (至少6位)" type="password" border="none" v-model="phoneForm.password" class="custom-input"></u--input>
           </view>
-          <u-button type="primary" :loading="loading" text="开启健康之旅" shape="circle" class="submit-btn register-btn" @click="handleRegister"></u-button>
         </view>
 
-        <view class="third-party">
-          <view class="line-box">
-             <view class="line"></view>
-             <text>其他登录方式</text>
-             <view class="line"></view>
-          </view>
-          <view class="icons">
-             <view class="i-circle" @click="handleWechatLogin">
-                <u-icon name="weixin-fill" size="28" color="#07C160"></u-icon>
-             </view>
-             <view class="i-circle" @click="handlePhoneLogin">
-                <u-icon name="phone-fill" size="26" color="#3E7BFF"></u-icon>
-             </view>
-          </view>
+        <view class="aux-links" v-if="loginType === 'password'">
+           <text @click="loginType = 'phone'">没有账号？去注册</text>
         </view>
+        <view class="aux-links" v-else>
+           <text @click="loginType = 'password'">已有账号？去登录</text>
+        </view>
+
+        <u-button 
+          type="primary" 
+          :loading="loading" 
+          :text="loginType === 'password' ? '立即登录' : '立即注册'" 
+          shape="circle" 
+          class="submit-btn" 
+          @click="submitLogin"
+        ></u-button>
       </view>
+      
+      <view class="h5-tip" v-if="loginType === 'phone'">
+        <u-icon name="info-circle" size="14" color="#86909C"></u-icon>
+        <text>注册即代表同意用户协议</text>
+      </view>
+      <!-- #endif -->
 
       <view class="agreement">
         登录即代表您同意 <text>《用户协议》</text> 和 <text>《隐私政策》</text>
       </view>
     </view>
 
-    <u-picker :show="showPicker" :columns="[patientTypes]" @confirm="confirmPatientType" @cancel="showPicker = false"></u-picker>
+    <!-- 完善资料弹窗（新用户） -->
+    <u-popup :show="showRegister" mode="center" round="20" @close="showRegister = false" :closeOnClickOverlay="false">
+      <view class="register-popup">
+        <view class="popup-title">欢迎加入甲友乐</view>
+        <view class="popup-desc">请选择您的疾病类型，以便提供更精准的健康管理服务</view>
+        
+        <view class="type-grid">
+          <view 
+            v-for="type in patientTypes" 
+            :key="type" 
+            class="type-item"
+            :class="{active: regForm.patientType === type}"
+            @click="regForm.patientType = type"
+          >
+            {{ type }}
+          </view>
+        </view>
+        
+        <u-button type="primary" :loading="loading" text="开始使用" shape="circle" class="submit-btn popup-btn" @click="handleCompleteRegister"></u-button>
+        <view class="skip-link" @click="skipRegister">跳过，稍后完善</view>
+      </view>
+    </u-popup>
   </view>
 </template>
 
@@ -85,27 +140,214 @@ import http from '@/utils/request.js';
 
 const userStore = useUserStore();
 const loading = ref(false);
-const currentTab = ref(0);
-const showPicker = ref(false);
+const showRegister = ref(false);
 
 const patientTypes = ['甲减', '甲亢', '甲状腺结节', '甲癌术后', '桥本氏甲状腺炎', '其他'];
 
 const loginForm = reactive({ username: '', password: '' });
-const regForm = reactive({ username: '', password: '', patientType: '' });
+const phoneForm = reactive({ phone: '', code: '', password: '' });
+const regForm = reactive({ patientType: '' });
+const loginType = ref('password'); // password | phone
+const codeTime = ref(0);
+let timer = null;
 
-const confirmPatientType = (e) => {
-  regForm.patientType = e.value[0];
-  showPicker.value = false;
+// 临时存储登录结果（用于新用户完善资料）
+let pendingLoginResult = null;
+
+// ==================== 登录入口 ====================
+const submitLogin = () => {
+    if (loginType.value === 'password') {
+        handleLogin();
+    } else {
+        handlePhoneRegister();
+    }
 };
 
+// ==================== 手机号注册 ====================
+const handleSendCode = async () => {
+    if (codeTime.value > 0) return;
+    if (!phoneForm.phone || !/^1[3-9]\d{9}$/.test(phoneForm.phone)) {
+        return uni.$u.toast('请输入正确的手机号');
+    }
+    
+    try {
+        await http.post('/api/auth/sms/send', { phone: phoneForm.phone, type: 'register' });
+        uni.$u.toast('验证码已发送');
+        codeTime.value = 60;
+        timer = setInterval(() => {
+            codeTime.value--;
+            if (codeTime.value <= 0) clearInterval(timer);
+        }, 1000);
+    } catch (e) {
+        // failed
+    }
+};
+
+const handlePhoneRegister = async () => {
+    if (!phoneForm.phone || !phoneForm.code) {
+        return uni.$u.toast('请输入手机号和验证码');
+    }
+    if (!phoneForm.password || phoneForm.password.length < 6) {
+        return uni.$u.toast('请设置至少6位登录密码');
+    }
+    
+    loading.value = true;
+    try {
+        const res = await http.post('/api/auth/sms/register', {
+            phone: phoneForm.phone,
+            code: phoneForm.code,
+            password: phoneForm.password
+        });
+        
+        // 注册也是一种登录成功，如果是新用户则完善资料
+        if (res.isNewUser) {
+            pendingLoginResult = res;
+            showRegister.value = true;
+        } else {
+            completeLogin(res);
+        }
+    } catch (e) {
+        // failed
+    } finally {
+        loading.value = false;
+    }
+};
+
+// ==================== 传统密码登录（H5/APP备用）====================
 const handleLogin = async () => {
-  if (!loginForm.username || !loginForm.password) return uni.$u.toast('请输入完整登录信息');
+  if (!loginForm.username || !loginForm.password) {
+    return uni.$u.toast('请输入完整登录信息');
+  }
   loading.value = true;
   try {
     const res = await http.post('/api/auth/login', loginForm);
-    userStore.setToken(res.token);
-    userStore.setUserInfo(res.userInfo);
-    uni.$u.toast('登录成功');
+    completeLogin(res);
+  } catch (err) {
+    // 错误已由拦截器统一处理
+  } finally {
+    loading.value = false;
+  }
+};
+
+// ==================== 微信登录 ====================
+const handleWechatLogin = () => {
+  // #ifdef MP-WEIXIN
+  uni.login({
+    provider: 'weixin',
+    success: async (loginRes) => {
+      if (loginRes.code) {
+        loading.value = true;
+        try {
+          // 获取用户信息
+          let userInfo = null;
+          try {
+            const profileRes = await new Promise((resolve, reject) => {
+              uni.getUserProfile({
+                desc: '用于完善会员资料',
+                success: resolve,
+                fail: reject
+              });
+            });
+            userInfo = profileRes.userInfo;
+          } catch (e) {
+            // 用户拒绝授权，继续登录
+            console.log('[微信] 用户未授权用户信息');
+          }
+          
+          const res = await http.post('/api/auth/wechat/login', {
+            code: loginRes.code,
+            userInfo
+          });
+          
+          if (res.isNewUser) {
+            // 新用户，弹出完善资料
+            pendingLoginResult = res;
+            showRegister.value = true;
+          } else {
+            completeLogin(res);
+          }
+        } catch (err) {
+          console.error('[微信登录] 失败:', err);
+          uni.$u.toast('登录失败，请重试');
+        } finally {
+          loading.value = false;
+        }
+      }
+    },
+    fail: (err) => {
+      console.error('[微信登录] wx.login失败:', err);
+      uni.$u.toast('微信登录失败');
+    }
+  });
+  // #endif
+};
+
+// 微信获取手机号登录
+const onGetPhoneNumber = async (e) => {
+  // #ifdef MP-WEIXIN
+  if (e.detail.errMsg === 'getPhoneNumber:ok') {
+    loading.value = true;
+    try {
+      // 先获取登录code
+      const loginRes = await new Promise((resolve, reject) => {
+        uni.login({ provider: 'weixin', success: resolve, fail: reject });
+      });
+      
+      const res = await http.post('/api/auth/wechat/phone', {
+        code: loginRes.code,
+        phoneCode: e.detail.code
+      });
+      
+      if (res.isNewUser) {
+        pendingLoginResult = res;
+        showRegister.value = true;
+      } else {
+        completeLogin(res);
+      }
+    } catch (err) {
+      console.error('[微信手机号登录] 失败:', err);
+      uni.$u.toast('获取手机号失败，请重试');
+    } finally {
+      loading.value = false;
+    }
+  } else if (e.detail.errMsg === 'getPhoneNumber:fail user deny') {
+    uni.$u.toast('您取消了手机号授权');
+  } else {
+    uni.$u.toast('获取手机号失败');
+  }
+  // #endif
+};
+
+// ==================== 完成登录/注册 ====================
+const completeLogin = (res) => {
+  userStore.setToken(res.token);
+  userStore.setUserInfo(res.userInfo);
+  uni.$u.toast('登录成功');
+  setTimeout(() => { uni.switchTab({ url: '/pages/index/index' }); }, 1000);
+};
+
+// 完成注册（更新用户资料）
+const handleCompleteRegister = async () => {
+  if (!regForm.patientType) {
+    return uni.$u.toast('请选择疾病类型');
+  }
+  
+  loading.value = true;
+  try {
+    // 先保存token
+    userStore.setToken(pendingLoginResult.token);
+    
+    // 更新用户资料
+    await http.post('/api/auth/profile/update', { 
+      patientType: regForm.patientType 
+    });
+    
+    // 获取最新用户信息
+    const profile = await http.get('/api/auth/profile');
+    userStore.setUserInfo(profile);
+    
+    showRegister.value = false;
+    uni.$u.toast('欢迎加入甲友乐');
     setTimeout(() => { uni.switchTab({ url: '/pages/index/index' }); }, 1000);
   } catch (err) {
     // 错误已由拦截器统一处理
@@ -114,35 +356,19 @@ const handleLogin = async () => {
   }
 };
 
-const handleRegister = async () => {
-  if (!regForm.username || !regForm.password || !regForm.patientType) return uni.$u.toast('请填写完整信息');
-  loading.value = true;
-  try {
-    await http.post('/api/auth/register', regForm);
-    uni.$u.toast('恭喜注册成功，请登录');
-    currentTab.value = 0;
-    // 自动填充用户名
-    loginForm.username = regForm.username;
-  } catch (err) {
-    // 错误已由拦截器统一处理
-  } finally {
-    loading.value = false;
+// 跳过完善资料
+const skipRegister = () => {
+  if (pendingLoginResult) {
+    completeLogin(pendingLoginResult);
   }
-};
-
-const handleWechatLogin = () => {
-  uni.$u.toast('微信登录对接中...');
-};
-
-const handlePhoneLogin = () => {
-  uni.$u.toast('手机验证码登录对接中...');
+  showRegister.value = false;
 };
 </script>
 
 <style lang="scss" scoped>
 .login-wrapper {
   min-height: 100vh;
-  background-color: #FFFFFF;
+  background-color: #F8FAFF;
   position: relative;
   overflow: hidden;
 }
@@ -157,135 +383,266 @@ const handlePhoneLogin = () => {
   .circle {
     position: absolute;
     border-radius: 50%;
-    filter: blur(80px);
+    filter: blur(100px);
+    opacity: 0.6;
   }
   .c1 {
-    width: 400rpx;
-    height: 400rpx;
-    background: rgba(62, 123, 255, 0.1);
-    top: -100rpx;
+    width: 500rpx;
+    height: 500rpx;
+    background: rgba(62, 123, 255, 0.15);
+    top: -150rpx;
     right: -100rpx;
   }
   .c2 {
-    width: 600rpx;
-    height: 600rpx;
-    background: rgba(104, 157, 255, 0.08);
-    bottom: -150rpx;
-    left: -200rpx;
+    width: 700rpx;
+    height: 700rpx;
+    background: rgba(104, 157, 255, 0.12);
+    bottom: -200rpx;
+    left: -250rpx;
   }
 }
 
 .content-body {
   position: relative;
   z-index: 10;
-  padding: 0 64rpx;
+  padding: 0 80rpx;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
 .logo-area {
-  margin-top: 140rpx;
-  margin-bottom: 80rpx;
+  margin-top: 180rpx;
+  margin-bottom: 120rpx;
   text-align: center;
-  .logo-img { width: 140rpx; height: 140rpx; margin-bottom: 24rpx; }
-  .brand-name { font-size: 48rpx; font-weight: 800; color: #1D2129; letter-spacing: 2rpx; }
-  .brand-slogan { font-size: 26rpx; color: #86909C; margin-top: 8rpx; }
+  .logo-img { 
+    width: 160rpx; 
+    height: 160rpx; 
+    margin-bottom: 32rpx;
+    filter: drop-shadow(0 10rpx 20rpx rgba(62, 123, 255, 0.2));
+  }
+  .brand-name { 
+    font-size: 56rpx; 
+    font-weight: 900; 
+    color: #1D2129; 
+    letter-spacing: 4rpx;
+    background: linear-gradient(135deg, #1D2129 0%, #3E7BFF 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .brand-slogan { 
+    font-size: 28rpx; 
+    color: #4E5969; 
+    margin-top: 16rpx;
+    font-weight: 700;
+  }
+  .medical-disclaimer-tip {
+    font-size: 22rpx;
+    color: #F53F3F;
+    margin-top: 12rpx;
+    font-weight: 600;
+    opacity: 0.8;
+  }
 }
 
-.form-container {
+// 微信登录区域
+.wechat-login-area {
   width: 100%;
-  .tab-scroller {
-    display: flex;
-    position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  
+  .login-tip {
+    font-size: 28rpx;
+    color: #86909C;
     margin-bottom: 60rpx;
-    .tab-item {
-      flex: 1;
-      text-align: center;
-      padding: 20rpx 0;
-      font-size: 30rpx;
-      color: #86909C;
-      transition: all 0.3s;
-      &.active { color: #3E7BFF; font-weight: 700; }
-    }
-    .tab-slider {
-      position: absolute;
-      bottom: 0;
-      width: 50%;
-      height: 6rpx;
-      @include flex-center;
-      transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  }
+  
+  .wechat-btn {
+    width: 100% !important;
+    height: 110rpx !important;
+    font-size: 34rpx !important;
+    font-weight: 800 !important;
+    background: linear-gradient(135deg, #07C160, #2DC76D) !important;
+    border: none !important;
+    box-shadow: 0 15rpx 35rpx rgba(7, 193, 96, 0.25) !important;
+    border-radius: 55rpx !important;
+  }
+  
+  .phone-auth-btn {
+    margin-top: 40rpx;
+    padding: 24rpx 60rpx;
+    font-size: 30rpx;
+    color: #3E7BFF;
+    background: #FFFFFF;
+    border-radius: 60rpx;
+    border: 2rpx solid #EEF4FF;
+    font-weight: 700;
+    box-shadow: 0 8rpx 20rpx rgba(62, 123, 255, 0.05);
+    
+    &::after { display: none; }
+    &:active { background: #F8FAFF; }
+  }
+}
+
+// 传统登录切换
+.login-tabs {
+  margin-bottom: 60rpx;
+  display: flex;
+  justify-content: center;
+  gap: 80rpx;
+  
+  text {
+    font-size: 32rpx;
+    color: #C9CDD4;
+    position: relative;
+    padding-bottom: 16rpx;
+    transition: all 0.3s;
+    font-weight: 700;
+    
+    &.active {
+      color: #3E7BFF;
+      font-size: 38rpx;
+      
       &::after {
         content: '';
-        width: 40rpx;
-        height: 6rpx;
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 48rpx;
+        height: 8rpx;
         background: #3E7BFF;
-        border-radius: 6rpx;
+        border-radius: 10rpx;
+        box-shadow: 0 4rpx 10rpx rgba(62, 123, 255, 0.3);
       }
     }
   }
 }
 
 .input-group {
-  @include flex-center;
-  background: #F6F8FC;
-  border-radius: 40rpx;
-  padding: 0 32rpx;
-  height: 100rpx;
+  display: flex;
+  align-items: center;
+  background: #FFFFFF;
+  border-radius: 55rpx;
+  padding: 0 40rpx;
+  height: 110rpx;
   margin-bottom: 32rpx;
-  border: 2rpx solid transparent;
-  transition: all 0.2s;
-  &:focus-within { border-color: #3E7BFF; background: #FFFFFF; }
+  border: 2rpx solid #F0F2F5;
+  transition: all 0.3s;
+  box-shadow: 0 8rpx 20rpx rgba(0,0,0,0.02);
   
-  .custom-input { flex: 1; margin-left: 20rpx; }
-  .picker-val { flex: 1; margin-left: 20rpx; color: #1D2129; &.placeholder { color: #909399; } }
+  &:focus-within { 
+    border-color: #3E7BFF; 
+    box-shadow: 0 12rpx 32rpx rgba(62, 123, 255, 0.1);
+    transform: translateY(-2rpx);
+  }
+  
+  .custom-input { flex: 1; margin-left: 24rpx; font-weight: 500; }
+  
+  .code-btn {
+    font-size: 26rpx;
+    color: #3E7BFF;
+    font-weight: 800;
+    padding: 10rpx 30rpx;
+    background: #F2F7FF;
+    border-radius: 30rpx;
+    
+    &:active { opacity: 0.7; }
+  }
 }
 
 .aux-links {
   text-align: right;
-  font-size: 24rpx;
+  font-size: 26rpx;
   color: #86909C;
-  margin-top: -8rpx;
-  margin-bottom: 40rpx;
+  margin-top: 10rpx;
+  margin-bottom: 60rpx;
+  font-weight: 600;
 }
 
 .submit-btn {
-  height: 100rpx !important;
-  font-size: 32rpx !important;
-  font-weight: 700 !important;
-  box-shadow: 0 12rpx 24rpx rgba(62, 123, 255, 0.25) !important;
-}
-
-.register-btn { background: linear-gradient(135deg, #10B981, #34D399) !important; border: none !important; box-shadow: 0 12rpx 24rpx rgba(16, 185, 129, 0.25) !important; }
-
-.third-party {
-  margin-top: 100rpx;
-  .line-box {
-    @include flex-center;
-    .line { width: 100rpx; height: 1rpx; background: #E5E6EB; }
-    text { font-size: 22rpx; color: #C9CDD4; margin: 0 24rpx; }
-  }
-  .icons {
-    @include flex-center;
-    margin-top: 40rpx;
-    .i-circle {
-      width: 96rpx;
-      height: 96rpx;
-      background: #F6F8FC;
-      border-radius: 50%;
-      @include flex-center;
-      margin: 0 32rpx;
-    }
-  }
+  width: 100% !important;
+  height: 110rpx !important;
+  font-size: 34rpx !important;
+  font-weight: 800 !important;
+  background: linear-gradient(135deg, #3E7BFF 0%, #2A5DDF 100%) !important;
+  border: none !important;
+  box-shadow: 0 15rpx 35rpx rgba(62, 123, 255, 0.3) !important;
+  border-radius: 55rpx !important;
 }
 
 .agreement {
   margin-top: auto;
-  padding-bottom: 60rpx;
+  padding-bottom: 80rpx;
   padding-top: 40rpx;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #C9CDD4;
   text-align: center;
-  text { color: #86909C; }
+  font-weight: 500;
+  text { color: #86909C; font-weight: 700; }
+}
+
+// 完善资料弹窗
+.register-popup {
+  padding: 60rpx 50rpx;
+  width: 640rpx;
+  
+  .popup-title {
+    font-size: 40rpx;
+    font-weight: 900;
+    color: #1D2129;
+    text-align: center;
+  }
+  
+  .popup-desc {
+    font-size: 28rpx;
+    color: #86909C;
+    text-align: center;
+    margin-top: 20rpx;
+    margin-bottom: 50rpx;
+    line-height: 1.6;
+    font-weight: 500;
+  }
+  
+  .type-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20rpx;
+    
+    .type-item {
+      width: calc(50% - 10rpx);
+      padding: 32rpx 0;
+      text-align: center;
+      font-size: 28rpx;
+      color: #4E5969;
+      background: #F8FAFF;
+      border-radius: 24rpx;
+      border: 3rpx solid transparent;
+      transition: all 0.3s;
+      font-weight: 700;
+      
+      &.active {
+        background: #F2F7FF;
+        border-color: #3E7BFF;
+        color: #3E7BFF;
+        transform: scale(1.05);
+      }
+    }
+  }
+  
+  .popup-btn {
+    margin-top: 60rpx;
+  }
+  
+  .skip-link {
+    font-size: 26rpx;
+    color: #C9CDD4;
+    text-align: center;
+    margin-top: 30rpx;
+    font-weight: 600;
+  }
 }
 </style>
