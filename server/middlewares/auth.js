@@ -41,9 +41,6 @@ const authMiddleware = async (ctx, next) => {
     await next();
 };
 
-/**
- * 管理员权限中间件（需配合 authMiddleware 使用）
- */
 const adminMiddleware = async (ctx, next) => {
     if (ctx.state.user?.role !== 'admin') {
         return Response.error(ctx, '需要管理员权限', 403);
@@ -51,5 +48,20 @@ const adminMiddleware = async (ctx, next) => {
     await next();
 };
 
+/**
+ * 可选认证中间件 (如果带了Token则解析，没带也放行)
+ */
+const optionalAuth = async (ctx, next) => {
+    const token = ctx.header.authorization ? ctx.header.authorization.split(' ')[1] : null;
+    if (token) {
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            ctx.state.user = { id: decoded.id };
+        } catch (err) { }
+    }
+    await next();
+};
+
 module.exports = authMiddleware;
 module.exports.admin = adminMiddleware;
+module.exports.optional = optionalAuth;

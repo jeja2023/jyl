@@ -30,10 +30,24 @@ class RecordController {
     // 获取列表 (按日期倒序)
     static async list(ctx) {
         const userId = ctx.state.user.id;
-        const { limit = 20, offset = 0 } = ctx.query;
+        const { limit = 20, offset = 0, hasLab } = ctx.query;
+        const { Op } = require('sequelize');
+
+        const where = { UserId: userId };
+
+        // 如果需要过滤含血检的记录
+        if (hasLab == 1) {
+            where[Op.or] = [
+                { TSH: { [Op.ne]: null } },
+                { FT4: { [Op.ne]: null } },
+                { FT3: { [Op.ne]: null } },
+                { T3: { [Op.ne]: null } },
+                { T4: { [Op.ne]: null } }
+            ];
+        }
 
         const { count, rows } = await HealthRecord.findAndCountAll({
-            where: { UserId: userId },
+            where,
             order: [['recordDate', 'DESC']],
             limit: parseInt(limit),
             offset: parseInt(offset)
@@ -102,6 +116,36 @@ class RecordController {
         });
 
         Response.success(ctx, list);
+    }
+
+    // 更新记录
+    static async update(ctx) {
+        const { id } = ctx.params;
+        const userId = ctx.state.user.id;
+        const data = ctx.request.body;
+
+        const record = await HealthRecord.findOne({ where: { id, UserId: userId } });
+        if (!record) return Response.error(ctx, '记录不存在', 404);
+
+        // 数据清洗
+        for (const key in data) {
+            if (data[key] === '') data[key] = null;
+        }
+
+        await record.update(data);
+        Response.success(ctx, record, '记录已更新');
+    }
+
+    // 删除记录
+    static async delete(ctx) {
+        const { id } = ctx.params;
+        const userId = ctx.state.user.id;
+
+        const record = await HealthRecord.findOne({ where: { id, UserId: userId } });
+        if (!record) return Response.error(ctx, '记录不存在', 404);
+
+        await record.destroy();
+        Response.success(ctx, null, '记录已删除');
     }
 }
 

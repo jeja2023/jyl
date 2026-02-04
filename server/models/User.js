@@ -71,6 +71,11 @@ const User = sequelize.define('User', {
     lastLoginAt: {
         type: DataTypes.DATE,
         comment: '最后登录时间'
+    },
+    wikiReadCount: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+        comment: '百科阅读数'
     }
 }, {
     timestamps: true,

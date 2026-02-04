@@ -40,8 +40,7 @@
         <!-- 核心甲功指标 -->
         <view class="form-card">
           <view class="card-title header-with-tag">
-             <text>核心指标 (常规五项/七项)</text>
-             <view class="essential-tag">必填</view>
+             <text>指标数据 (血检/B超选填其一)</text>
           </view>
           <view class="grid-inputs">
             <view class="grid-cell" v-for="item in coreFields" :key="item.key">
@@ -192,9 +191,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
+import { onLoad } from '@dcloudio/uni-app';
 
 const userStore = useUserStore();
 const loading = ref(false);
@@ -206,6 +206,8 @@ const showUltrasound = ref(false);
 
 const ocrLoading = ref(false);
 const ultrasoundLoading = ref(false);
+const recordId = ref(null);
+const isEdit = computed(() => !!recordId.value);
 
 const reportImages = ref([]);
 const ultrasoundImages = ref([]);
@@ -244,11 +246,49 @@ const form = reactive({
   tiradsLevel: '', noduleFeatures: '', lymphNode: '', ultrasoundNote: ''
 });
 
+onLoad(async (options) => {
+  if (options.id) {
+    recordId.value = options.id;
+    uni.setNavigationBarTitle({ title: '编辑档案' });
+    await fetchRecordDetail(options.id);
+  }
+});
+
+const fetchRecordDetail = async (id) => {
+  try {
+    const res = await http.get(`/api/record/${id}`);
+    // 回填表单
+    Object.keys(form).forEach(key => {
+      if (res[key] !== undefined && res[key] !== null) {
+        form[key] = res[key];
+      }
+    });
+    // 回填图片
+    if (res.reportImage) {
+      try { reportImages.value = JSON.parse(res.reportImage); } catch(e) {}
+    }
+    if (res.ultrasoundImage) {
+      try { ultrasoundImages.value = JSON.parse(res.ultrasoundImage); } catch(e) {}
+    }
+
+    // 自动展开有数据的区域
+    if (form.Calcitonin || form.Tg || form.TRAb || form.T3) showMore.value = true;
+    if (form.Calcium || form.Magnesium || form.PTH) showCalcium.value = true;
+    if (form.thyroidLeft || form.noduleCount || form.tiradsLevel || form.ultrasoundNote || ultrasoundImages.value.length) {
+      showUltrasound.value = true;
+    }
+  } catch (err) {
+    uni.$u.toast('回填数据失败');
+  }
+};
+
 const progress = computed(() => {
-    const fields = ['TSH', 'FT3', 'FT4'];
-    let filled = 1;
-    fields.forEach(f => { if(form[f]) filled++; });
-    return (filled / (fields.length + 1)) * 100;
+    // 基础进度计算：日期、任一图片、任一血检、任一B超
+    let filled = 1; // 日期默认有值
+    if (reportImages.value.length || ultrasoundImages.value.length) filled++;
+    if (form.TSH || form.FT3 || form.FT4) filled++;
+    if (form.thyroidLeft || form.noduleCount || form.tiradsLevel || form.ultrasoundNote) filled++;
+    return (filled / 4) * 100;
 });
 
 const confirmDate = (e) => {
@@ -399,11 +439,12 @@ const fileToBase64 = (filePath) => {
 };
 
 const submit = async () => {
-  const hasLabData = form.TSH || form.FT3 || form.FT4;
-  const hasUltrasoundData = form.thyroidLeft || form.noduleCount;
+  const hasLabData = form.TSH || form.FT3 || form.FT4 || form.TPOAb || form.TGAb || form.Tg || form.TRAb;
+  const hasUltrasoundData = form.thyroidLeft || form.noduleCount || form.tiradsLevel || form.ultrasoundNote || ultrasoundImages.value.length > 0;
+  const hasImages = reportImages.value.length > 0 || ultrasoundImages.value.length > 0;
   
-  if (!hasLabData && !hasUltrasoundData && reportImages.value.length === 0) {
-      return uni.$u.toast('请上传报告图片或填写指标');
+  if (!hasLabData && !hasUltrasoundData && !hasImages) {
+      return uni.$u.toast('请上传报告图片或至少填写一项指标');
   }
   
   loading.value = true;
@@ -413,8 +454,14 @@ const submit = async () => {
       reportImage: JSON.stringify(reportImages.value),
       ultrasoundImage: JSON.stringify(ultrasoundImages.value)
     };
-    await http.post('/api/record/add', submitData);
-    uni.$u.toast('健康档案已更新');
+    
+    if (isEdit.value) {
+      await http.put(`/api/record/${recordId.value}`, submitData);
+    } else {
+      await http.post('/api/record/add', submitData);
+    }
+    
+    uni.$u.toast(isEdit.value ? '档案已更新' : '健康档案已添加');
     setTimeout(() => { uni.navigateBack(); }, 1500);
   } catch (err) {
     console.error(err);

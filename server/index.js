@@ -23,6 +23,7 @@ const MedicationPlan = require('./models/MedicationPlan');
 const CheckupReminder = require('./models/CheckupReminder');
 const HealthTip = require('./models/HealthTip');
 const SmsCode = require('./models/SmsCode');
+const Notification = require('./models/Notification');
 
 // 同步数据库
 sequelize.authenticate()
@@ -59,6 +60,12 @@ sequelize.authenticate()
 
             // 将isthmus改为字符串以支持 "已切除" 等描述
             await sequelize.query("ALTER TABLE HealthRecords MODIFY isthmus VARCHAR(255) COMMENT '峡部厚度'").catch(() => { });
+
+            // 增加用户百科阅读数统计
+            await sequelize.query("ALTER TABLE Users ADD COLUMN wikiReadCount INTEGER DEFAULT 0 COMMENT '百科阅读数'").catch(() => { });
+
+            // 增加服药打卡字段
+            await sequelize.query("ALTER TABLE MedicationPlans ADD COLUMN lastTakenDate DATE COMMENT '上次服药日期'").catch(() => { });
 
             console.log('📝 手动字段升级完成');
         } catch (e) {

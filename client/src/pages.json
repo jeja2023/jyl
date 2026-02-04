@@ -16,6 +16,13 @@
 			}
 		},
 		{
+			"path": "pages/notification/index",
+			"style": {
+				"navigationBarTitleText": "消息中心",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/login/login",
 			"style": {
 				"navigationBarTitleText": "欢迎加入",
@@ -25,7 +32,8 @@
 		{
 			"path": "pages/record/add",
 			"style": {
-				"navigationBarTitleText": "上传化验单"
+				"navigationBarTitleText": "指标录入",
+				"navigationStyle": "custom"
 			}
 		},
 		{
@@ -37,7 +45,8 @@
 		{
 			"path": "pages/record/detail",
 			"style": {
-				"navigationBarTitleText": "记录详情"
+				"navigationBarTitleText": "记录详情",
+				"navigationStyle": "custom"
 			}
 		},
 		{
@@ -112,6 +121,18 @@
 			"style": {
 				"navigationBarTitleText": "关于甲友乐",
 				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/my/agreement",
+			"style": {
+				"navigationBarTitleText": "用户协议"
+			}
+		},
+		{
+			"path": "pages/my/privacy",
+			"style": {
+				"navigationBarTitleText": "隐私政策"
 			}
 		}
 	],

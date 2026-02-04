@@ -50,44 +50,59 @@
             @click="editPlan(item)"
             @longpress.stop="deletePlan(item.id)"
           >
-            <view class="card-main">
-              <view class="time-wrapper">
-                <text class="time">{{ formatTime(item.takeTime) }}</text>
-                <text class="ampm">{{ getAmPm(item.takeTime) }}</text>
+            <!-- 头部：药品名称 + 状态开关 -->
+            <view class="card-header">
+              <view class="medicine-info">
+                <u-icon name="pushpin-fill" color="#3E7BFF" size="16"></u-icon>
+                <text class="medicine-name">{{ item.medicineName }}</text>
               </view>
-              <u-switch 
-                v-model="item.isActive" 
-                activeColor="#3c9cff" 
-                inactiveColor="#e6e6e6" 
-                size="24"
-                @change="togglePlan(item)"
-                @click.stop
-              ></u-switch>
-            </view>
-            
-            <view class="card-info">
-              <view class="info-item">
-                <text class="info-label">药品</text>
-                <text class="info-value">{{ item.medicineName }}</text>
-              </view>
-              <view class="info-divider"></view>
-              <view class="info-item">
-                <text class="info-label">剂量</text>
-                <text class="info-value">{{ item.dosage }}</text>
+              <view class="status-switch" @click.stop>
+                <text class="switch-label">提醒</text>
+                <u-switch 
+                    v-model="item.isActive" 
+                    activeColor="#3E7BFF" 
+                    inactiveColor="#E5E6EB" 
+                    size="18"
+                    @change="togglePlan(item)"
+                ></u-switch>
               </view>
             </view>
 
-            <view class="card-note" v-if="item.notes">
-              <u-icon name="info-circle" color="#909399" size="14"></u-icon>
-              <text class="note-text">{{ item.notes }}</text>
+            <!-- 中间：时间 + 打卡按钮 -->
+            <view class="card-main">
+              <view class="time-box">
+                <text class="time">{{ formatTime(item.takeTime) }}</text>
+                <text class="ampm">{{ getAmPm(item.takeTime) }}</text>
+              </view>
+              
+              <view class="action-box" @click.stop>
+                  <view v-if="isTakenToday(item)" class="status-badge taken">
+                      <u-icon name="checkmark-circle-fill" color="#52C41A" size="20"></u-icon>
+                      <text>今日已服</text>
+                  </view>
+                  <view v-else class="btn-take-pill" @click="takeMedicine(item)">
+                      <text>服药打卡</text>
+                  </view>
+              </view>
+            </view>
+            
+            <!-- 底部：剂量 + 备注 -->
+            <view class="card-footer">
+              <view class="dosage-tag">
+                <text class="label">剂量：</text>
+                <text class="val">{{ item.dosage }}</text>
+              </view>
+              <view class="note-box" v-if="item.notes">
+                <u-icon name="info-circle" color="#86909C" size="14"></u-icon>
+                <text class="note-text">{{ item.notes }}</text>
+              </view>
             </view>
           </view>
 
           <!-- 空状态 -->
           <view class="empty-state" v-if="plans.length === 0">
-            <image src="/static/empty-medication.png" mode="widthFix" class="empty-img" v-if="false"></image>
-            <u-icon name="calendar" size="64" color="#e0e0e0"></u-icon>
-            <text class="empty-text">暂无用药计划，点击右上角添加</text>
+            <u-icon name="clock" size="64" color="#e0e0e0"></u-icon>
+            <text class="empty-text">暂无用药提醒，点击右上角添加</text>
           </view>
           
           <!-- 底部占位，防止被最后的内容遮挡 -->
@@ -309,6 +324,22 @@ const deletePlan = (id) => {
   });
 };
 
+const takeMedicine = async (item) => {
+    try {
+        await http.post('/api/medication/take', { id: item.id });
+        uni.$u.toast('已确认服药');
+        item.lastTakenDate = new Date().toISOString().split('T')[0];
+    } catch (err) {
+        console.error(err);
+    }
+};
+
+const isTakenToday = (item) => {
+    if (!item.lastTakenDate) return false;
+    const today = new Date().toISOString().split('T')[0];
+    return item.lastTakenDate === today;
+};
+
 const togglePlan = async (item) => {
   // 乐观更新
   // item.isActive 已经在 v-model 中改变了，这里只需要发送请求
@@ -450,95 +481,151 @@ onMounted(() => {
   }
 }
 
-/* 计划卡片升级 */
+/* 计划卡片全新改版 */
 .plan-card {
   background: #FFFFFF;
-  border-radius: 40rpx;
-  padding: 40rpx;
-  margin-bottom: 32rpx;
-  box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.02);
-  border: 1px solid rgba(62, 123, 255, 0.05);
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border-radius: 36rpx;
+  padding: 32rpx;
+  margin-bottom: 28rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.02);
   
   &:active {
-    transform: scale(0.97);
+    transform: scale(0.98);
+    transition: all 0.2s;
   }
-  
+
+  /* 头部：药品与开关分离 */
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24rpx;
+    padding-bottom: 20rpx;
+    border-bottom: 1px solid #F2F3F5;
+
+    .medicine-info {
+      display: flex;
+      align-items: center;
+      .medicine-name {
+        font-size: 32rpx;
+        font-weight: 800;
+        color: #1D2129;
+        margin-left: 10rpx;
+      }
+    }
+
+    .status-switch {
+      display: flex;
+      align-items: center;
+      background: #F8FAFF;
+      padding: 6rpx 16rpx;
+      border-radius: 40rpx;
+      .switch-label {
+        font-size: 22rpx;
+        color: #86909C;
+        margin-right: 12rpx;
+        font-weight: 600;
+      }
+    }
+  }
+
+  /* 中间：核心展示区 */
   .card-main {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 32rpx;
-    
-    .time-wrapper {
-        display: flex;
-        align-items: baseline;
-        
-        .time {
-            font-size: 64rpx;
-            font-weight: 900;
-            color: #1D2129;
-            font-family: 'DIN Condensed', sans-serif;
-            line-height: 1;
-        }
-        
-        .ampm {
-            font-size: 26rpx;
-            color: #86909C;
-            margin-left: 16rpx;
-            font-weight: 700;
-        }
-    }
-  }
-  
-  .card-info {
-    display: flex;
-    align-items: center;
-    background: #F8FAFF;
-    border-radius: 24rpx;
-    padding: 24rpx 32rpx;
-    
-    .info-item {
-        display: flex;
-        flex-direction: column;
-        flex: 1;
-        
-        .info-label {
-            font-size: 20rpx;
-            color: #C9CDD4;
-            margin-bottom: 4rpx;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-        
-        .info-value {
-            font-size: 30rpx;
-            color: #1D2129;
-            font-weight: 800;
-        }
-    }
-    
-    .info-divider {
-        width: 2rpx;
-        height: 48rpx;
-        background: #EEF4FF;
-        margin: 0 32rpx;
-    }
-  }
-  
-  .card-note {
-    margin-top: 24rpx;
-    display: flex;
-    align-items: center;
-    padding: 12rpx 20rpx;
-    background: rgba(144, 147, 153, 0.05);
-    border-radius: 12rpx;
-    
-    .note-text {
+    padding: 10rpx 0 20rpx;
+
+    .time-box {
+      display: flex;
+      align-items: flex-end;
+      .time {
+        font-size: 64rpx;
+        font-weight: 900;
+        color: #1D2129;
+        font-family: 'DIN Condensed', sans-serif;
+        line-height: 1;
+      }
+      .ampm {
         font-size: 24rpx;
         color: #86909C;
         margin-left: 12rpx;
-        font-weight: 500;
+        font-weight: 700;
+        margin-bottom: 6rpx;
+      }
+    }
+
+    .action-box {
+      /* 打卡按钮 */
+      .btn-take-pill {
+        background: linear-gradient(135deg, #3E7BFF 0%, #2A5DDF 100%);
+        padding: 14rpx 32rpx;
+        border-radius: 32rpx;
+        box-shadow: 0 8rpx 16rpx rgba(62, 123, 255, 0.2);
+        text {
+          color: #FFFFFF;
+          font-size: 26rpx;
+          font-weight: 700;
+        }
+      }
+
+      /* 已服状态 */
+      .status-badge {
+        display: flex;
+        align-items: center;
+        background: #F6FFED;
+        border: 1px solid #B7EB8F;
+        padding: 10rpx 24rpx;
+        border-radius: 32rpx;
+        text {
+          color: #52C41A;
+          font-size: 24rpx;
+          font-weight: 800;
+          margin-left: 8rpx;
+        }
+      }
+    }
+  }
+
+  /* 底部：辅助信息 */
+  .card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10rpx;
+
+    .dosage-tag {
+      background: #EEF4FF;
+      padding: 6rpx 20rpx;
+      border-radius: 12rpx;
+      .label {
+        font-size: 22rpx;
+        color: #3E7BFF;
+        font-weight: 600;
+      }
+      .val {
+        font-size: 24rpx;
+        color: #3E7BFF;
+        font-weight: 800;
+      }
+    }
+
+    .note-box {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      margin-left: 20rpx;
+      .note-text {
+        font-size: 22rpx;
+        color: #86909C;
+        margin-left: 8rpx;
+        max-width: 300rpx;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
     }
   }
 }

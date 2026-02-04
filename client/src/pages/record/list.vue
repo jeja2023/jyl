@@ -2,25 +2,34 @@
   <view class="trend-wrapper">
     <!-- 顶部切换 -->
     <view class="trend-header">
-      <view class="tab-bar">
-        <view 
-          v-for="tab in tabs" 
-          :key="tab.key" 
-          class="tab-item"
-          :class="{active: currentTab === tab.key}"
-          @click="currentTab = tab.key"
-        >
-          {{ tab.name }}
+      <scroll-view scroll-x class="tab-scroll" :show-scrollbar="false">
+        <view class="tab-bar">
+          <view 
+            v-for="tab in tabs" 
+            :key="tab.key" 
+            class="tab-item"
+            :class="{active: currentTab === tab.key}"
+            @click="currentTab = tab.key"
+          >
+            {{ tab.name }}
+          </view>
         </view>
-      </view>
+      </scroll-view>
     </view>
 
     <!-- 趋势图表区域 -->
     <view class="chart-section" v-if="list.length > 0">
       <view class="chart-card">
         <view class="chart-title">
-          <text class="title">{{ currentTabName }}趋势</text>
-          <text class="sub">近{{ chartData.labels.length }}次检查</text>
+          <view class="title-left">
+            <text class="title">{{ currentTabName }}趋势</text>
+            <text class="full">{{ currentFullName }}</text>
+          </view>
+          <view class="title-right">
+            <view class="zoom-btn" @click="changeCount('zoomIn')"><u-icon name="minus" size="12"></u-icon></view>
+            <text class="sub">显示{{ chartData.labels.length }}次</text>
+            <view class="zoom-btn" @click="changeCount('zoomOut')"><u-icon name="plus" size="12"></u-icon></view>
+          </view>
         </view>
         
         <!-- 简易折线图 (使用 Canvas) -->
@@ -31,7 +40,10 @@
         <!-- 最新值显示 -->
         <view class="latest-value" v-if="latestValue">
           <text class="label">最新值</text>
-          <text class="value" :class="valueStatus">{{ latestValue }}</text>
+          <view class="value-box">
+             <u-icon v-if="valueStatusInfo.icon" :name="valueStatusInfo.icon" size="18" :color="valueStatusInfo.color === 'error' ? '#F53F3F' : '#FF7D00'"></u-icon>
+             <text class="value" :class="'color-' + valueStatusInfo.color">{{ latestValue }}</text>
+          </view>
           <text class="unit">{{ currentUnit }}</text>
         </view>
       </view>
@@ -40,7 +52,7 @@
       <view class="ref-card">
         <text class="ref-title">参考范围</text>
         <view class="ref-range">
-          <text>{{ currentRefRange }}</text>
+          <text>{{ currentRefRange }} <text class="ref-unit">{{ currentUnit }}</text></text>
         </view>
       </view>
     </view>
@@ -54,22 +66,44 @@
       
       <view class="record-list" v-if="list.length > 0">
         <view class="record-item" v-for="(item, index) in list" :key="index" @click="navigateToDetail(item.id)">
-          <view class="record-date">{{ formatDate(item.recordDate) }}</view>
-          <view class="record-values">
-            <view class="val-item">
-              <text class="val">{{ item.TSH || '-' }}</text>
-              <text class="label">TSH</text>
+          <view class="item-inner">
+            <view class="record-left">
+              <view class="record-date">{{ formatDate(item.recordDate).substring(5) }}</view>
+              <view class="record-year">{{ formatDate(item.recordDate).substring(0,4) }}</view>
             </view>
-            <view class="val-item">
-              <text class="val">{{ item.FT4 || '-' }}</text>
-              <text class="label">FT4</text>
+            
+            <view class="record-center">
+              <!-- 血检数据部分 -->
+              <view class="blood-metrics" v-if="item.TSH || item.FT4 || item.FT3">
+                <view class="val-item">
+                  <text class="val" :class="'color-' + getIndicatorInfo(item.TSH, 0.27, 4.2).color">{{ item.TSH || '-' }}</text>
+                  <text class="label">TSH</text>
+                  <u-icon v-if="getIndicatorInfo(item.TSH, 0.27, 4.2).icon" :name="getIndicatorInfo(item.TSH, 0.27, 4.2).icon" size="8" :color="getIndicatorInfo(item.TSH, 0.27, 4.2).color === 'error' ? '#F53F3F' : '#FF7D00'" class="mini-arrow"></u-icon>
+                </view>
+                <view class="val-item">
+                  <text class="val" :class="'color-' + getIndicatorInfo(item.FT4, 12, 22).color">{{ item.FT4 || '-' }}</text>
+                  <text class="label">FT4</text>
+                  <u-icon v-if="getIndicatorInfo(item.FT4, 12, 22).icon" :name="getIndicatorInfo(item.FT4, 12, 22).icon" size="8" :color="getIndicatorInfo(item.FT4, 12, 22).color === 'error' ? '#F53F3F' : '#FF7D00'" class="mini-arrow"></u-icon>
+                </view>
+                <view class="val-item">
+                  <text class="val" :class="'color-' + getIndicatorInfo(item.FT3, 3.1, 6.8).color">{{ item.FT3 || '-' }}</text>
+                  <text class="label">FT3</text>
+                  <u-icon v-if="getIndicatorInfo(item.FT3, 3.1, 6.8).icon" :name="getIndicatorInfo(item.FT3, 3.1, 6.8).icon" size="8" :color="getIndicatorInfo(item.FT3, 3.1, 6.8).color === 'error' ? '#F53F3F' : '#FF7D00'" class="mini-arrow"></u-icon>
+                </view>
+              </view>
+
+              <!-- B超状态标记 (如果是混合录入或纯B超) -->
+              <view class="us-entry" v-if="item.thyroidLeft || item.noduleCount || item.tiradsLevel || hasUltrasoundImages(item.ultrasoundImage)">
+                 <view class="us-tag" :class="{'mini': item.TSH || item.FT4 || item.FT3}">
+                    <u-icon name="photo-fill" size="14" :color="item.TSH ? '#86909C' : '#3E7BFF'"></u-icon>
+                    <text>B超报告</text>
+                    <text class="level" v-if="item.tiradsLevel">TI-RADS {{ item.tiradsLevel }}</text>
+                 </view>
+              </view>
             </view>
-            <view class="val-item">
-              <text class="val">{{ item.FT3 || '-' }}</text>
-              <text class="label">FT3</text>
-            </view>
+
+            <u-icon name="arrow-right" size="14" color="#E5E6EB"></u-icon>
           </view>
-          <u-icon name="arrow-right" size="16" color="#C9CDD4"></u-icon>
         </view>
       </view>
       
@@ -94,21 +128,40 @@ const list = ref([]);
 const currentTab = ref('TSH');
 const canvasWidth = ref(300);
 
+const displayCount = ref(6); // 默认显示近6次
+
+const changeCount = (type) => {
+  if (type === 'zoomOut') {
+    if (displayCount.value < 20) displayCount.value += 2;
+  } else {
+    if (displayCount.value > 2) displayCount.value -= 2;
+  }
+};
+
 const tabs = [
-  { key: 'TSH', name: 'TSH', unit: 'mIU/L', ref: '0.27 - 4.2' },
-  { key: 'FT4', name: 'FT4', unit: 'pmol/L', ref: '12 - 22' },
-  { key: 'FT3', name: 'FT3', unit: 'pmol/L', ref: '3.1 - 6.8' },
-  { key: 'Tg', name: 'Tg', unit: 'ng/mL', ref: '< 77' },
-  { key: 'Calcium', name: '血钙', unit: 'mmol/L', ref: '2.11 - 2.52' }
+  { key: 'TSH', name: 'TSH', fullName: '促甲状腺激素', unit: 'mIU/L', ref: '0.27 - 4.2', color: '#3E7BFF' },
+  { key: 'FT4', name: 'FT4', fullName: '游离甲状腺素', unit: 'pmol/L', ref: '12 - 22', color: '#FF7D00' },
+  { key: 'FT3', name: 'FT3', fullName: '游离三碘甲状腺原氨酸', unit: 'pmol/L', ref: '3.1 - 6.8', color: '#F53F3F' },
+  { key: 'T3', name: 'T3', fullName: '三碘甲状腺原氨酸', unit: 'nmol/L', ref: '1.3 - 3.1', color: '#722ED1' },
+  { key: 'T4', name: 'T4', fullName: '总甲状腺素', unit: 'nmol/L', ref: '66 - 181', color: '#13C2C2' },
+  { key: 'TPOAb', name: 'TPOAb', fullName: '甲状腺过氧化物酶抗体', unit: 'IU/mL', ref: '< 34', color: '#EB2F96' },
+  { key: 'TGAb', name: 'TGAb', fullName: '甲状腺球蛋白抗体', unit: 'IU/mL', ref: '< 115', color: '#2F54EB' },
+  { key: 'Tg', name: 'Tg', fullName: '甲状腺球蛋白', unit: 'ng/mL', ref: '< 77', color: '#FAAD14' },
+  { key: 'Calcitonin', name: '降钙素', fullName: '降钙素', unit: 'pg/mL', ref: '< 9.52', color: '#A0D911' },
+  { key: 'Calcium', name: '血钙', fullName: '血钙', unit: 'mmol/L', ref: '2.11 - 2.52', color: '#FA541C' },
+  { key: 'PTH', name: 'PTH', fullName: '甲状旁腺激素', unit: 'pg/mL', ref: '15 - 65', color: '#2F54EB' }
 ];
 
-const currentTabName = computed(() => tabs.find(t => t.key === currentTab.value)?.name || '');
-const currentUnit = computed(() => tabs.find(t => t.key === currentTab.value)?.unit || '');
-const currentRefRange = computed(() => tabs.find(t => t.key === currentTab.value)?.ref || '');
+const currentTabItem = computed(() => tabs.find(t => t.key === currentTab.value));
+const currentTabName = computed(() => currentTabItem.value?.name || '');
+const currentFullName = computed(() => currentTabItem.value?.fullName || '');
+const currentUnit = computed(() => currentTabItem.value?.unit || '');
+const currentRefRange = computed(() => currentTabItem.value?.ref || '');
+const currentThemeColor = computed(() => currentTabItem.value?.color || '#3E7BFF');
 
 // 图表数据
 const chartData = computed(() => {
-  const reversed = [...list.value].reverse().slice(-12); // 最近12条，按时间升序
+  const reversed = [...list.value].reverse().slice(-displayCount.value); // 按当前显示数量切片
   const labels = reversed.map(item => {
     const d = new Date(item.recordDate);
     return `${d.getMonth() + 1}/${d.getDate()}`;
@@ -123,15 +176,35 @@ const latestValue = computed(() => {
   return list.value[0][currentTab.value] || null;
 });
 
-// 值状态（正常/偏高/偏低）
-const valueStatus = computed(() => {
-  const val = latestValue.value;
-  if (!val) return '';
-  if (currentTab.value === 'TSH') {
-    if (val > 4.2) return 'high';
-    if (val < 0.27) return 'low';
+// 指标信息判定助手
+const getIndicatorInfo = (val, min, max) => {
+  if (val === undefined || val === null || val === '') return { status: '未录入', color: 'gray', icon: '' };
+  const floatVal = parseFloat(val);
+  if (floatVal > max) return { status: '偏高', color: 'error', icon: 'arrow-up-fill' };
+  if (floatVal < min) return { status: '偏低', color: 'warning', icon: 'arrow-down-fill' };
+  return { status: '正常', color: 'success', icon: '' };
+};
+
+// 核心判定逻辑提取
+const getIndicatorInfoFromRef = (val, refStr) => {
+  if (!val || !refStr) return { status: '正常', color: 'success', icon: '' };
+  
+  const rangeMatch = refStr.match(/([\d\.]+)\s*-\s*([\d\.]+)/);
+  if (rangeMatch) {
+    return getIndicatorInfo(val, parseFloat(rangeMatch[1]), parseFloat(rangeMatch[2]));
+  } else if (refStr.startsWith('<')) {
+    const max = parseFloat(refStr.substring(1).trim());
+    return getIndicatorInfo(val, 0, max);
+  } else if (refStr.startsWith('>')) {
+    const min = parseFloat(refStr.substring(1).trim());
+    return getIndicatorInfo(val, min, Infinity);
   }
-  return 'normal';
+  return { status: '正常', color: 'success', icon: '' };
+};
+
+// 值状态提示
+const valueStatusInfo = computed(() => {
+  return getIndicatorInfoFromRef(latestValue.value, currentRefRange.value);
 });
 
 // 格式化日期
@@ -139,6 +212,17 @@ const formatDate = (dateStr) => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+};
+
+// 安全检查是否有B超图片
+const hasUltrasoundImages = (imgStr) => {
+  if (!imgStr) return false;
+  try {
+    const arr = JSON.parse(imgStr);
+    return Array.isArray(arr) && arr.length > 0;
+  } catch (e) {
+    return false;
+  }
 };
 
 // 绘制图表
@@ -177,7 +261,7 @@ const drawChart = () => {
   }
   
   // 绘制折线
-  ctx.setStrokeStyle('#3E7BFF');
+  ctx.setStrokeStyle(currentThemeColor.value);
   ctx.setLineWidth(2);
   ctx.beginPath();
   
@@ -190,7 +274,10 @@ const drawChart = () => {
     const x = padding.left + (chartWidth / (labels.length - 1 || 1)) * i;
     const y = padding.top + chartHeight - ((values[i] - minVal) / range) * chartHeight;
     
-    points.push({ x, y, value: values[i], label: labels[i] });
+    // 判定异常颜色
+    const status = getIndicatorInfoFromRef(values[i], currentRefRange.value);
+    
+    points.push({ x, y, value: values[i], label: labels[i], status });
     
     if (firstPoint) {
       ctx.moveTo(x, y);
@@ -208,19 +295,40 @@ const drawChart = () => {
     ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
     ctx.fill();
     
-    ctx.setStrokeStyle('#3E7BFF');
+    // 设置点的主色：如果是最后一个点且没有异常，用主题色；如果有异常，用异常色
+    let dotColor = currentThemeColor.value;
+    if (p.status.color === 'error') dotColor = '#F53F3F';
+    else if (p.status.color === 'warning') dotColor = '#FF7D00';
+
+    ctx.setStrokeStyle(dotColor);
     ctx.setLineWidth(2);
     ctx.beginPath();
     ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
     ctx.stroke();
     
-    // 最后一个点高亮
-    if (idx === points.length - 1) {
-      ctx.setFillStyle('#3E7BFF');
+    // 高亮核心点
+    if (p.status.color !== 'success' || idx === points.length - 1) {
+      ctx.setFillStyle(dotColor);
       ctx.beginPath();
       ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
       ctx.fill();
     }
+
+    // 绘制异常箭头
+    if (p.status.icon) {
+      ctx.setFillStyle(dotColor);
+      ctx.setFontSize(10);
+      const arrow = p.status.icon === 'arrow-up-fill' ? '↑' : '↓';
+      ctx.fillText(arrow, p.x, p.y - 10);
+    }
+
+    // 绘制具体数值
+    ctx.setFillStyle(p.status.color !== 'success' ? dotColor : '#86909C');
+    ctx.setFontSize(10);
+    ctx.setTextAlign('center');
+    // 如果有箭头，数值放在箭头上方
+    const textOffset = p.status.icon ? 22 : 12;
+    ctx.fillText(p.value, p.x, p.y - textOffset);
   });
   
   // 绘制X轴标签
@@ -250,6 +358,10 @@ const fetchList = async () => {
 
 // 监听 tab 切换重绘图表
 watch(currentTab, () => {
+  nextTick(() => drawChart());
+});
+
+watch(displayCount, () => {
   nextTick(() => drawChart());
 });
 
@@ -286,8 +398,13 @@ onShow(() => {
   padding: 40rpx 32rpx 80rpx;
   border-radius: 0 0 40rpx 40rpx;
   
+  .tab-scroll {
+    width: 100%;
+    white-space: nowrap;
+  }
+  
   .tab-bar {
-    display: flex;
+    display: inline-flex;
     background: rgba(255, 255, 255, 0.12);
     backdrop-filter: blur(10px);
     border-radius: 20rpx;
@@ -295,14 +412,13 @@ onShow(() => {
     border: 1px solid rgba(255, 255, 255, 0.1);
     
     .tab-item {
-      flex: 1;
-      text-align: center;
-      padding: 18rpx 0;
+      padding: 18rpx 32rpx;
       font-size: 26rpx;
       color: rgba(255, 255, 255, 0.8);
       border-radius: 16rpx;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       font-weight: 500;
+      flex-shrink: 0;
       
       &.active {
         background: #FFFFFF;
@@ -333,19 +449,55 @@ onShow(() => {
     align-items: center;
     margin-bottom: 30rpx;
     
-    .title {
-      font-size: 34rpx;
-      font-weight: 900;
-      color: #1D2129;
+    .title-left {
+      display: flex;
+      flex-direction: column;
+      
+      .title {
+        font-size: 34rpx;
+        font-weight: 900;
+        color: #1D2129;
+      }
+      
+      .full {
+        font-size: 20rpx;
+        color: #86909C;
+        margin-top: 4rpx;
+        font-weight: 500;
+      }
     }
     
-    .sub {
-      font-size: 22rpx;
-      color: #86909C;
+    .title-right {
+      display: flex;
+      align-items: center;
       background: #F2F7FF;
-      padding: 4rpx 16rpx;
+      padding: 6rpx 12rpx;
       border-radius: 30rpx;
-      font-weight: 600;
+      gap: 12rpx;
+      
+      .sub {
+        font-size: 22rpx;
+        color: #3E7BFF;
+        font-weight: 800;
+        min-width: 80rpx;
+        text-align: center;
+      }
+      
+      .zoom-btn {
+        width: 40rpx;
+        height: 40rpx;
+        background: #FFFFFF;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2rpx 8rpx rgba(62, 123, 255, 0.1);
+        
+        &:active {
+          transform: scale(0.9);
+          background: #EEF4FF;
+        }
+      }
     }
   }
   
@@ -421,6 +573,12 @@ onShow(() => {
   }
 }
 
+.value-box {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
 // 历史记录列表升级
 .history-section {
   padding: 40rpx 32rpx;
@@ -465,50 +623,152 @@ onShow(() => {
 }
 
 .record-item {
-  display: flex;
-  align-items: center;
-  padding: 36rpx 28rpx;
+  padding: 32rpx 24rpx;
   border-bottom: 1px solid #F8FAFF;
+  position: relative;
   
   &:last-child { border-bottom: none; }
-  &:active { background: #F2F7FF; }
+  &:active { background: #F8FAFF; }
   
-  .record-date {
-    display: flex;
-    flex-direction: column;
-    width: 160rpx;
-    
-    font-size: 28rpx;
-    color: #4E5969;
-    font-weight: 700;
-    font-family: 'DIN Condensed', sans-serif;
+  // 左侧指示条
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 6rpx;
+    height: 40%;
+    background: #3E7BFF;
+    border-radius: 0 4rpx 4rpx 0;
+    opacity: 0;
+    transition: all 0.3s;
   }
   
-  .record-values {
+  &:active::before {
+    opacity: 1;
+    height: 60%;
+  }
+
+  .item-inner {
+    display: flex;
+    align-items: center;
+    gap: 24rpx;
+  }
+  
+  .record-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100rpx;
+    
+    .record-date {
+      font-size: 32rpx;
+      font-weight: 900;
+      color: #1D2129;
+      font-family: 'DIN Condensed', sans-serif;
+      line-height: 1;
+    }
+    
+    .record-year {
+      font-size: 20rpx;
+      color: #C9CDD4;
+      font-weight: 700;
+      margin-top: 4rpx;
+    }
+  }
+  
+  .record-center {
     flex: 1;
     display: flex;
+    flex-direction: column;
+    gap: 16rpx;
+  }
+
+  .blood-metrics {
+    display: flex;
+    justify-content: flex-start;
+    gap: 40rpx;
     
     .val-item {
-      flex: 1;
-      text-align: center;
+      display: flex;
+      flex-direction: column;
+      position: relative;
       
       .val {
-        display: block;
         font-size: 32rpx;
-        font-weight: 800;
-        color: #1D2129;
+        font-weight: 900;
         font-family: 'DIN Condensed', sans-serif;
+        line-height: 1.2;
       }
       
       .label {
         font-size: 18rpx;
         color: #C9CDD4;
         font-weight: 700;
-        text-transform: uppercase;
+        margin-top: -2rpx;
+      }
+      
+      .mini-arrow {
+        position: absolute;
+        top: -4rpx;
+        right: -12rpx;
+      }
+    }
+  }
+
+  .us-entry {
+    display: flex;
+    
+    .us-tag {
+      display: flex;
+      align-items: center;
+      gap: 8rpx;
+      background: #F2F7FF;
+      padding: 8rpx 20rpx;
+      border-radius: 12rpx;
+      
+      text {
+        font-size: 24rpx;
+        color: #3E7BFF;
+        font-weight: 800;
+      }
+      
+      .level {
+        margin-left: 12rpx;
+        font-size: 20rpx;
+        color: #F53F3F;
+        font-weight: 900;
+        background: #FFF2F0;
+        padding: 2rpx 10rpx;
+        border-radius: 4rpx;
+      }
+      
+      &.mini {
+        background: #F8FAFF;
+        padding: 4rpx 12rpx;
+        border-radius: 8rpx;
+        
+        text {
+          font-size: 22rpx;
+          color: #86909C;
+          font-weight: 700;
+        }
+        
+        .level {
+          font-weight: 700;
+        }
       }
     }
   }
 }
+
+/* 颜色工具 */
+.color-success { color: #00B42A !important; }
+.color-warning { color: #FF7D00 !important; }
+.color-error { color: #F53F3F !important; }
+.color-gray { color: #C9CDD4 !important; }
 
 // 悬浮按钮美化
 .fab-btn {

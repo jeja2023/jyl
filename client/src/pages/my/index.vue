@@ -20,17 +20,17 @@
     <!-- 统计信息看板 -->
     <view class="stats-board">
       <view class="stats-item">
-        <text class="num">12</text>
+        <text class="num">{{ stats.checkupDays }}</text>
         <text class="label">记录天数</text>
       </view>
       <view class="divider"></view>
       <view class="stats-item">
-        <text class="num">5</text>
+        <text class="num">{{ stats.labReports }}</text>
         <text class="label">化验份数</text>
       </view>
       <view class="divider"></view>
       <view class="stats-item">
-        <text class="num">28</text>
+        <text class="num">{{ stats.wikiReads }}</text>
         <text class="label">百科阅读</text>
       </view>
     </view>
@@ -81,11 +81,19 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/index.js';
+import http from '@/utils/request.js';
 
 const userStore = useUserStore();
 const userInfo = computed(() => userStore.userInfo);
+
+const stats = ref({
+  checkupDays: 0,
+  labReports: 0,
+  wikiReads: 0
+});
 
 // 显示名称：优先昵称，其次手机号后4位
 const displayName = computed(() => {
@@ -105,6 +113,16 @@ const maskedPhone = computed(() => {
   if (!phone) return '未绑定手机';
   return phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
 });
+
+const fetchStats = async () => {
+  if (!userStore.isLogin) return;
+  try {
+    const res = await http.get('/api/auth/stats');
+    stats.value = res;
+  } catch (err) {
+    console.error('获取统计数据失败', err);
+  }
+};
 
 const goProfile = () => {
   uni.navigateTo({ url: '/pages/my/profile' });
@@ -132,6 +150,12 @@ const handleLogout = () => {
     }
   });
 };
+
+onShow(() => {
+  if (userStore.isLogin) {
+    fetchStats();
+  }
+});
 </script>
 
 <style lang="scss" scoped>

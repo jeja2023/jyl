@@ -41,9 +41,12 @@ const checkReminders = async () => {
 const fetchLastRecord = async () => {
   if (!userStore.isLogin) return;
   try {
-    const res = await http.get('/api/record/list', { params: { limit: 1 } });
+    // 增加 hasLab 参数，由后端过滤掉纯 B 超记录，确保显示的是最后一次真实血检
+    const res = await http.get('/api/record/list', { params: { limit: 1, hasLab: 1 } });
     if (res.list && res.list.length > 0) {
       lastRecord.value = res.list[0];
+    } else {
+      lastRecord.value = null;
     }
   } catch (err) {
     console.error(err);
@@ -87,6 +90,11 @@ const goToWiki = () => {
   uni.navigateTo({ url: '/pages/wiki/list' });
 };
 
+const goToDetail = (id) => {
+  if (!id) return;
+  uni.navigateTo({ url: `/pages/record/detail?id=${id}` });
+};
+
 const viewDetail = async (item) => {
   uni.showLoading({ title: '加载中' });
   try {
@@ -98,6 +106,11 @@ const viewDetail = async (item) => {
   } finally {
       uni.hideLoading();
   }
+};
+
+const goToNotification = () => {
+    if (!userStore.isLogin) return goToLogin();
+    uni.navigateTo({ url: '/pages/notification/index' });
 };
 
 // 功能开发中提示
@@ -112,27 +125,12 @@ const getTshColor = (tsh) => {
   return 'color-success';
 };
 
-const getTshStatus = (tsh) => {
-  if (!tsh) return '未录入';
-  if (tsh > 4.2) return '偏高';
-  if (tsh < 0.27) return '偏低';
-  return '正常';
-};
-
-// FT4 正常范围：12-22 pmol/L
-const getFt4Status = (ft4) => {
-  if (!ft4) return '未录入';
-  if (ft4 > 22) return '偏高';
-  if (ft4 < 12) return '偏低';
-  return '正常';
-};
-
-// FT3 正常范围：3.1-6.8 pmol/L
-const getFt3Status = (ft3) => {
-  if (!ft3) return '未录入';
-  if (ft3 > 6.8) return '偏高';
-  if (ft3 < 3.1) return '偏低';
-  return '正常';
+const getIndicatorInfo = (val, min, max) => {
+  if (val === undefined || val === null || val === '') return { status: '未录入', color: 'gray', icon: '' };
+  const floatVal = parseFloat(val);
+  if (floatVal > max) return { status: '偏高', color: 'error', icon: 'arrow-up-fill' };
+  if (floatVal < min) return { status: '偏低', color: 'warning', icon: 'arrow-down-fill' };
+  return { status: '正常', color: 'success', icon: '' };
 };
 
 onMounted(() => {
@@ -173,7 +171,7 @@ onMounted(() => {
           </view>
         </view>
         <view class="action-icons">
-           <view class="icon-circle" @click="goToMedication">
+           <view class="icon-circle" @click="goToNotification">
               <u-icon name="bell" size="22" color="#fff"></u-icon>
               <view class="red-dot" v-if="hasNotice"></view>
            </view>
@@ -182,55 +180,91 @@ onMounted(() => {
     </view>
 
     <view class="main-body">
-      <!-- 显著位置免责声明 -->
-      <view class="disclaimer-bar">
-        <u-notice-bar 
-          text="温馨提示：甲友乐仅作为病友指标管理监测工具。本应用不提供医疗建议、不具医疗诊断作用，任何决策请咨询医生。" 
-          color="#F53F3F" 
-          bgColor="#FFF2F0"
-          mode="closable"
-          speed="100"
-        ></u-notice-bar>
-      </view>
+
 
       <!-- 核心指标卡片 -->
-      <view class="premium-card indicator-card">
+      <view class="premium-card indicator-card" @click="lastRecord ? goToDetail(lastRecord.id) : navigateToAdd()">
         <view class="card-header">
           <view class="title-row">
             <u-icon name="order" size="20" color="#3E7BFF"></u-icon>
             <text class="label">最近一次化验记录</text>
           </view>
-          <view class="header-right" @click="navigateToAdd">
+          <view class="header-right" v-if="!lastRecord" @click.stop="navigateToAdd">
             <text class="empty-link">去记录化验单</text>
             <u-icon name="arrow-right" size="12" color="#3E7BFF"></u-icon>
+          </view>
+          <view class="record-date-tag" v-else>
+            <text>{{ lastRecord.recordDate }}</text>
           </view>
         </view>
         
         <view class="indicator-values" v-if="lastRecord">
-          <view class="v-item">
-            <text class="v-label">TSH</text>
-            <view class="v-main">
-               <text class="v-num" :class="getTshColor(lastRecord.TSH)">{{ lastRecord.TSH || '-' }}</text>
-               <text class="v-unit">mIU/L</text>
+          <view class="indicator-grid">
+            <!-- TSH -->
+            <view class="v-item primary">
+              <view class="v-main">
+                 <text class="v-num small" :class="'color-' + getIndicatorInfo(lastRecord.TSH, 0.27, 4.2).color">{{ lastRecord.TSH || '-' }}</text>
+                 <u-icon v-if="getIndicatorInfo(lastRecord.TSH, 0.27, 4.2).icon" :name="getIndicatorInfo(lastRecord.TSH, 0.27, 4.2).icon" size="10" :color="getIndicatorInfo(lastRecord.TSH, 0.27, 4.2).color === 'error' ? '#F53F3F' : '#FF7D00'" class="v-icon-abs"></u-icon>
+              </view>
+              <text class="v-label">TSH</text>
+              <text class="v-unit">mIU/L</text>
             </view>
-            <view class="v-tag" :class="getTshColor(lastRecord.TSH) + '-bg'">{{ getTshStatus(lastRecord.TSH) }}</view>
-          </view>
-          <view class="v-divider"></view>
-          <view class="v-item">
-            <text class="v-label">FT4</text>
-            <view class="v-main">
-               <text class="v-num">{{ lastRecord.FT4 || '-' }}</text>
-               <text class="v-unit">pmol/L</text>
+            
+            <!-- FT4 -->
+            <view class="v-item primary">
+              <view class="v-main">
+                 <text class="v-num small" :class="'color-' + getIndicatorInfo(lastRecord.FT4, 12, 22).color">{{ lastRecord.FT4 || '-' }}</text>
+                 <u-icon v-if="getIndicatorInfo(lastRecord.FT4, 12, 22).icon" :name="getIndicatorInfo(lastRecord.FT4, 12, 22).icon" size="10" :color="getIndicatorInfo(lastRecord.FT4, 12, 22).color === 'error' ? '#F53F3F' : '#FF7D00'" class="v-icon-abs"></u-icon>
+              </view>
+              <text class="v-label">FT4</text>
+              <text class="v-unit">pmol/L</text>
             </view>
-            <view class="v-tag gray-bg">{{ getFt4Status(lastRecord.FT4) }}</view>
-          </view>
-          <view class="v-item">
-            <text class="v-label">FT3</text>
-            <view class="v-main">
-               <text class="v-num">{{ lastRecord.FT3 || '-' }}</text>
-               <text class="v-unit">pmol/L</text>
+            
+            <!-- FT3 -->
+            <view class="v-item primary">
+              <view class="v-main">
+                 <text class="v-num small" :class="'color-' + getIndicatorInfo(lastRecord.FT3, 3.1, 6.8).color">{{ lastRecord.FT3 || '-' }}</text>
+                 <u-icon v-if="getIndicatorInfo(lastRecord.FT3, 3.1, 6.8).icon" :name="getIndicatorInfo(lastRecord.FT3, 3.1, 6.8).icon" size="10" :color="getIndicatorInfo(lastRecord.FT3, 3.1, 6.8).color === 'error' ? '#F53F3F' : '#FF7D00'" class="v-icon-abs"></u-icon>
+              </view>
+              <text class="v-label">FT3</text>
+              <text class="v-unit">pmol/L</text>
             </view>
-            <view class="v-tag gray-bg">{{ getFt3Status(lastRecord.FT3) }}</view>
+
+            <!-- T4 -->
+            <view class="v-item primary">
+              <view class="v-main">
+                 <text class="v-num small" :class="'color-' + getIndicatorInfo(lastRecord.T4, 66, 181).color">{{ lastRecord.T4 || '-' }}</text>
+                 <u-icon v-if="getIndicatorInfo(lastRecord.T4, 66, 181).icon" :name="getIndicatorInfo(lastRecord.T4, 66, 181).icon" size="8" :color="getIndicatorInfo(lastRecord.T4, 66, 181).color === 'error' ? '#F53F3F' : '#FF7D00'" class="v-icon-abs-small"></u-icon>
+              </view>
+              <text class="v-label">T4</text>
+              <text class="v-unit">nmol/L</text>
+            </view>
+
+            <!-- T3 -->
+            <view class="v-item primary">
+              <view class="v-main">
+                 <text class="v-num small" :class="'color-' + getIndicatorInfo(lastRecord.T3, 1.3, 3.1).color">{{ lastRecord.T3 || '-' }}</text>
+                 <u-icon v-if="getIndicatorInfo(lastRecord.T3, 1.3, 3.1).icon" :name="getIndicatorInfo(lastRecord.T3, 1.3, 3.1).icon" size="8" :color="getIndicatorInfo(lastRecord.T3, 1.3, 3.1).color === 'error' ? '#F53F3F' : '#FF7D00'" class="v-icon-abs-small"></u-icon>
+              </view>
+              <text class="v-label">T3</text>
+              <text class="v-unit">nmol/L</text>
+            </view>
+
+            <!-- Tg/Cal if exists -->
+            <view class="v-item primary" v-if="lastRecord.Tg">
+              <view class="v-main">
+                 <text class="v-num small" :class="'color-' + getIndicatorInfo(lastRecord.Tg, 0, 77).color">{{ lastRecord.Tg }}</text>
+              </view>
+              <text class="v-label">Tg</text>
+              <text class="v-unit">ng/mL</text>
+            </view>
+            <view class="v-item primary" v-else-if="lastRecord.Calcium">
+              <view class="v-main">
+                 <text class="v-num small" :class="'color-' + getIndicatorInfo(lastRecord.Calcium, 2.11, 2.52).color">{{ lastRecord.Calcium }}</text>
+              </view>
+              <text class="v-label">血钙</text>
+              <text class="v-unit">mmol/L</text>
+            </view>
           </view>
         </view>
         
@@ -422,33 +456,23 @@ page {
     }
     
     .text-info {
-      .welcome-box {
-        display: flex;
-        align-items: center;
-      }
-      
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+
       .greeting {
-        font-size: 42rpx;
+        font-size: 38rpx;
         font-weight: 800;
         color: #FFFFFF;
-        text-shadow: 0 4rpx 12rpx rgba(0,0,0,0.15);
-      }
-      
-      .status-dot {
-        width: 14rpx;
-        height: 14rpx;
-        background: #4AE68A;
-        border-radius: 50%;
-        margin-left: 16rpx;
-        box-shadow: 0 0 15rpx #4AE68A;
-        animation: pulse-green 2s infinite;
+        text-shadow: 0 4rpx 10rpx rgba(0,0,0,0.1);
+        margin-bottom: 4rpx;
       }
       
       .subtitle {
-        font-size: 26rpx;
-        color: rgba(255,255,255,0.85);
-        margin-top: 8rpx;
-        font-weight: 500;
+        font-size: 24rpx;
+        color: rgba(255,255,255,0.7);
+        font-weight: 400;
       }
     }
   }
@@ -501,141 +525,189 @@ page {
   z-index: 20;
 }
 
-/* 指标卡片 */
-.indicator-card {
-  padding: 36rpx;
-  margin-bottom: 32rpx;
-  background: #FFFFFF;
-  border-radius: 40rpx;
-  box-shadow: 0 20rpx 40rpx rgba(62, 123, 255, 0.1);
-  border: 1rpx solid rgba(62, 123, 255, 0.05);
-  
-  .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  /* 指标卡片 */
+  .indicator-card {
+    padding: 36rpx;
     margin-bottom: 32rpx;
-    
-    .title-row {
+    background: #FFFFFF;
+    border-radius: 40rpx;
+    box-shadow: 0 20rpx 40rpx rgba(62, 123, 255, 0.1);
+    border: 1rpx solid rgba(62, 123, 255, 0.05);
+
+    .card-header {
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      .label {
-        font-size: 32rpx;
-        font-weight: 800;
-        color: #1D2129;
-        margin-left: 16rpx;
+      margin-bottom: 32rpx;
+
+      .title-row {
+        display: flex;
+        align-items: center;
+        .label {
+          font-size: 32rpx;
+          font-weight: 800;
+          color: #1D2129;
+          margin-left: 16rpx;
+        }
+      }
+
+      .header-right {
+        display: flex;
+        align-items: center;
+        padding: 10rpx 24rpx;
+        background: #F2F7FF;
+        border-radius: 40rpx;
+
+        .empty-link {
+          font-size: 24rpx;
+          color: #3E7BFF;
+          font-weight: 600;
+        }
       }
     }
-    
-    .header-right {
+
+    .indicator-values {
+      padding: 10rpx 0;
+
+      .indicator-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        row-gap: 32rpx;
+        column-gap: 20rpx;
+      }
+
+      .v-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        padding: 10rpx 0;
+
+        &.primary {
+          background: #F8FAFF;
+          border-radius: 20rpx;
+        }
+
+        .v-label {
+          font-size: 20rpx;
+          color: #86909C;
+          margin-top: 4rpx;
+          font-weight: 700;
+          letter-spacing: 1rpx;
+          transform: scale(0.95);
+        }
+
+        .v-main {
+          display: flex;
+          align-items: baseline;
+          position: relative;
+
+          .v-num {
+            font-size: 40rpx;
+            font-weight: 900;
+            color: #1D2129;
+            font-family: 'DIN Condensed', -apple-system, sans-serif;
+
+            &.small {
+              font-size: 30rpx;
+            }
+          }
+
+          .v-icon-abs {
+            position: absolute;
+            top: -4rpx;
+            right: -16rpx;
+          }
+
+          .v-icon-abs-small {
+            position: absolute;
+            top: -2rpx;
+            right: -12rpx;
+          }
+        }
+
+        .v-unit {
+          font-size: 14rpx;
+          color: #C9CDD4;
+          font-weight: 500;
+          transform: scale(0.9);
+        }
+      }
+    }
+
+    .card-footer {
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      padding: 10rpx 24rpx;
-      background: #F2F7FF;
-      border-radius: 40rpx;
-      
-      .empty-link { 
-        font-size: 24rpx; 
-        color: #3E7BFF; 
+      margin-top: 30rpx;
+      padding-top: 20rpx;
+      border-top: 1rpx solid #F2F3F5;
+
+      .update-tip {
+        display: flex;
+        align-items: center;
+        gap: 8rpx;
+        font-size: 20rpx;
+        color: #86909C;
+      }
+
+      .detail-link {
+        font-size: 22rpx;
+        color: #3E7BFF;
         font-weight: 600;
       }
     }
-  }
 
-  .indicator-values {
-    display: flex;
-    justify-content: space-around;
-    padding: 24rpx 0;
-    
-    .v-item {
+    .empty-box {
+      padding: 40rpx 0;
       display: flex;
       flex-direction: column;
       align-items: center;
-      flex: 1;
 
-      .v-label {
-        font-size: 24rpx;
-        color: #86909C;
-        margin-bottom: 20rpx;
-        font-weight: 600;
-        letter-spacing: 1rpx;
-      }
-
-      .v-main {
+      .plus-anim-box {
+        position: relative;
+        width: 120rpx;
+        height: 120rpx;
+        margin-bottom: 24rpx;
         display: flex;
-        align-items: baseline;
-        margin-bottom: 12rpx;
-        
-        .v-num {
-          font-size: 48rpx;
-          font-weight: 800;
-          color: #1D2129;
-          font-family: 'DIN Condensed', -apple-system, sans-serif;
-        }
-        .v-unit {
-          font-size: 20rpx;
-          color: #C9CDD4;
-          margin-left: 4rpx;
-        }
+        align-items: center;
+        justify-content: center;
       }
 
-      .v-tag {
-        font-size: 20rpx;
-        padding: 6rpx 20rpx;
-        border-radius: 50rpx;
-        font-weight: 700;
+      .circle-btn {
+        width: 100rpx;
+        height: 100rpx;
+        background: #F2F7FF;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        z-index: 2;
+      }
+
+      .ripple {
+        position: absolute;
+        width: 130rpx;
+        height: 130rpx;
+        border: 2rpx dashed #3E7BFF;
+        border-radius: 50%;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        animation: ripple-rotate 10s linear infinite;
+        z-index: 1;
+        box-sizing: border-box;
+        opacity: 0.5;
+      }
+
+      .tip {
+        font-size: 28rpx;
+        color: #86909C;
+        font-weight: 500;
       }
     }
-
-    .v-divider {
-      width: 2rpx;
-      height: 80rpx;
-      background: #F2F3F5;
-      align-self: center;
-    }
   }
-  
-  .empty-box {
-    padding: 40rpx 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    
-    .plus-anim-box {
-      position: relative;
-      width: 100rpx;
-      height: 100rpx;
-      margin-bottom: 24rpx;
-    }
-
-    .circle-btn {
-      width: 100rpx;
-      height: 100rpx;
-      background: #F2F7FF;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-    }
-    
-    .ripple {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      border: 2rpx dashed #3E7BFF;
-      border-radius: 50%;
-      animation: rotate 10s linear infinite;
-    }
-    
-    .tip { 
-      font-size: 28rpx; 
-      color: #86909C; 
-      font-weight: 500;
-    }
-  }
-}
-
 /* 快捷金刚区 */
 .shortcut-grid {
   display: flex;
@@ -851,5 +923,15 @@ page {
   0% { box-shadow: 0 0 0 0 rgba(74, 230, 138, 0.4); }
   70% { box-shadow: 0 0 0 15rpx rgba(74, 230, 138, 0); }
   100% { box-shadow: 0 0 0 0 rgba(74, 230, 138, 0); }
+}
+
+@keyframes ripple-rotate {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>

@@ -32,6 +32,10 @@ const MedicationPlan = sequelize.define('MedicationPlan', {
     notes: {
         type: DataTypes.STRING,
         comment: '备注 (如: 需空腹, 早餐前半小时)'
+    },
+    lastTakenDate: {
+        type: DataTypes.DATEONLY,
+        comment: '上次服药日期'
     }
 }, {
     timestamps: true,

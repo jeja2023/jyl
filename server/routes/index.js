@@ -26,6 +26,7 @@ router.post('/auth/wechat/phone', AuthController.wechatPhoneLogin);
 
 // --- 需登录路由 ---
 // 用户信息
+router.get('/auth/stats', auth, AuthController.stats);
 router.get('/auth/profile', auth, AuthController.profile);
 router.post('/auth/profile/update', auth, AuthController.updateProfile);
 router.post('/auth/setPassword', auth, AuthController.setPassword);
@@ -36,12 +37,15 @@ router.post('/record/add', auth, RecordController.create);
 router.get('/record/list', auth, RecordController.list);
 router.get('/record/trend', auth, RecordController.trend);
 router.get('/record/:id', auth, RecordController.detail);
+router.put('/record/:id', auth, RecordController.update);
+router.delete('/record/:id', auth, RecordController.delete);
 
 // 服药计划相关
 router.post('/medication/add', auth, MedicationController.create);
 router.get('/medication/list', auth, MedicationController.list);
 router.post('/medication/update', auth, MedicationController.update);
 router.post('/medication/toggle', auth, MedicationController.toggle);
+router.post('/medication/take', auth, MedicationController.take); // 服药打卡
 router.delete('/medication/delete', auth, MedicationController.delete);
 
 // 复查提醒相关
@@ -55,6 +59,10 @@ router.post('/tip/seed', auth, HealthTipController.seed); // 方便初始化
 
 // OCR识别（化验单/B超报告自动识别）
 router.post('/ocr/recognize', auth, OcrController.recognize);
+
+// 消息中心
+const NotificationController = require('../controllers/NotificationController');
+router.get('/notification/list', auth, NotificationController.list);
 
 // 文件上传（保存报告原件）
 router.post('/upload/report', auth, UploadController.uploadReport);
@@ -83,7 +91,8 @@ router.post('/wiki/update', auth, admin, WikiController.update); // 更新文章
 router.post('/wiki/delete', auth, admin, WikiController.delete); // 删除文章
 
 // 公开接口 (通配符 - 必须放最后)
-router.get('/wiki/:id', WikiController.detail); // 公开：详情
+const optional = require('../middlewares/auth').optional;
+router.get('/wiki/:id', optional, WikiController.detail); // 公开：详情 (带可选认证)
 
 module.exports = router;
 

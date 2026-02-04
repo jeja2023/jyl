@@ -60,8 +60,15 @@ class WikiController {
             }
         }
 
-        // 增加阅读量
+        // 增加文章总阅读量
         await article.increment('views');
+
+        // 如果用户已登录，增加用户的个人阅读统计
+        if (ctx.state.user?.id) {
+            await User.increment('wikiReadCount', {
+                where: { id: ctx.state.user.id }
+            });
+        }
 
         Response.success(ctx, article);
     }

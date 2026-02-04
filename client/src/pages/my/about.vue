@@ -3,7 +3,7 @@
     <u-navbar title="关于甲友乐" autoBack placeholder :titleStyle="{fontWeight: '700'}"></u-navbar>
     
     <view class="logo-section">
-      <image src="/static/logo.png" mode="aspectFit" class="logo-img"></image>
+      <image src="/static/logo.ico" mode="aspectFit" class="logo-img"></image>
       <view class="brand-name">甲友乐</view>
       <view class="version">Version 1.0.0</view>
     </view>

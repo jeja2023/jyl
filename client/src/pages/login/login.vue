@@ -8,55 +8,33 @@
 
     <view class="content-body">
       <view class="logo-area">
-        <image src="/static/logo.png" mode="aspectFit" class="logo-img"></image>
+        <image src="/static/logo.ico" mode="aspectFit" class="logo-img"></image>
         <view class="brand-name">甲友乐</view>
         <view class="brand-slogan">指标管理 · 趋势监测 · 经验交流</view>
         <view class="medical-disclaimer-tip">非医疗诊断工具，不提供医疗建议</view>
       </view>
 
-      <!-- #ifdef MP-WEIXIN -->
-      <!-- 微信小程序环境：显示微信登录 -->
-      <view class="wechat-login-area">
-        <view class="login-tip">使用微信账号快速登录</view>
-        
-        <u-button 
-          type="primary" 
-          :loading="loading" 
-          shape="circle" 
-          class="wechat-btn"
-          @click="handleWechatLogin"
-        >
-          <u-icon name="weixin-fill" size="24" color="#FFFFFF" style="margin-right: 12rpx;"></u-icon>
-          微信一键登录
-        </u-button>
-        
-        <button 
-          class="phone-auth-btn" 
-          open-type="getPhoneNumber" 
-          @getphonenumber="onGetPhoneNumber"
-        >
-          <u-icon name="phone" size="18" color="#3E7BFF" style="margin-right: 8rpx;"></u-icon>
-          使用微信手机号登录
-        </button>
-      </view>
-      <!-- #endif -->
-
-      <!-- #ifndef MP-WEIXIN -->
       <!-- 登录方式切换 -->
       <view class="login-tabs">
-        <text :class="{active: loginType === 'password'}" @click="loginType = 'password'">账号登录</text>
-        <text :class="{active: loginType === 'phone'}" @click="loginType = 'phone'">手机注册</text>
+        <view class="tab-item" :class="{active: loginType === 'password'}" @click="loginType = 'password'">
+          <text>账号登录</text>
+          <view class="active-line"></view>
+        </view>
+        <view class="tab-item" :class="{active: loginType === 'phone'}" @click="loginType = 'phone'">
+          <text>手机注册</text>
+          <view class="active-line"></view>
+        </view>
       </view>
 
       <view class="form-container">
         <!-- 账号登录表单 -->
         <view v-if="loginType === 'password'" class="form-fields">
           <view class="input-group">
-            <u-icon name="account" size="20" color="#86909C"></u-icon>
+            <u-icon name="account" size="22" color="#3E7BFF"></u-icon>
             <u--input placeholder="手机号 / 用户名" border="none" v-model="loginForm.username" class="custom-input"></u--input>
           </view>
           <view class="input-group">
-            <u-icon name="lock" size="20" color="#86909C"></u-icon>
+            <u-icon name="lock" size="22" color="#3E7BFF"></u-icon>
             <u--input placeholder="登录密码" type="password" border="none" v-model="loginForm.password" class="custom-input"></u--input>
           </view>
         </view>
@@ -64,27 +42,25 @@
         <!-- 手机号注册表单 -->
         <view v-else class="form-fields">
           <view class="input-group">
-            <u-icon name="phone" size="20" color="#86909C"></u-icon>
+            <u-icon name="phone" size="22" color="#3E7BFF"></u-icon>
             <u--input placeholder="手机号" border="none" v-model="phoneForm.phone" type="number" maxlength="11" class="custom-input"></u--input>
           </view>
           <view class="input-group">
-            <u-icon name="lock" size="20" color="#86909C"></u-icon>
+            <u-icon name="integral" size="22" color="#3E7BFF"></u-icon>
             <u--input placeholder="验证码" border="none" v-model="phoneForm.code" type="number" maxlength="6" class="custom-input"></u--input>
             <view class="code-btn" @click="handleSendCode">
-              {{ codeTime > 0 ? `${codeTime}s后重发` : '获取验证码' }}
+              {{ codeTime > 0 ? `${codeTime}s` : '获取验证码' }}
             </view>
           </view>
           <view class="input-group">
-            <u-icon name="edit-pen" size="20" color="#86909C"></u-icon>
+            <u-icon name="edit-pen" size="22" color="#3E7BFF"></u-icon>
             <u--input placeholder="设置登录密码 (至少6位)" type="password" border="none" v-model="phoneForm.password" class="custom-input"></u--input>
           </view>
         </view>
 
-        <view class="aux-links" v-if="loginType === 'password'">
-           <text @click="loginType = 'phone'">没有账号？去注册</text>
-        </view>
-        <view class="aux-links" v-else>
-           <text @click="loginType = 'password'">已有账号？去登录</text>
+        <view class="aux-links">
+           <text v-if="loginType === 'password'" @click="loginType = 'phone'">还没有账号？<text class="blue">去注册</text></text>
+           <text v-else @click="loginType = 'password'">已有账号？<text class="blue">去登录</text></text>
         </view>
 
         <u-button 
@@ -96,15 +72,36 @@
           @click="submitLogin"
         ></u-button>
       </view>
-      
-      <view class="h5-tip" v-if="loginType === 'phone'">
-        <u-icon name="info-circle" size="14" color="#86909C"></u-icon>
-        <text>注册即代表同意用户协议</text>
-      </view>
-      <!-- #endif -->
 
-      <view class="agreement">
-        登录即代表您同意 <text>《用户协议》</text> 和 <text>《隐私政策》</text>
+      <!-- 微信登录区域 (预览展示) -->
+      <view class="wechat-login-section">
+        <view class="divider-text">
+          <view class="line"></view>
+          <text>其他快捷登录方案</text>
+          <view class="line"></view>
+        </view>
+        
+        <view class="wechat-quick-icons">
+           <!-- 微信快速登录 (全环境支持) -->
+           <view class="icon-btn-wrapper">
+             <view class="icon-circle-btn wechat" @click="handleWechatLogin">
+                <u-icon name="weixin-fill" size="30" color="#fff"></u-icon>
+             </view>
+             <text>微信一键登录</text>
+           </view>
+        </view>
+      </view>
+
+      <view class="agreement-area">
+        <u-checkbox-group v-model="agreementChecked">
+          <u-checkbox shape="circle" :name="true" activeColor="#3E7BFF" size="14"></u-checkbox>
+        </u-checkbox-group>
+        <view class="ag-text">
+          登录即代表您同意 
+          <text class="link" @click="goToPage('agreement')">《用户协议》</text> 
+          和 
+          <text class="link" @click="goToPage('privacy')">《隐私政策》</text>
+        </view>
       </view>
     </view>
 
@@ -134,13 +131,16 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 
 const userStore = useUserStore();
 const loading = ref(false);
 const showRegister = ref(false);
+const agreementChecked = ref([]); // 勾选状态
+
+const isAgree = computed(() => agreementChecked.value.length > 0);
 
 const patientTypes = ['甲减', '甲亢', '甲状腺结节', '甲癌术后', '桥本氏甲状腺炎', '其他'];
 
@@ -151,11 +151,18 @@ const loginType = ref('password'); // password | phone
 const codeTime = ref(0);
 let timer = null;
 
+const goToPage = (type) => {
+    uni.navigateTo({ url: `/pages/my/${type}` });
+};
+
 // 临时存储登录结果（用于新用户完善资料）
 let pendingLoginResult = null;
 
 // ==================== 登录入口 ====================
 const submitLogin = () => {
+    if (!isAgree.value) {
+        return uni.$u.toast('请阅读并勾选用户协议');
+    }
     if (loginType.value === 'password') {
         handleLogin();
     } else {
@@ -231,6 +238,27 @@ const handleLogin = async () => {
 
 // ==================== 微信登录 ====================
 const handleWechatLogin = () => {
+  if (!isAgree.value) {
+      return uni.$u.toast('请阅读并勾选用户协议');
+  }
+  // #ifdef H5
+  // H5 环境下模拟微信登录流程
+  loading.value = true;
+  http.post('/api/auth/wechat/login', {
+    code: 'DEV_MOCK_CODE',
+    userInfo: { nickName: 'H5访客' }
+  }).then(res => {
+    if (res.isNewUser) {
+        pendingLoginResult = res;
+        showRegister.value = true;
+    } else {
+        completeLogin(res);
+    }
+  }).finally(() => {
+    loading.value = false;
+  });
+  // #endif
+
   // #ifdef MP-WEIXIN
   uni.login({
     provider: 'weixin',
@@ -284,6 +312,9 @@ const handleWechatLogin = () => {
 
 // 微信获取手机号登录
 const onGetPhoneNumber = async (e) => {
+  if (!isAgree.value) {
+      return uni.$u.toast('请阅读并勾选用户协议');
+  }
   // #ifdef MP-WEIXIN
   if (e.detail.errMsg === 'getPhoneNumber:ok') {
     loading.value = true;
@@ -489,37 +520,51 @@ const skipRegister = () => {
 
 // 传统登录切换
 .login-tabs {
-  margin-bottom: 60rpx;
+  margin-bottom: 70rpx;
   display: flex;
   justify-content: center;
-  gap: 80rpx;
+  gap: 100rpx;
   
-  text {
-    font-size: 32rpx;
-    color: #C9CDD4;
-    position: relative;
-    padding-bottom: 16rpx;
-    transition: all 0.3s;
-    font-weight: 700;
+  .tab-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    
+    text {
+      font-size: 32rpx;
+      color: #C9CDD4;
+      font-weight: 700;
+      transition: all 0.3s;
+    }
+    
+    .active-line {
+      width: 0;
+      height: 8rpx;
+      background: #3E7BFF;
+      border-radius: 10rpx;
+      margin-top: 12rpx;
+      transition: all 0.3s;
+      opacity: 0;
+    }
     
     &.active {
-      color: #3E7BFF;
-      font-size: 38rpx;
-      
-      &::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 48rpx;
-        height: 8rpx;
-        background: #3E7BFF;
-        border-radius: 10rpx;
+      text {
+        color: #3E7BFF;
+        font-size: 38rpx;
+        transform: scale(1.1);
+      }
+      .active-line {
+        width: 50rpx;
+        opacity: 1;
         box-shadow: 0 4rpx 10rpx rgba(62, 123, 255, 0.3);
       }
     }
   }
+}
+
+.form-container {
+  width: 100%;
 }
 
 .input-group {
@@ -527,28 +572,28 @@ const skipRegister = () => {
   align-items: center;
   background: #FFFFFF;
   border-radius: 55rpx;
-  padding: 0 40rpx;
+  padding: 0 44rpx;
   height: 110rpx;
-  margin-bottom: 32rpx;
-  border: 2rpx solid #F0F2F5;
+  margin-bottom: 36rpx;
+  border: 1px solid #F0F2F5;
   transition: all 0.3s;
-  box-shadow: 0 8rpx 20rpx rgba(0,0,0,0.02);
+  box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.02);
   
   &:focus-within { 
     border-color: #3E7BFF; 
     box-shadow: 0 12rpx 32rpx rgba(62, 123, 255, 0.1);
-    transform: translateY(-2rpx);
   }
   
-  .custom-input { flex: 1; margin-left: 24rpx; font-weight: 500; }
+  .custom-input { flex: 1; margin-left: 20rpx; font-weight: 600; font-size: 30rpx; }
   
   .code-btn {
-    font-size: 26rpx;
+    font-size: 24rpx;
     color: #3E7BFF;
     font-weight: 800;
-    padding: 10rpx 30rpx;
-    background: #F2F7FF;
+    padding: 12rpx 28rpx;
+    background: #EEF4FF;
     border-radius: 30rpx;
+    margin-left: 20rpx;
     
     &:active { opacity: 0.7; }
   }
@@ -561,28 +606,87 @@ const skipRegister = () => {
   margin-top: 10rpx;
   margin-bottom: 60rpx;
   font-weight: 600;
+  .blue { color: #3E7BFF; margin-left: 8rpx; text-decoration: underline; }
 }
 
 .submit-btn {
   width: 100% !important;
   height: 110rpx !important;
   font-size: 34rpx !important;
-  font-weight: 800 !important;
+  font-weight: 900 !important;
   background: linear-gradient(135deg, #3E7BFF 0%, #2A5DDF 100%) !important;
   border: none !important;
   box-shadow: 0 15rpx 35rpx rgba(62, 123, 255, 0.3) !important;
   border-radius: 55rpx !important;
+  
+  &:active { transform: scale(0.98); opacity: 0.9; }
 }
 
-.agreement {
-  margin-top: auto;
-  padding-bottom: 80rpx;
-  padding-top: 40rpx;
-  font-size: 24rpx;
-  color: #C9CDD4;
-  text-align: center;
-  font-weight: 500;
-  text { color: #86909C; font-weight: 700; }
+// 微信登录区
+.wechat-login-section {
+  width: 100%;
+  margin-top: 60rpx;
+  
+  .divider-text {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20rpx;
+    margin-bottom: 40rpx;
+    
+    .line { flex: 0.3; height: 1rpx; background: #E5E6EB; }
+    text { font-size: 24rpx; color: #C9CDD4; font-weight: 500; }
+  }
+  
+  .wechat-quick-icons {
+    display: flex;
+    justify-content: center;
+    gap: 100rpx;
+    
+    .icon-btn-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12rpx;
+      
+      text { font-size: 24rpx; color: #86909C; font-weight: 500; }
+    }
+    
+    .icon-circle-btn {
+      width: 100rpx;
+      height: 100rpx;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s;
+      box-shadow: 0 10rpx 25rpx rgba(0,0,0,0.05);
+      
+      &.wechat { 
+        background: linear-gradient(135deg, #07C160, #2DC76D); 
+        box-shadow: 0 10rpx 25rpx rgba(7, 193, 96, 0.2);
+      }
+      
+      &:active { transform: scale(0.9); opacity: 0.8; }
+    }
+  }
+}
+
+.agreement-area {
+  margin-top: 60rpx;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 20rpx 0;
+  
+  .ag-text {
+    font-size: 24rpx;
+    color: #86909C;
+    line-height: 1.4;
+    margin-left: 8rpx;
+    
+    .link { color: #3E7BFF; font-weight: 700; margin: 0 4rpx; }
+  }
 }
 
 // 完善资料弹窗

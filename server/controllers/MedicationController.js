@@ -43,6 +43,23 @@ class MedicationController {
         Response.success(ctx, null, '状态已更新');
     }
 
+    // 服药打卡
+    static async take(ctx) {
+        const { id } = ctx.request.body;
+        const userId = ctx.state.user.id;
+        const today = new Date().toISOString().split('T')[0];
+
+        const plan = await MedicationPlan.findOne({ where: { id, UserId: userId } });
+        if (!plan) {
+            return Response.error(ctx, '计划不存在', 404);
+        }
+
+        plan.lastTakenDate = today;
+        await plan.save();
+
+        Response.success(ctx, { lastTakenDate: today }, '已确认服药');
+    }
+
     // 更新计划信息
     static async update(ctx) {
         const { id, medicineName, dosage, takeTime, notes } = ctx.request.body;
