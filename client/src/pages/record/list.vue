@@ -122,6 +122,7 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
+import { getIndicatorInfo, getIndicatorInfoFromRef } from '@/utils/indicator.js';
 
 const userStore = useUserStore();
 const list = ref([]);
@@ -176,31 +177,7 @@ const latestValue = computed(() => {
   return list.value[0][currentTab.value] || null;
 });
 
-// 指标信息判定助手
-const getIndicatorInfo = (val, min, max) => {
-  if (val === undefined || val === null || val === '') return { status: '未录入', color: 'gray', icon: '' };
-  const floatVal = parseFloat(val);
-  if (floatVal > max) return { status: '偏高', color: 'error', icon: 'arrow-up-fill' };
-  if (floatVal < min) return { status: '偏低', color: 'warning', icon: 'arrow-down-fill' };
-  return { status: '正常', color: 'success', icon: '' };
-};
-
-// 核心判定逻辑提取
-const getIndicatorInfoFromRef = (val, refStr) => {
-  if (!val || !refStr) return { status: '正常', color: 'success', icon: '' };
-  
-  const rangeMatch = refStr.match(/([\d\.]+)\s*-\s*([\d\.]+)/);
-  if (rangeMatch) {
-    return getIndicatorInfo(val, parseFloat(rangeMatch[1]), parseFloat(rangeMatch[2]));
-  } else if (refStr.startsWith('<')) {
-    const max = parseFloat(refStr.substring(1).trim());
-    return getIndicatorInfo(val, 0, max);
-  } else if (refStr.startsWith('>')) {
-    const min = parseFloat(refStr.substring(1).trim());
-    return getIndicatorInfo(val, min, Infinity);
-  }
-  return { status: '正常', color: 'success', icon: '' };
-};
+// getIndicatorInfo 和 getIndicatorInfoFromRef 已从 @/utils/indicator.js 导入
 
 // 值状态提示
 const valueStatusInfo = computed(() => {
@@ -215,13 +192,14 @@ const formatDate = (dateStr) => {
 };
 
 // 安全检查是否有B超图片
-const hasUltrasoundImages = (imgStr) => {
-  if (!imgStr) return false;
+const hasUltrasoundImages = (imgData) => {
+  if (!imgData) return false;
+  if (Array.isArray(imgData)) return imgData.length > 0;
   try {
-    const arr = JSON.parse(imgStr);
+    const arr = JSON.parse(imgData);
     return Array.isArray(arr) && arr.length > 0;
   } catch (e) {
-    return false;
+    return !!imgData; // 如果是单字符串路径也认为有图片
   }
 };
 

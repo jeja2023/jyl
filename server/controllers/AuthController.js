@@ -22,39 +22,37 @@ class AuthController {
     static async stats(ctx) {
         const { id } = ctx.state.user;
 
-        // 1. 记录天数 (不同日期的记录数)
-        const daysCount = await HealthRecord.count({
-            where: { UserId: id },
-            distinct: true,
-            col: 'recordDate'
-        });
-
-        // 2. 化验份数 (有化验数据的记录数)
-        // 只要任一化验指标不为空，就算一份有效化验单
-        const labCount = await HealthRecord.count({
-            where: {
-                UserId: id,
-                [Op.or]: [
-                    { TSH: { [Op.ne]: null } },
-                    { FT3: { [Op.ne]: null } },
-                    { FT4: { [Op.ne]: null } },
-                    { T3: { [Op.ne]: null } },
-                    { T4: { [Op.ne]: null } },
-                    { Tg: { [Op.ne]: null } },
-                    { TGAb: { [Op.ne]: null } },
-                    { TPOAb: { [Op.ne]: null } }
-                ]
-            }
-        });
-
-        // 3. 百科阅读
-        const user = await User.findByPk(id);
-        const wikiReads = user ? (user.wikiReadCount || 0) : 0;
+        const [daysCount, labCount, user] = await Promise.all([
+            // 1. 记录天数 (不同日期的记录数)
+            HealthRecord.count({
+                where: { UserId: id },
+                distinct: true,
+                col: 'recordDate'
+            }),
+            // 2. 化验份数 (有化验数据的记录数)
+            HealthRecord.count({
+                where: {
+                    UserId: id,
+                    [Op.or]: [
+                        { TSH: { [Op.ne]: null } },
+                        { FT3: { [Op.ne]: null } },
+                        { FT4: { [Op.ne]: null } },
+                        { T3: { [Op.ne]: null } },
+                        { T4: { [Op.ne]: null } },
+                        { Tg: { [Op.ne]: null } },
+                        { TGAb: { [Op.ne]: null } },
+                        { TPOAb: { [Op.ne]: null } }
+                    ]
+                }
+            }),
+            // 3. 百科阅读
+            User.findByPk(id, { attributes: ['wikiReadCount'] })
+        ]);
 
         Response.success(ctx, {
             checkupDays: daysCount,
             labReports: labCount,
-            wikiReads: wikiReads
+            wikiReads: user ? (user.wikiReadCount || 0) : 0
         });
     }
 
@@ -352,7 +350,7 @@ class AuthController {
                     avatar: userInfo?.avatarUrl,
                     gender: userInfo?.gender === 1 ? '男' : userInfo?.gender === 2 ? '女' : null,
                     patientType: '其他',
-                    password: 'password123' // 设置默认密码，方便后续切换登录方式
+                    password: Math.random().toString(36).substring(2, 12) + '!' // 随机密码，安全性更高
                 });
                 isNewUser = true;
             } else {
@@ -418,7 +416,7 @@ class AuthController {
                     unionid,
                     nickname: `甲友${phone.slice(-4)}`,
                     patientType: '其他',
-                    password: 'password123' // 默认密码
+                    password: Math.random().toString(36).substring(2, 12) + '!' // 随机密码，安全性更高
                 });
                 isNewUser = true;
             } else {

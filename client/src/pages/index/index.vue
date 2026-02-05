@@ -4,6 +4,7 @@ import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 import { wikiArticles } from '@/utils/wiki-data.js';
+import { getIndicatorInfo } from '@/utils/indicator.js';
 
 const userStore = useUserStore();
 const lastRecord = ref(null);
@@ -55,10 +56,11 @@ const fetchLastRecord = async () => {
 
 // 页面显示时刷新数据
 onShow(() => {
-  fetchArticles(); // 总是刷新文章
+  // 始终刷新文章
+  fetchArticles();
+  // 登录用户的数据并行获取
   if (userStore.isLogin) {
-    fetchLastRecord();
-    checkReminders();
+    Promise.all([fetchLastRecord(), checkReminders()]);
   }
 });
 
@@ -125,18 +127,12 @@ const getTshColor = (tsh) => {
   return 'color-success';
 };
 
-const getIndicatorInfo = (val, min, max) => {
-  if (val === undefined || val === null || val === '') return { status: '未录入', color: 'gray', icon: '' };
-  const floatVal = parseFloat(val);
-  if (floatVal > max) return { status: '偏高', color: 'error', icon: 'arrow-up-fill' };
-  if (floatVal < min) return { status: '偏低', color: 'warning', icon: 'arrow-down-fill' };
-  return { status: '正常', color: 'success', icon: '' };
-};
+// getIndicatorInfo 已从 @/utils/indicator.js 导入
 
+// 移除 onMounted 中的重复调用，因为 onShow 已经覆盖了首次进入
+// onMounted 用于设置非数据相关的初始化（如果有的话）
 onMounted(() => {
-  fetchArticles();
-  fetchLastRecord();
-  checkReminders();
+  // 首次加载时 onShow 会触发，这里不需要重复调用
 });
 </script>
 

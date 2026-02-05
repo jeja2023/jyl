@@ -1,6 +1,8 @@
 const fs = require('fs');
+const fsPromises = require('fs').promises;
 const path = require('path');
 const Response = require('../utils/response');
+const logger = require('../utils/logger');
 
 // 存储目录
 const STORAGE_DIR = path.join(__dirname, '../../storage/reports');
@@ -27,6 +29,11 @@ class UploadController {
             throw new Error('请上传图片');
         }
 
+        // 检查大小 (Base64 大约比原图大 33%, 10MB Base64 约 7.5MB 原图)
+        if (image.length > 10 * 1024 * 1024) {
+            throw new Error('图片文件太大，请上传10MB以下的图片');
+        }
+
         // 解析base64数据
         const matches = image.match(/^data:image\/(\w+);base64,(.+)$/);
         if (!matches) {
@@ -34,6 +41,11 @@ class UploadController {
         }
 
         const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+        // 简单后缀白名单过滤
+        if (!['jpg', 'jpeg', 'png', 'webp'].includes(ext.toLowerCase())) {
+            throw new Error('只支持上传 jpg/png/webp 格式的图片');
+        }
+
         const base64Data = matches[2];
         const buffer = Buffer.from(base64Data, 'base64');
 
@@ -42,44 +54,18 @@ class UploadController {
         const filename = `${userId}_${type}_${timestamp}.${ext}`;
         const filepath = path.join(STORAGE_DIR, filename);
 
-        // 保存文件
-        fs.writeFileSync(filepath, buffer);
+        // 使用异步写入，避免阻塞事件循环
+        await fsPromises.writeFile(filepath, buffer);
 
         // 返回相对路径（用于数据库存储）
         const relativePath = `/storage/reports/${filename}`;
 
-        console.log(`[上传] 用户${userId}上传了${type}报告: ${filename}`);
+        logger.info(`用户${userId}上传了${type}报告: ${filename}`);
 
         Response.success(ctx, {
             path: relativePath,
             filename: filename
         }, '上传成功');
-    }
-
-    /**
-     * 获取报告图片
-     * GET /api/upload/report/:filename
-     */
-    static async getReport(ctx) {
-        const { filename } = ctx.params;
-        const filepath = path.join(STORAGE_DIR, filename);
-
-        if (!fs.existsSync(filepath)) {
-            throw new Error('文件不存在');
-        }
-
-        // 获取文件扩展名确定Content-Type
-        const ext = path.extname(filename).toLowerCase();
-        const mimeTypes = {
-            '.jpg': 'image/jpeg',
-            '.jpeg': 'image/jpeg',
-            '.png': 'image/png',
-            '.gif': 'image/gif',
-            '.webp': 'image/webp'
-        };
-
-        ctx.type = mimeTypes[ext] || 'application/octet-stream';
-        ctx.body = fs.createReadStream(filepath);
     }
 }
 

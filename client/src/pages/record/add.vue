@@ -264,12 +264,14 @@ const fetchRecordDetail = async (id) => {
       }
     });
     // 回填图片
-    if (res.reportImage) {
-      try { reportImages.value = JSON.parse(res.reportImage); } catch(e) {}
-    }
-    if (res.ultrasoundImage) {
-      try { ultrasoundImages.value = JSON.parse(res.ultrasoundImage); } catch(e) {}
-    }
+    const ensureArray = (val) => {
+      if (!val) return [];
+      if (Array.isArray(val)) return val;
+      try { return JSON.parse(val); } catch(e) { return [val]; }
+    };
+    
+    reportImages.value = ensureArray(res.reportImage);
+    ultrasoundImages.value = ensureArray(res.ultrasoundImage);
 
     // 自动展开有数据的区域
     if (form.Calcitonin || form.Tg || form.TRAb || form.T3) showMore.value = true;

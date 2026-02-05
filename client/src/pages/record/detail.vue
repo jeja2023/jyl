@@ -143,6 +143,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import http from '@/utils/request.js';
+import { getIndicatorInfoFromRef } from '@/utils/indicator.js';
 
 const props = defineProps({
   id: { type: [String, Number], required: true }
@@ -212,24 +213,20 @@ const visibleLabMetrics = computed(() => {
   return labMetrics.filter(item => record.value[item.key] !== undefined && record.value[item.key] !== null && record.value[item.key] !== '');
 });
 
+// 指标判断方法，转换颜色格式以适配本组件的显示需求
 const getIndicatorInfo = (val, refStr) => {
-  if (val === undefined || val === null || val === '') return { status: '未录入', color: '#86909C', icon: '' };
-  const floatVal = parseFloat(val);
-  
-  let min = 0, max = Infinity;
-  const rangeMatch = refStr.match(/([\d\.]+)\s*-\s*([\d\.]+)/);
-  if (rangeMatch) {
-    min = parseFloat(rangeMatch[1]);
-    max = parseFloat(rangeMatch[2]);
-  } else if (refStr.startsWith('<')) {
-    max = parseFloat(refStr.substring(1).trim());
-  } else if (refStr.startsWith('>')) {
-    min = parseFloat(refStr.substring(1).trim());
-  }
-
-  if (floatVal > max) return { status: '偏高', color: '#F53F3F', icon: 'arrow-up-fill' };
-  if (floatVal < min) return { status: '偏低', color: '#FF7D00', icon: 'arrow-down-fill' };
-  return { status: '正常', color: '#00B42A', icon: '' };
+  const result = getIndicatorInfoFromRef(val, refStr);
+  // 转换为十六进制颜色值
+  const colorMap = {
+    'error': '#F53F3F',
+    'warning': '#FF7D00',
+    'success': '#00B42A',
+    'gray': '#86909C'
+  };
+  return {
+    ...result,
+    color: colorMap[result.color] || '#86909C'
+  };
 };
 
 const getImageUrl = (path) => {

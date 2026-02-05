@@ -1,4 +1,5 @@
 const Router = require('koa-router');
+const ratelimit = require('koa-ratelimit');
 const AuthController = require('../controllers/AuthController');
 const RecordController = require('../controllers/RecordController');
 const MedicationController = require('../controllers/MedicationController');
@@ -10,15 +11,35 @@ const auth = require('../middlewares/auth');
 
 const router = new Router({ prefix: '/api' });
 
+// 速率限制器
+const authLimiter = ratelimit({
+    driver: 'memory',
+    db: new Map(),
+    duration: 60000,
+    errorMessage: '请求太频繁，请稍后再试',
+    id: (ctx) => ctx.ip,
+    max: 10, // 1分钟内最多10次尝试
+    disableHeader: false
+});
+
+const smsLimiter = ratelimit({
+    driver: 'memory',
+    db: new Map(),
+    duration: 60000,
+    errorMessage: '验证码请求太频繁，请稍后再试',
+    id: (ctx) => ctx.ip,
+    max: 3 // 1分钟内最多3次验证码请求
+});
+
 // --- 公开路由（无需登录）---
 // 传统用户名密码
-router.post('/auth/register', AuthController.register);
-router.post('/auth/login', AuthController.login);
+router.post('/auth/register', authLimiter, AuthController.register);
+router.post('/auth/login', authLimiter, AuthController.login);
 
 // 手机号验证码登录
-router.post('/auth/sms/send', AuthController.sendSmsCode);
-router.post('/auth/sms/register', AuthController.smsRegister); // 手机号注册
-router.post('/auth/sms/login', AuthController.smsLogin); // 验证码登录 (备用)
+router.post('/auth/sms/send', smsLimiter, AuthController.sendSmsCode);
+router.post('/auth/sms/register', authLimiter, AuthController.smsRegister); // 手机号注册
+router.post('/auth/sms/login', authLimiter, AuthController.smsLogin); // 验证码登录 (备用)
 
 // 微信小程序登录
 router.post('/auth/wechat/login', AuthController.wechatLogin);
@@ -66,7 +87,6 @@ router.get('/notification/list', auth, NotificationController.list);
 
 // 文件上传（保存报告原件）
 router.post('/upload/report', auth, UploadController.uploadReport);
-router.get('/upload/report/:filename', auth, UploadController.getReport);
 
 // 百科文章
 const WikiController = require('../controllers/WikiController');

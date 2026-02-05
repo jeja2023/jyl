@@ -2,6 +2,7 @@ const WikiArticle = require('../models/WikiArticle');
 const User = require('../models/User');
 const Response = require('../utils/response');
 const { Op } = require('sequelize');
+const xss = require('xss');
 
 class WikiController {
     /**
@@ -96,7 +97,7 @@ class WikiController {
         const article = await WikiArticle.create({
             title: title.trim(),
             summary: summary || title.substring(0, 100),
-            content,
+            content: xss(content), // XSS 过滤
             category: category || '疾病知识',
             cover,
             status: 'pending', // 用户投稿默认待审核
@@ -166,7 +167,7 @@ class WikiController {
         await article.update({
             title: title !== undefined ? title.trim() : article.title,
             summary: summary !== undefined ? summary : article.summary,
-            content: content !== undefined ? content : article.content,
+            content: content !== undefined ? xss(content) : article.content, // XSS 过滤
             category: category !== undefined ? category : article.category,
             cover: cover !== undefined ? cover : article.cover,
             status: 'pending', // 重新提交后变为待审核

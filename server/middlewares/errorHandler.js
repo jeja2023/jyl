@@ -1,4 +1,5 @@
 const Response = require('../utils/response');
+const logger = require('../utils/logger');
 
 /**
  * 全局错误处理中间件
@@ -7,7 +8,7 @@ const errorHandler = async (ctx, next) => {
     try {
         await next();
     } catch (err) {
-        console.error('❌ 服务器错误:', err);
+        logger.error('服务器错误', { message: err.message, stack: err.stack?.split('\n')[0] });
 
         // 处理不同类型的错误
         if (err.name === 'SequelizeValidationError') {

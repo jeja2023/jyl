@@ -2,17 +2,22 @@ const HealthRecord = require('../models/HealthRecord');
 const Response = require('../utils/response');
 
 class RecordController {
-    // 新增记录
-    static async create(ctx) {
-        const data = ctx.request.body;
-        const userId = ctx.state.user.id;
-
-        // 数据清洗：将空字符串转为 null，防止插入数值类型字段报错 (Data truncated)
+    // 辅助方法：清洗数据，将空字符串转换为 null
+    static cleanData(data) {
         for (const key in data) {
             if (data[key] === '') {
                 data[key] = null;
             }
         }
+    }
+
+    // 新增记录
+    static async create(ctx) {
+        const data = ctx.request.body;
+        const userId = ctx.state.user.id;
+
+        // 数据清洗
+        RecordController.cleanData(data);
 
         // 如果填写了B超数据但没填B超日期，默认使用主日期
         if ((data.thyroidLeft || data.noduleCount || data.ultrasoundNote) && !data.ultrasoundDate) {
@@ -56,16 +61,8 @@ class RecordController {
         // 处理多图 JSON 字符串
         const list = rows.map(item => {
             const row = item.toJSON();
-            try {
-                row.reportImage = row.reportImage ? JSON.parse(row.reportImage) : [];
-            } catch (e) {
-                row.reportImage = row.reportImage ? [row.reportImage] : [];
-            }
-            try {
-                row.ultrasoundImage = row.ultrasoundImage ? JSON.parse(row.ultrasoundImage) : [];
-            } catch (e) {
-                row.ultrasoundImage = row.ultrasoundImage ? [row.ultrasoundImage] : [];
-            }
+            row.reportImage = RecordController.parseImages(row.reportImage);
+            row.ultrasoundImage = RecordController.parseImages(row.ultrasoundImage);
             return row;
         });
 
@@ -90,16 +87,8 @@ class RecordController {
 
         // 处理多图 JSON 字符串
         const row = record.toJSON();
-        try {
-            row.reportImage = row.reportImage ? JSON.parse(row.reportImage) : [];
-        } catch (e) {
-            row.reportImage = row.reportImage ? [row.reportImage] : [];
-        }
-        try {
-            row.ultrasoundImage = row.ultrasoundImage ? JSON.parse(row.ultrasoundImage) : [];
-        } catch (e) {
-            row.ultrasoundImage = row.ultrasoundImage ? [row.ultrasoundImage] : [];
-        }
+        row.reportImage = RecordController.parseImages(row.reportImage);
+        row.ultrasoundImage = RecordController.parseImages(row.ultrasoundImage);
 
         Response.success(ctx, row);
     }
@@ -111,11 +100,12 @@ class RecordController {
         const list = await HealthRecord.findAll({
             where: { UserId: userId },
             attributes: ['recordDate', 'TSH', 'FT3', 'FT4', 'T3', 'T4'],
-            order: [['recordDate', 'ASC']],
+            order: [['recordDate', 'DESC']], // 改为倒序获取最新的
             limit: 12
         });
 
-        Response.success(ctx, list);
+        // 取出后反转，变成按时间正序排列以便前端展示
+        Response.success(ctx, list.reverse());
     }
 
     // 更新记录
@@ -128,8 +118,11 @@ class RecordController {
         if (!record) return Response.error(ctx, '记录不存在', 404);
 
         // 数据清洗
-        for (const key in data) {
-            if (data[key] === '') data[key] = null;
+        RecordController.cleanData(data);
+
+        // 如果填写了B超数据但没填B超日期，默认使用主日期 (同步创建时的逻辑)
+        if ((data.thyroidLeft || data.noduleCount || data.ultrasoundNote) && !data.ultrasoundDate) {
+            data.ultrasoundDate = data.recordDate;
         }
 
         await record.update(data);
@@ -146,6 +139,23 @@ class RecordController {
 
         await record.destroy();
         Response.success(ctx, null, '记录已删除');
+    }
+    // 辅助方法：解析图片 JSON 字符串，并确保返回扁平化的字符串数组
+    static parseImages(val) {
+        if (!val) return [];
+        let result;
+        if (Array.isArray(val)) {
+            result = val;
+        } else {
+            try {
+                result = JSON.parse(val);
+                if (!Array.isArray(result)) result = [result];
+            } catch (e) {
+                result = [val];
+            }
+        }
+        // 深度清理：确保数组内是字符串，如果是嵌套数组则展开 (修复历史 Bug 产生的数据)
+        return result.map(item => Array.isArray(item) ? item[0] : item).filter(i => i && typeof i === 'string');
     }
 }
 

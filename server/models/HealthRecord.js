@@ -143,7 +143,18 @@ const HealthRecord = sequelize.define('HealthRecord', {
     }
 }, {
     timestamps: true,
-    comment: '甲友健康指标监测记录表' // 表级注释
+    comment: '甲友健康指标监测记录表', // 表级注释
+    indexes: [
+        {
+            fields: ['UserId']
+        },
+        {
+            fields: ['recordDate']
+        },
+        {
+            fields: ['UserId', 'recordDate']
+        }
+    ]
 });
 
 // 建立关联
