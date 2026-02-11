@@ -1,0 +1,171 @@
+{
+	"easycom": {
+		"autoscan": true,
+		"custom": {
+			"^u--?(.*)": "uview-plus/components/u-$1/u-$1.vue",
+			"^up-(.*)": "uview-plus/components/u-$1/u-$1.vue"
+		}
+	},
+	"pages": [
+		{
+			"path": "pages/index/index",
+			"style": {
+				"navigationBarTitleText": "甲友乐",
+				"navigationStyle": "custom",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/notification/index",
+			"style": {
+				"navigationBarTitleText": "消息中心",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/login/login",
+			"style": {
+				"navigationBarTitleText": "欢迎加入",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/record/add",
+			"style": {
+				"navigationBarTitleText": "指标录入",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/record/list",
+			"style": {
+				"navigationBarTitleText": "历史趋势"
+			}
+		},
+		{
+			"path": "pages/record/detail",
+			"style": {
+				"navigationBarTitleText": "记录详情",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/medication/plan",
+			"style": {
+				"navigationBarTitleText": "用药提醒"
+			}
+		},
+		{
+			"path": "pages/checkup/calendar",
+			"style": {
+				"navigationBarTitleText": "复查日历",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/assess/symptom",
+			"style": {
+				"navigationBarTitleText": "症状自测",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/wiki/list",
+			"style": {
+				"navigationBarTitleText": "甲友百科",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/wiki/submission",
+			"style": {
+				"navigationBarTitleText": "投稿",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/wiki/my-articles",
+			"style": {
+				"navigationBarTitleText": "我的投稿",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/wiki/review",
+			"style": {
+				"navigationBarTitleText": "内容审核",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/my/index",
+			"style": {
+				"navigationBarTitleText": "个人中心",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/my/profile",
+			"style": {
+				"navigationBarTitleText": "个人信息"
+			}
+		},
+		{
+			"path": "pages/my/settings",
+			"style": {
+				"navigationBarTitleText": "账号设置"
+			}
+		},
+		{
+			"path": "pages/my/about",
+			"style": {
+				"navigationBarTitleText": "关于甲友乐",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/my/agreement",
+			"style": {
+				"navigationBarTitleText": "用户协议"
+			}
+		},
+		{
+			"path": "pages/my/privacy",
+			"style": {
+				"navigationBarTitleText": "隐私政策"
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "甲友乐",
+		"navigationBarBackgroundColor": "#FFFFFF",
+		"backgroundColor": "#F8F8F8"
+	},
+	"tabBar": {
+		"color": "#909399",
+		"selectedColor": "#3c9cff",
+		"backgroundColor": "#FFFFFF",
+		"borderStyle": "white",
+		"list": [
+			{
+				"pagePath": "pages/index/index",
+				"text": "首页",
+				"iconPath": "static/tabbar/home.png",
+				"selectedIconPath": "static/tabbar/home-active.png"
+			},
+			{
+				"pagePath": "pages/record/list",
+				"text": "趋势",
+				"iconPath": "static/tabbar/chart.png",
+				"selectedIconPath": "static/tabbar/chart-active.png"
+			},
+			{
+				"pagePath": "pages/my/index",
+				"text": "我的",
+				"iconPath": "static/tabbar/user.png",
+				"selectedIconPath": "static/tabbar/user-active.png"
+			}
+		]
+	}
+}
