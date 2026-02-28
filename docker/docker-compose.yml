@@ -15,7 +15,8 @@ services:
     environment:
       - DB_HOST=jyl-db
     depends_on:
-      - jyl-db
+      jyl-db:
+        condition: service_healthy
     restart: always
 
   jyl-db:
@@ -31,6 +32,11 @@ services:
       MYSQL_PASSWORD: ${DB_PASS}
     volumes:
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     restart: always
 
 volumes:
