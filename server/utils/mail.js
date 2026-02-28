@@ -7,13 +7,18 @@ const nodemailer = require('nodemailer');
 class MailService {
     static get transporter() {
         if (!this._transporter) {
+            const port = parseInt(process.env.SMTP_PORT) || 465;
             this._transporter = nodemailer.createTransport({
                 host: process.env.SMTP_HOST || 'smtp.qq.com',
-                port: process.env.SMTP_PORT || 465,
-                secure: true, // true for 465, false for other ports
+                port: port,
+                secure: port === 465, // 465 端口使用 SSL (true)，其他端口（如 587）使用 STARTTLS (false)
                 auth: {
                     user: process.env.SMTP_USER,
                     pass: process.env.SMTP_PASS
+                },
+                // 提高 Gmail 等服务的兼容性
+                tls: {
+                    rejectUnauthorized: false
                 }
             });
         }
