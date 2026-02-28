@@ -36,10 +36,14 @@ const smsLimiter = ratelimit({
 router.post('/auth/register', authLimiter, AuthController.register);
 router.post('/auth/login', authLimiter, AuthController.login);
 
-// 手机号验证码登录
+// 邮箱验证码与注册
+router.post('/auth/email/send', smsLimiter, AuthController.sendEmailCode);
+router.post('/auth/email/register', authLimiter, AuthController.emailRegister);
+
+// 手机号验证码登录 (保留备份，但由前端控制开关)
 router.post('/auth/sms/send', smsLimiter, AuthController.sendSmsCode);
-router.post('/auth/sms/register', authLimiter, AuthController.smsRegister); // 手机号注册
-router.post('/auth/sms/login', authLimiter, AuthController.smsLogin); // 验证码登录 (备用)
+router.post('/auth/sms/register', authLimiter, AuthController.smsRegister);
+router.post('/auth/sms/login', authLimiter, AuthController.smsLogin);
 
 // 微信小程序登录
 router.post('/auth/wechat/login', AuthController.wechatLogin);

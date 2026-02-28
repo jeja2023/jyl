@@ -4,7 +4,7 @@
     <scroll-view scroll-y class="content-scroll">
       <view class="article">
         <view class="h1">甲友乐用户协议</view>
-        <view class="meta">最后更新日期：2026年2月4日</view>
+        <view class="meta">最后更新日期：2026年2月28日</view>
         
         <view class="section">
           <view class="h2">1. 协议确认与接受</view>
@@ -21,7 +21,7 @@
         <view class="section">
           <view class="h2">3. 账号管理</view>
           <view class="p">您应当妥善保管您的账号及密码。您应当对以其账号进行的所有活动和事件负法律责任。</view>
-          <view class="p">为提供更好的服务，微信快捷登录将获取您的公开信息（昵称、头像）及经您授权的手机号码，用于创建或绑定账号。</view>
+          <view class="p">为提供更好的服务，您需要通过电子邮箱进行注册或登录。电子邮箱将作为您的身份标识及找回密码的凭证。</view>
         </view>
 
         <view class="section">

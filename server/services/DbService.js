@@ -4,7 +4,7 @@ const HealthRecord = require('../models/HealthRecord');
 const MedicationPlan = require('../models/MedicationPlan');
 const CheckupReminder = require('../models/CheckupReminder');
 const HealthTip = require('../models/HealthTip');
-const SmsCode = require('../models/SmsCode');
+const VerifyCode = require('../models/VerifyCode');
 const Notification = require('../models/Notification');
 const logger = require('../utils/logger');
 
@@ -14,9 +14,8 @@ class DbService {
             await sequelize.authenticate();
             logger.info('数据库连接成功，开始同步模型...');
 
-            // 执行模型同步
-            await sequelize.sync();
-            logger.info('数据库模型同步成功');
+            // 执行模型同步 (增加 alter: true 以自动更新表结构，如添加 email 字段)
+            await sequelize.sync({ alter: true });
             logger.info('数据库模型同步成功');
 
             // 4. 初始化数据（如管理员）

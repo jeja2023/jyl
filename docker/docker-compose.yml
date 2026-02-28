@@ -9,8 +9,10 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ../storage:/app/storage
+      - ./storage:/app/storage
       - ./.env_docker:/app/server/.env
+    env_file:
+      - .env_docker
     depends_on:
       - jyl-db
     restart: always
@@ -19,11 +21,13 @@ services:
     image: mysql:8.0
     container_name: jyl-db
     command: --default-authentication-plugin=mysql_native_password --skip-host-cache --skip-name-resolve
+    env_file:
+      - .env_docker
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASS:-liang029209}
-      MYSQL_DATABASE: ${DB_NAME:-jyl}
-      MYSQL_USER: ${DB_USER:-jeje}
-      MYSQL_PASSWORD: ${DB_PASS:-liang029209}
+      MYSQL_ROOT_PASSWORD: ${DB_PASS}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
     volumes:
       - mysql_data:/var/lib/mysql
     restart: always

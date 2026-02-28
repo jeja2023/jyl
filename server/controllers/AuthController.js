@@ -1,9 +1,10 @@
 const HealthRecord = require('../models/HealthRecord');
 const User = require('../models/User');
-const SmsCode = require('../models/SmsCode');
+const VerifyCode = require('../models/VerifyCode');
 const jwt = require('jsonwebtoken');
 const Response = require('../utils/response');
 const SmsService = require('../utils/sms');
+const MailService = require('../utils/mail');
 const WechatService = require('../utils/wechat');
 const { Op } = require('sequelize');
 
@@ -62,7 +63,7 @@ class AuthController {
      */
     static generateToken(user) {
         return jwt.sign(
-            { id: user.id, username: user.username || user.phone },
+            { id: user.id, username: user.username || user.phone || user.email },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRE }
         );
@@ -76,6 +77,7 @@ class AuthController {
             id: user.id,
             username: user.username,
             phone: user.phone,
+            email: user.email,
             nickname: user.nickname,
             avatar: user.avatar,
             patientType: user.patientType,
@@ -117,20 +119,28 @@ class AuthController {
     }
 
     /**
-     * 用户名密码登录
+     * 账号登录 (支持用户名或邮箱)
      * POST /api/auth/login
      */
     static async login(ctx) {
         const { username, password } = ctx.request.body;
 
         if (!username || !password) {
-            return Response.error(ctx, '用户名和密码不能为空');
+            return Response.error(ctx, '用户名或邮箱及密码不能为空');
         }
 
-        const user = await User.findOne({ where: { username } });
+        // 查找用户 (支持用户名或邮箱)
+        const user = await User.findOne({
+            where: {
+                [Op.or]: [
+                    { username: username },
+                    { email: username }
+                ]
+            }
+        });
 
         if (!user || !(await user.comparePassword(password))) {
-            return Response.error(ctx, '用户名或密码错误', 401);
+            return Response.error(ctx, '用户名/邮箱或密码错误', 401);
         }
 
         // 更新最后登录时间
@@ -142,6 +152,121 @@ class AuthController {
             token,
             userInfo: AuthController.formatUserInfo(user)
         }, '登录成功');
+    }
+
+    // ==================== 邮箱验证码登录/注册 ====================
+
+    /**
+     * 发送邮箱验证码
+     * POST /api/auth/email/send
+     */
+    static async sendEmailCode(ctx) {
+        const { email, type = 'login' } = ctx.request.body;
+
+        if (!email || !/^[\w-]+(\.[\w-]+)*@[\w-]+(\.[\w-]+)+$/.test(email)) {
+            return Response.error(ctx, '请输入正确的邮箱地址');
+        }
+
+        // 检查是否频繁发送（1分钟内只能发一次）
+        const recentCode = await VerifyCode.findOne({
+            where: {
+                target: email,
+                targetType: 'email',
+                createdAt: { [Op.gte]: new Date(Date.now() - 60000) }
+            }
+        });
+
+        if (recentCode) {
+            return Response.error(ctx, '验证码发送太频繁，请1分钟后再试');
+        }
+
+        // 生成验证码
+        const code = MailService.generateCode(6);
+        const expireAt = new Date(Date.now() + 5 * 60 * 1000); // 5分钟有效
+
+        // 保存验证码
+        await VerifyCode.create({ target: email, code, type, targetType: 'email', expireAt });
+
+        try {
+            await MailService.sendCode(email, code);
+        } catch (err) {
+            console.error('[邮件] 发送失败:', err.message);
+            return Response.error(ctx, '验证码发送失败，请稍后重试');
+        }
+
+        Response.success(ctx, null, '验证码已发送至您的邮箱');
+    }
+
+    /**
+     * 邮箱验证码注册 (正式表单版)
+     * POST /api/auth/email/register
+     */
+    static async emailRegister(ctx) {
+        const { username, email, code, password, confirmPassword } = ctx.request.body;
+
+        // 表单校验
+        if (!username || !email || !code || !password) {
+            return Response.error(ctx, '请填写完整注册信息');
+        }
+        if (!/^[\w-]+(\.[\w-]+)*@[\w-]+(\.[\w-]+)+$/.test(email)) {
+            return Response.error(ctx, '邮箱格式不正确');
+        }
+        if (password !== confirmPassword) {
+            return Response.error(ctx, '两次输入密码不一致');
+        }
+        if (password.length < 6) {
+            return Response.error(ctx, '密码长度至少6位');
+        }
+
+        // 1. 检查验证码
+        const verifyCode = await VerifyCode.findOne({
+            where: {
+                target: email,
+                code,
+                targetType: 'email',
+                used: false,
+                expireAt: { [Op.gte]: new Date() }
+            },
+            order: [['createdAt', 'DESC']]
+        });
+        if (!verifyCode) {
+            return Response.error(ctx, '验证码错误或已过期');
+        }
+
+        // 2. 检查唯一性
+        const existUser = await User.findOne({
+            where: {
+                [Op.or]: [
+                    { username: username },
+                    { email: email }
+                ]
+            }
+        });
+        if (existUser) {
+            if (existUser.username === username) return Response.error(ctx, '该用户名已被占用');
+            if (existUser.email === email) return Response.error(ctx, '该邮箱已注册，请直接登录');
+        }
+
+        // 3. 消费验证码
+        await verifyCode.update({ used: true });
+
+        // 4. 创建用户
+        const newUser = await User.create({
+            username,
+            email,
+            password,
+            nickname: username,
+            patientType: '其他'
+        });
+
+        // 自动登录
+        const token = AuthController.generateToken(newUser);
+
+        Response.success(ctx, {
+            token,
+            userInfo: AuthController.formatUserInfo(newUser),
+            isNewUser: true
+        }, '注册成功');
     }
 
     // ==================== 手机号验证码登录 ====================
@@ -158,9 +283,10 @@ class AuthController {
         }
 
         // 检查是否频繁发送（1分钟内只能发一次）
-        const recentCode = await SmsCode.findOne({
+        const recentCode = await VerifyCode.findOne({
             where: {
-                phone,
+                target: phone,
+                targetType: 'sms',
                 createdAt: { [Op.gte]: new Date(Date.now() - 60000) }
             }
         });
@@ -174,7 +300,7 @@ class AuthController {
         const expireAt = new Date(Date.now() + 5 * 60 * 1000); // 5分钟有效
 
         // 保存验证码
-        await SmsCode.create({ phone, code, type, expireAt });
+        await VerifyCode.create({ target: phone, code, type, targetType: 'sms', expireAt });
 
         // 发送短信（开发环境可跳过实际发送）
         if (process.env.NODE_ENV === 'development' && !process.env.SMS_APP_ID) {
@@ -207,22 +333,23 @@ class AuthController {
         }
 
         // 验证验证码
-        const smsCode = await SmsCode.findOne({
+        const verifyCode = await VerifyCode.findOne({
             where: {
-                phone,
+                target: phone,
                 code,
+                targetType: 'sms',
                 used: false,
                 expireAt: { [Op.gte]: new Date() }
             },
             order: [['createdAt', 'DESC']]
         });
 
-        if (!smsCode) {
+        if (!verifyCode) {
             return Response.error(ctx, '验证码错误或已过期');
         }
 
         // 标记验证码已使用
-        await smsCode.update({ used: true });
+        await verifyCode.update({ used: true });
 
         // 查找或创建用户
         let user = await User.findOne({ where: { phone } });
@@ -508,22 +635,23 @@ class AuthController {
         }
 
         // 验证验证码
-        const smsCode = await SmsCode.findOne({
+        const verifyCode = await VerifyCode.findOne({
             where: {
-                phone,
+                target: phone,
                 code,
+                targetType: 'sms',
                 used: false,
                 expireAt: { [Op.gte]: new Date() }
             },
             order: [['createdAt', 'DESC']]
         });
 
-        if (!smsCode) {
+        if (!verifyCode) {
             return Response.error(ctx, '验证码错误或已过期');
         }
 
         // 标记验证码已使用
-        await smsCode.update({ used: true });
+        await verifyCode.update({ used: true });
 
         // 绑定手机号
         const user = await User.findByPk(id);

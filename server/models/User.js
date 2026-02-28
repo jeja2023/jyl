@@ -25,6 +25,12 @@ const User = sequelize.define('User', {
         allowNull: true,
         comment: '手机号码'
     },
+    email: {
+        type: DataTypes.STRING,
+        unique: true,
+        allowNull: true,
+        comment: '电子邮箱'
+    },
     openid: {
         type: DataTypes.STRING,
         unique: true,

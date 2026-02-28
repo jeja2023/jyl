@@ -4,12 +4,12 @@
     <scroll-view scroll-y class="content-scroll">
       <view class="article">
         <view class="h1">甲友乐隐私政策</view>
-        <view class="meta">最后更新日期：2026年2月4日</view>
+        <view class="meta">最后更新日期：2026年2月28日</view>
         
         <view class="section">
           <view class="h2">1. 我们收集的信息</view>
           <view class="p">为了向您提供核心服务，我们需要收集以下信息：</view>
-          <view class="p">· <text class="bold">账号信息</text>：您的昵称、头像（由微信授权提供）以及手机号码。</view>
+          <view class="p">· <text class="bold">账号信息</text>：您的用户名、电子邮箱以及设置的登录密码。</view>
           <view class="p">· <text class="bold">健康记录</text>：您主动上传的甲功指标（TSH/FT3等）、化验单照片、症状自测结果等。</view>
           <view class="p">· <text class="bold">设备信息</text>：包括设备型号、操作系统版本、唯一设备标识符等，用于系统维护和推送通知。</view>
         </view>
@@ -23,7 +23,7 @@
           <view class="h2">3. 权限说明</view>
           <view class="p">· <text class="bold">相册/相机</text>：用于上传化验单或头像图片。</view>
           <view class="p">· <text class="bold">通知权限</text>：用于向您发送服药提醒和复查通知。</view>
-          <view class="p">· <text class="bold">手机号授权</text>：用于快捷登录及账号安全校验。</view>
+          <view class="p">· <text class="bold">邮箱验证</text>：用于账号注册、登录及找回密码时的安全性身份校验。</view>
         </view>
 
         <view class="section">

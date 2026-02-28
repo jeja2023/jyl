@@ -30,6 +30,7 @@
     "koa-router": "^14.0.0",
     "koa-static": "^5.0.0",
     "mysql2": "^3.16.2",
+    "nodemailer": "^8.0.1",
     "sequelize": "^6.37.7",
     "xss": "^1.0.15"
   },

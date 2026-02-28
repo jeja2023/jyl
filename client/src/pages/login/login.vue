@@ -20,8 +20,8 @@
           <text>账号登录</text>
           <view class="active-line"></view>
         </view>
-        <view class="tab-item" :class="{active: loginType === 'phone'}" @click="loginType = 'phone'">
-          <text>手机注册</text>
+        <view class="tab-item" :class="{active: loginType === 'email'}" @click="loginType = 'email'">
+          <text>邮箱注册</text>
           <view class="active-line"></view>
         </view>
       </view>
@@ -31,7 +31,7 @@
         <view v-if="loginType === 'password'" class="form-fields">
           <view class="input-group">
             <u-icon name="account" size="22" color="#3E7BFF"></u-icon>
-            <u--input placeholder="手机号 / 用户名" border="none" v-model="loginForm.username" class="custom-input"></u--input>
+            <u--input placeholder="用户名 / 邮箱" border="none" v-model="loginForm.username" class="custom-input"></u--input>
           </view>
           <view class="input-group">
             <u-icon name="lock" size="22" color="#3E7BFF"></u-icon>
@@ -39,27 +39,35 @@
           </view>
         </view>
 
-        <!-- 手机号注册表单 -->
+        <!-- 邮箱注册表单 -->
         <view v-else class="form-fields">
           <view class="input-group">
-            <u-icon name="phone" size="22" color="#3E7BFF"></u-icon>
-            <u--input placeholder="手机号" border="none" v-model="phoneForm.phone" type="number" maxlength="11" class="custom-input"></u--input>
+            <u-icon name="account" size="22" color="#3E7BFF"></u-icon>
+            <u--input placeholder="设置唯一用户名" border="none" v-model="emailForm.username" class="custom-input"></u--input>
+          </view>
+          <view class="input-group">
+            <u-icon name="email" size="22" color="#3E7BFF"></u-icon>
+            <u--input placeholder="电子邮箱地址" border="none" v-model="emailForm.email" class="custom-input"></u--input>
           </view>
           <view class="input-group">
             <u-icon name="integral" size="22" color="#3E7BFF"></u-icon>
-            <u--input placeholder="验证码" border="none" v-model="phoneForm.code" type="number" maxlength="6" class="custom-input"></u--input>
-            <view class="code-btn" @click="handleSendCode">
+            <u--input placeholder="邮箱验证码" border="none" v-model="emailForm.code" type="number" maxlength="6" class="custom-input"></u--input>
+            <view class="code-btn" @click="handleSendEmailCode">
               {{ codeTime > 0 ? `${codeTime}s` : '获取验证码' }}
             </view>
           </view>
           <view class="input-group">
-            <u-icon name="edit-pen" size="22" color="#3E7BFF"></u-icon>
-            <u--input placeholder="设置登录密码 (至少6位)" type="password" border="none" v-model="phoneForm.password" class="custom-input"></u--input>
+            <u-icon name="lock" size="22" color="#3E7BFF"></u-icon>
+            <u--input placeholder="设置登录密码 (至少6位)" type="password" border="none" v-model="emailForm.password" class="custom-input"></u--input>
+          </view>
+          <view class="input-group">
+            <u-icon name="lock-fill" size="22" color="#3E7BFF"></u-icon>
+            <u--input placeholder="确认登录密码" type="password" border="none" v-model="emailForm.confirmPassword" class="custom-input"></u--input>
           </view>
         </view>
 
         <view class="aux-links">
-           <text v-if="loginType === 'password'" @click="loginType = 'phone'">还没有账号？<text class="blue">去注册</text></text>
+           <text v-if="loginType === 'password'" @click="loginType = 'email'">还没有账号？<text class="blue">去注册</text></text>
            <text v-else @click="loginType = 'password'">已有账号？<text class="blue">去登录</text></text>
         </view>
 
@@ -86,24 +94,6 @@
         ></u-button>
       </view>
 
-      <!-- 微信登录区域 (预览展示) -->
-      <view class="wechat-login-section">
-        <view class="divider-text">
-          <view class="line"></view>
-          <text>其他快捷登录方案</text>
-          <view class="line"></view>
-        </view>
-        
-        <view class="wechat-quick-icons">
-           <!-- 微信快速登录 (全环境支持) -->
-           <view class="icon-btn-wrapper">
-             <view class="icon-circle-btn wechat" @click="handleWechatLogin">
-                <u-icon name="weixin-fill" size="30" color="#fff"></u-icon>
-             </view>
-             <text>微信一键登录</text>
-           </view>
-        </view>
-      </view>
 
 
     </view>
@@ -148,9 +138,9 @@ const isAgree = computed(() => agreementChecked.value.length > 0);
 const patientTypes = ['甲减', '甲亢', '甲状腺结节', '甲癌术后', '桥本氏甲状腺炎', '其他'];
 
 const loginForm = reactive({ username: '', password: '' });
-const phoneForm = reactive({ phone: '', code: '', password: '' });
+const emailForm = reactive({ username: '', email: '', code: '', password: '', confirmPassword: '' });
 const regForm = reactive({ patientType: '' });
-const loginType = ref('password'); // password | phone
+const loginType = ref('password'); // password | email
 const codeTime = ref(0);
 let timer = null;
 
@@ -169,20 +159,20 @@ const submitLogin = () => {
     if (loginType.value === 'password') {
         handleLogin();
     } else {
-        handlePhoneRegister();
+        handleEmailRegister();
     }
 };
 
-// ==================== 手机号注册 ====================
-const handleSendCode = async () => {
+// ==================== 邮箱注册 ====================
+const handleSendEmailCode = async () => {
     if (codeTime.value > 0) return;
-    if (!phoneForm.phone || !/^1[3-9]\d{9}$/.test(phoneForm.phone)) {
-        return uni.$u.toast('请输入正确的手机号');
+    if (!emailForm.email || !/^[\w-]+(\.[\w-]+)*@[\w-]+(\.[\w-]+)+$/.test(emailForm.email)) {
+        return uni.$u.toast('请输入正确的邮箱地址');
     }
     
     try {
-        await http.post('/api/auth/sms/send', { phone: phoneForm.phone, type: 'register' });
-        uni.$u.toast('验证码已发送');
+        await http.post('/api/auth/email/send', { email: emailForm.email, type: 'register' });
+        uni.$u.toast('邮箱验证码已发送');
         codeTime.value = 60;
         timer = setInterval(() => {
             codeTime.value--;
@@ -193,21 +183,20 @@ const handleSendCode = async () => {
     }
 };
 
-const handlePhoneRegister = async () => {
-    if (!phoneForm.phone || !phoneForm.code) {
-        return uni.$u.toast('请输入手机号和验证码');
+const handleEmailRegister = async () => {
+    if (!emailForm.username) return uni.$u.toast('请输入用户名');
+    if (!emailForm.email) return uni.$u.toast('请输入邮箱');
+    if (!emailForm.code) return uni.$u.toast('请输入验证码');
+    if (emailForm.password !== emailForm.confirmPassword) {
+        return uni.$u.toast('两次输入的密码不一致');
     }
-    if (!phoneForm.password || phoneForm.password.length < 6) {
-        return uni.$u.toast('请设置至少6位登录密码');
+    if (emailForm.password.length < 6) {
+        return uni.$u.toast('密码长度至少6位');
     }
     
     loading.value = true;
     try {
-        const res = await http.post('/api/auth/sms/register', {
-            phone: phoneForm.phone,
-            code: phoneForm.code,
-            password: phoneForm.password
-        });
+        const res = await http.post('/api/auth/email/register', emailForm);
         
         // 注册也是一种登录成功，如果是新用户则完善资料
         if (res.isNewUser) {
@@ -217,8 +206,9 @@ const handlePhoneRegister = async () => {
             completeLogin(res);
         }
         // 清空敏感字段
-        phoneForm.code = '';
-        phoneForm.password = '';
+        emailForm.code = '';
+        emailForm.password = '';
+        emailForm.confirmPassword = '';
     } catch (e) {
         // failed
     } finally {
@@ -242,118 +232,6 @@ const handleLogin = async () => {
   }
 };
 
-// ==================== 微信登录 ====================
-const handleWechatLogin = () => {
-  if (!isAgree.value) {
-      return uni.$u.toast('请阅读并勾选用户协议');
-  }
-  // #ifdef H5
-  // H5 环境下模拟微信登录流程
-  loading.value = true;
-  http.post('/api/auth/wechat/login', {
-    code: 'DEV_MOCK_CODE',
-    userInfo: { nickName: 'H5访客' }
-  }).then(res => {
-    if (res.isNewUser) {
-        pendingLoginResult = res;
-        showRegister.value = true;
-    } else {
-        completeLogin(res);
-    }
-  }).finally(() => {
-    loading.value = false;
-  });
-  // #endif
-
-  // #ifdef MP-WEIXIN
-  uni.login({
-    provider: 'weixin',
-    success: async (loginRes) => {
-      if (loginRes.code) {
-        loading.value = true;
-        try {
-          // 获取用户信息
-          let userInfo = null;
-          try {
-            const profileRes = await new Promise((resolve, reject) => {
-              uni.getUserProfile({
-                desc: '用于完善会员资料',
-                success: resolve,
-                fail: reject
-              });
-            });
-            userInfo = profileRes.userInfo;
-          } catch (e) {
-            // 用户拒绝授权，继续登录
-            console.log('[微信] 用户未授权用户信息');
-          }
-          
-          const res = await http.post('/api/auth/wechat/login', {
-            code: loginRes.code,
-            userInfo
-          });
-          
-          if (res.isNewUser) {
-            // 新用户，弹出完善资料
-            pendingLoginResult = res;
-            showRegister.value = true;
-          } else {
-            completeLogin(res);
-          }
-        } catch (err) {
-          console.error('[微信登录] 失败:', err);
-          uni.$u.toast('登录失败，请重试');
-        } finally {
-          loading.value = false;
-        }
-      }
-    },
-    fail: (err) => {
-      console.error('[微信登录] wx.login失败:', err);
-      uni.$u.toast('微信登录失败');
-    }
-  });
-  // #endif
-};
-
-// 微信获取手机号登录
-const onGetPhoneNumber = async (e) => {
-  if (!isAgree.value) {
-      return uni.$u.toast('请阅读并勾选用户协议');
-  }
-  // #ifdef MP-WEIXIN
-  if (e.detail.errMsg === 'getPhoneNumber:ok') {
-    loading.value = true;
-    try {
-      // 先获取登录code
-      const loginRes = await new Promise((resolve, reject) => {
-        uni.login({ provider: 'weixin', success: resolve, fail: reject });
-      });
-      
-      const res = await http.post('/api/auth/wechat/phone', {
-        code: loginRes.code,
-        phoneCode: e.detail.code
-      });
-      
-      if (res.isNewUser) {
-        pendingLoginResult = res;
-        showRegister.value = true;
-      } else {
-        completeLogin(res);
-      }
-    } catch (err) {
-      console.error('[微信手机号登录] 失败:', err);
-      uni.$u.toast('获取手机号失败，请重试');
-    } finally {
-      loading.value = false;
-    }
-  } else if (e.detail.errMsg === 'getPhoneNumber:fail user deny') {
-    uni.$u.toast('您取消了手机号授权');
-  } else {
-    uni.$u.toast('获取手机号失败');
-  }
-  // #endif
-};
 
 // ==================== 完成登录/注册 ====================
 const completeLogin = (res) => {

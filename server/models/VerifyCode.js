@@ -2,19 +2,19 @@ const { DataTypes } = require('sequelize');
 const sequelize = require('../db');
 
 /**
- * 短信验证码模型
- * 用于手机号登录/注册的验证码存储
+ * 验证码模型
+ * 支持手机号/邮箱 登录/注册/绑定的验证码存储
  */
-const SmsCode = sequelize.define('SmsCode', {
+const VerifyCode = sequelize.define('VerifyCode', {
     id: {
         type: DataTypes.INTEGER,
         autoIncrement: true,
         primaryKey: true
     },
-    phone: {
-        type: DataTypes.STRING(11),
+    target: {
+        type: DataTypes.STRING,
         allowNull: false,
-        comment: '手机号码'
+        comment: '发送目标 (手机号或邮箱)'
     },
     code: {
         type: DataTypes.STRING(6),
@@ -25,6 +25,11 @@ const SmsCode = sequelize.define('SmsCode', {
         type: DataTypes.ENUM('login', 'register', 'bind'),
         defaultValue: 'login',
         comment: '验证码类型'
+    },
+    targetType: {
+        type: DataTypes.ENUM('sms', 'email'),
+        defaultValue: 'sms',
+        comment: '目标类型'
     },
     expireAt: {
         type: DataTypes.DATE,
@@ -38,7 +43,7 @@ const SmsCode = sequelize.define('SmsCode', {
     }
 }, {
     timestamps: true,
-    comment: '短信验证码表'
+    comment: '验证码存储表'
 });
 
-module.exports = SmsCode;
+module.exports = VerifyCode;
