@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  jyl-app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: jyl-app
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../storage:/app/storage
+      - ./.env_docker:/app/server/.env
+    depends_on:
+      - jyl-db
+    restart: always
+
+  jyl-db:
+    image: mysql:5.7
+    container_name: jyl-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password_here
+      MYSQL_DATABASE: jyl_db
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: always
+
+volumes:
+  mysql_data:
