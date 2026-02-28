@@ -51,12 +51,14 @@
       <view class="about-card">
         <view class="card-title">联系我们</view>
         <view class="contact-item">
+          <u-icon name="email" size="18" color="#3E7BFF"></u-icon>
           <text class="label">官方邮箱：</text>
-          <text class="value">support@jiayoule.com</text>
+          <text class="value">{{ config.SUPPORT_EMAIL }}</text>
         </view>
         <view class="contact-item">
-          <text class="label">商务合作：</text>
-          <text class="value">biz@jiayoule.com</text>
+          <u-icon name="weixin-fill" size="18" color="#3E7BFF"></u-icon>
+          <text class="label">微信客服：</text>
+          <text class="value">{{ config.WECHAT_SUPPORT }}</text>
         </view>
       </view>
     </view>
@@ -73,6 +75,7 @@
 </template>
 
 <script setup>
+import config from '@/config/index.js';
 // 基础关于页面，逻辑简单
 </script>
 

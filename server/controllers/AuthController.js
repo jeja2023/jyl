@@ -5,16 +5,10 @@ const jwt = require('jsonwebtoken');
 const Response = require('../utils/response');
 const SmsService = require('../utils/sms');
 const MailService = require('../utils/mail');
-const WechatService = require('../utils/wechat');
 const { Op } = require('sequelize');
 
 class AuthController {
-    /**
-     * 生成JWT Token
-     * ... existing code ...
-     */
 
-    // ... (keep existing methods) ...
 
     /**
      * 获取用户统计数据
@@ -395,17 +389,18 @@ class AuthController {
         }
 
         // 验证验证码
-        const smsCode = await SmsCode.findOne({
+        const verifyCode = await VerifyCode.findOne({
             where: {
-                phone,
+                target: phone,
                 code,
+                targetType: 'sms',
                 used: false,
                 expireAt: { [Op.gte]: new Date() }
             },
             order: [['createdAt', 'DESC']]
         });
 
-        if (!smsCode) {
+        if (!verifyCode) {
             return Response.error(ctx, '验证码错误或已过期');
         }
 
@@ -416,7 +411,7 @@ class AuthController {
         }
 
         // 标记验证码已使用
-        await smsCode.update({ used: true });
+        await verifyCode.update({ used: true });
 
         // 创建新用户
         const newUser = await User.create({
@@ -437,140 +432,6 @@ class AuthController {
         }, '注册成功');
     }
 
-    // ==================== 微信小程序登录 ====================
-
-    /**
-     * 微信小程序登录
-     * POST /api/auth/wechat/login
-     */
-    static async wechatLogin(ctx) {
-        const { code, userInfo } = ctx.request.body;
-
-        if (!code) {
-            return Response.error(ctx, '请提供微信登录code');
-        }
-
-        try {
-            let openid, unionid;
-
-            // 开发模拟逻辑：如果是 H5 环境模拟登录
-            if (code === 'DEV_MOCK_CODE') {
-                openid = 'mock_h5_openid_' + (userInfo?.nickName || 'guest');
-                unionid = 'mock_h5_unionid';
-            } else {
-                // 通过code获取openid
-                const wxSession = await WechatService.code2Session(code);
-                openid = wxSession.openid;
-                unionid = wxSession.unionid;
-            }
-
-            // 查找用户
-            let user = await User.findOne({ where: { openid } });
-            let isNewUser = false;
-
-            if (!user) {
-                // 新用户自动注册
-                user = await User.create({
-                    openid,
-                    unionid,
-                    nickname: userInfo?.nickName || `微信用户${Date.now().toString().slice(-6)}`,
-                    avatar: userInfo?.avatarUrl,
-                    gender: userInfo?.gender === 1 ? '男' : userInfo?.gender === 2 ? '女' : null,
-                    patientType: '其他',
-                    password: Math.random().toString(36).substring(2, 12) + '!' // 随机密码，安全性更高
-                });
-                isNewUser = true;
-            } else {
-                // 更新用户信息
-                if (userInfo) {
-                    await user.update({
-                        nickname: userInfo.nickName || user.nickname,
-                        avatar: userInfo.avatarUrl || user.avatar
-                    });
-                }
-            }
-
-            // 更新最后登录时间
-            await user.update({ lastLoginAt: new Date() });
-
-            const token = AuthController.generateToken(user);
-
-            Response.success(ctx, {
-                token,
-                userInfo: AuthController.formatUserInfo(user),
-                isNewUser
-            }, isNewUser ? '注册成功' : '登录成功');
-
-        } catch (err) {
-            console.error('[微信登录] 失败:', err.message);
-            return Response.error(ctx, '微信登录失败，请重试');
-        }
-    }
-
-    /**
-     * 微信小程序获取手机号登录
-     * POST /api/auth/wechat/phone
-     */
-    static async wechatPhoneLogin(ctx) {
-        const { code, phoneCode } = ctx.request.body;
-
-        if (!code || !phoneCode) {
-            return Response.error(ctx, '请提供登录凭证');
-        }
-
-        try {
-            // 通过code获取openid
-            const wxSession = await WechatService.code2Session(code);
-            const { openid, unionid } = wxSession;
-
-            // 通过phoneCode获取手机号
-            const phoneInfo = await WechatService.getPhoneNumber(phoneCode);
-            const phone = phoneInfo.purePhoneNumber;
-
-            // 查找用户（优先通过手机号查找，方便账号合并）
-            let user = await User.findOne({
-                where: {
-                    [Op.or]: [{ phone }, { openid }]
-                }
-            });
-            let isNewUser = false;
-
-            if (!user) {
-                // 新用户
-                user = await User.create({
-                    phone,
-                    openid,
-                    unionid,
-                    nickname: `甲友${phone.slice(-4)}`,
-                    patientType: '其他',
-                    password: Math.random().toString(36).substring(2, 12) + '!' // 随机密码，安全性更高
-                });
-                isNewUser = true;
-            } else {
-                // 已有用户，绑定微信或手机号
-                await user.update({
-                    phone: user.phone || phone,
-                    openid: user.openid || openid,
-                    unionid: user.unionid || unionid
-                });
-            }
-
-            // 更新最后登录时间
-            await user.update({ lastLoginAt: new Date() });
-
-            const token = AuthController.generateToken(user);
-
-            Response.success(ctx, {
-                token,
-                userInfo: AuthController.formatUserInfo(user),
-                isNewUser
-            }, isNewUser ? '注册成功' : '登录成功');
-
-        } catch (err) {
-            console.error('[微信手机号登录] 失败:', err.message);
-            return Response.error(ctx, '获取手机号失败，请重试');
-        }
-    }
 
     // ==================== 用户信息 ====================
 
@@ -690,6 +551,17 @@ class AuthController {
         await user.update({ password });
 
         Response.success(ctx, null, '密码设置成功');
+    }
+
+    /**
+     * 获取公开系统配置
+     * GET /api/common/config
+     */
+    static async getPublicConfig(ctx) {
+        Response.success(ctx, {
+            supportEmail: process.env.SUPPORT_EMAIL || 'support@jiayoule.com',
+            wechatSupport: process.env.WECHAT_SUPPORT || 'JYL_Support'
+        });
     }
 }
 

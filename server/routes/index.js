@@ -45,9 +45,9 @@ router.post('/auth/sms/send', smsLimiter, AuthController.sendSmsCode);
 router.post('/auth/sms/register', authLimiter, AuthController.smsRegister);
 router.post('/auth/sms/login', authLimiter, AuthController.smsLogin);
 
-// 微信小程序登录
-router.post('/auth/wechat/login', AuthController.wechatLogin);
-router.post('/auth/wechat/phone', AuthController.wechatPhoneLogin);
+
+// 公共配置
+router.get('/common/config', AuthController.getPublicConfig);
 
 // --- 需登录路由 ---
 // 用户信息

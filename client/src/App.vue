@@ -1,7 +1,10 @@
 <script>
+import config from '@/config/index.js';
+
 export default {
   onLaunch: function () {
-    // 应用启动
+    // 应用启动时自动从后端获取最新业务配置
+    config.fetchSystemConfig();
   },
   onShow: function () {
     // 应用进入前台

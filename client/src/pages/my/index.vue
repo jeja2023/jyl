@@ -10,7 +10,7 @@
       </view>
       <view class="user-info">
         <text class="nickname">{{ displayName }}</text>
-        <text class="phone">{{ maskedPhone }}</text>
+        <text class="phone">{{ maskedAccount }}</text>
       </view>
       <view class="edit-btn" @click="goProfile">
         <u-icon name="edit-pen" size="16" color="#3E7BFF"></u-icon>
@@ -63,7 +63,15 @@
         <view class="menu-icon" style="background: linear-gradient(135deg, #10B981 0%, #34D399 100%);">
           <u-icon name="info-circle" size="20" color="#FFFFFF"></u-icon>
         </view>
-        <text class="menu-title">关于甲友乐</text>
+        <text class="menu-title">关于与反馈</text>
+        <u-icon name="arrow-right" size="16" color="#C9CDD4"></u-icon>
+      </view>
+
+      <view class="menu-item" @click="handleOfficialFeedback">
+        <view class="menu-icon" style="background: linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%);">
+          <u-icon name="chat" size="20" color="#FFFFFF"></u-icon>
+        </view>
+        <text class="menu-title">联系客服</text>
         <u-icon name="arrow-right" size="16" color="#C9CDD4"></u-icon>
       </view>
     </view>
@@ -85,6 +93,7 @@ import { ref, computed } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
+import config from '@/config/index.js';
 
 const userStore = useUserStore();
 const userInfo = computed(() => userStore.userInfo);
@@ -95,9 +104,11 @@ const stats = ref({
   wikiReads: 0
 });
 
-// 显示名称：优先昵称，其次手机号后4位
+// 显示名称优先级：昵称 > 用户名 > 邮箱前缀 > 访客
 const displayName = computed(() => {
   if (userInfo.value?.nickname) return userInfo.value.nickname;
+  if (userInfo.value?.username) return userInfo.value.username;
+  if (userInfo.value?.email) return userInfo.value.email.split('@')[0];
   if (userInfo.value?.phone) return `甲友${userInfo.value.phone.slice(-4)}`;
   return '未登录';
 });
@@ -107,11 +118,19 @@ const avatarText = computed(() => {
   return displayName.value.slice(0, 1);
 });
 
-// 手机号脱敏 138****1234
-const maskedPhone = computed(() => {
+// 账号展示脱敏 (优先手机，其次邮箱)
+const maskedAccount = computed(() => {
   const phone = userInfo.value?.phone;
-  if (!phone) return '未绑定手机';
-  return phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
+  const email = userInfo.value?.email;
+  
+  if (phone) {
+    return phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
+  }
+  if (email) {
+    const [name, domain] = email.split('@');
+    return name.length > 3 ? `${name.slice(0, 3)}***@${domain}` : `***@${domain}`;
+  }
+  return '未登录';
 });
 
 const fetchStats = async () => {
@@ -134,6 +153,22 @@ const goSettings = () => {
 
 const goAbout = () => {
   uni.navigateTo({ url: '/pages/my/about' });
+};
+
+const handleOfficialFeedback = () => {
+    uni.showActionSheet({
+        itemList: ['复制客服微信', '前往意见反馈'],
+        success: (res) => {
+            if (res.tapIndex === 0) {
+                uni.setClipboardData({
+                    data: config.WECHAT_SUPPORT,
+                    success: () => uni.$u.toast('客服微信已复制')
+                });
+            } else {
+                uni.navigateTo({ url: '/pages/my/about' });
+            }
+        }
+    });
 };
 
 const handleLogout = () => {

@@ -36,9 +36,6 @@
     "build:quickapp-webview-union": "uni build -p quickapp-webview-union"
   },
   "dependencies": {
-    "uview-plus": "latest",
-    "luch-request": "^3.1.0",
-    "pinia": "^2.1.7",
     "@dcloudio/uni-app": "3.0.0-4080720251210001",
     "@dcloudio/uni-app-harmony": "3.0.0-4080720251210001",
     "@dcloudio/uni-app-plus": "3.0.0-4080720251210001",
@@ -55,6 +52,9 @@
     "@dcloudio/uni-mp-weixin": "3.0.0-4080720251210001",
     "@dcloudio/uni-mp-xhs": "3.0.0-4080720251210001",
     "@dcloudio/uni-quickapp-webview": "3.0.0-4080720251210001",
+    "luch-request": "^3.1.0",
+    "pinia": "^2.1.7",
+    "uview-plus": "latest",
     "vue": "^3.4.21",
     "vue-i18n": "^9.1.9"
   },
@@ -65,7 +65,8 @@
     "@dcloudio/uni-stacktracey": "3.0.0-4080720251210001",
     "@dcloudio/vite-plugin-uni": "3.0.0-4080720251210001",
     "@vue/runtime-core": "^3.4.21",
+    "sass": "^1.72.0",
     "vite": "5.2.8",
-    "sass": "^1.72.0"
+    "vite-plugin-pwa": "^1.2.0"
   }
 }
