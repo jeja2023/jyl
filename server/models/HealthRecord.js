@@ -150,12 +150,11 @@ const HealthRecord = sequelize.define('HealthRecord', {
     comment: '甲友健康指标监测记录表', // 表级注释
     indexes: [
         {
-            fields: ['UserId']
-        },
-        {
+            name: 'idx_hr_record_date',
             fields: ['recordDate']
         },
         {
+            name: 'idx_hr_user_date',
             fields: ['UserId', 'recordDate']
         }
     ]

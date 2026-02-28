@@ -10,8 +10,8 @@ const User = sequelize.define('User', {
     },
     username: {
         type: DataTypes.STRING,
-        unique: true,
-        allowNull: true,  // 允许为空，支持微信/手机号登录
+        unique: 'idx_user_username',
+        allowNull: true,
         comment: '用户名'
     },
     password: {
@@ -21,25 +21,25 @@ const User = sequelize.define('User', {
     },
     phone: {
         type: DataTypes.STRING(11),
-        unique: true,
+        unique: 'idx_user_phone',
         allowNull: true,
         comment: '手机号码'
     },
     email: {
         type: DataTypes.STRING,
-        unique: true,
+        unique: 'idx_user_email',
         allowNull: true,
         comment: '电子邮箱'
     },
     openid: {
         type: DataTypes.STRING,
-        unique: true,
+        unique: 'idx_user_openid',
         allowNull: true,
         comment: '微信小程序openid'
     },
     unionid: {
         type: DataTypes.STRING,
-        unique: true,
+        unique: 'idx_user_unionid',
         allowNull: true,
         comment: '微信unionid（跨应用）'
     },
