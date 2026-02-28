@@ -26,9 +26,6 @@ WORKDIR /app
 COPY --from=builder /app/server ./server
 COPY --from=builder /app/client/dist/build/h5 ./client/dist/build/h5
 
-# 复制默认存储目录
-COPY storage ./storage
-
 EXPOSE 3000
 
 # 启动服务
