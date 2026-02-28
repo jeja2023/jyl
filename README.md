@@ -45,7 +45,21 @@ jyl/
 ### 环境要求
 
 - Node.js >= 16
-- MySQL >= 5.7
+- MySQL >= 8.0 (Docker 模式已内置)
+
+### 快速启动 (Docker 推荐)
+
+如果您有 Docker 环境，可直接进入项目根目录：
+
+```bash
+# 1. 准备配置 (并根据需要修改内容)
+cp docker/.env_docker.example docker/.env_docker
+
+# 2. 一键启动
+docker-compose -f docker/docker-compose.yml up -d --build
+```
+
+详细说明请参考 [部署说明.md](./部署说明.md)。
 
 ### 后端启动
 

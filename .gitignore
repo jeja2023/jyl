@@ -13,6 +13,7 @@ npm-debug.log*
 .env
 .env.local
 .env.*.local
+docker/.env_docker
 
 # 编辑器配置
 .idea/
