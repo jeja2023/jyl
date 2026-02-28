@@ -34,7 +34,11 @@ DbService.init();
 // 中间件
 const errorHandler = require('./middlewares/errorHandler');
 app.use(errorHandler);
-app.use(helmet({ crossOriginEmbedderPolicy: false, crossOriginResourcePolicy: { policy: 'cross-origin' } })); // 设置安全HTTP头，允许跨域加载存储图片
+app.use(helmet({
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: false // 禁用默认的 CSP，防止前端请求不同端口的 API 被拦截
+}));
 app.use(compress({
     filter: (content_type) => {
         return /text|javascript|css|json|svg/i.test(content_type);
