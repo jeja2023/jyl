@@ -72,6 +72,7 @@ router.delete('/medication/delete', auth, MedicationController.delete);
 // 复查提醒相关
 router.post('/checkup/add', auth, CheckupController.create);
 router.get('/checkup/list', auth, CheckupController.list);
+router.post('/checkup/complete', auth, CheckupController.complete);
 router.delete('/checkup/delete', auth, CheckupController.delete);
 
 // 健康贴士
@@ -84,6 +85,8 @@ router.post('/ocr/recognize', auth, OcrController.recognize);
 // 消息中心
 const NotificationController = require('../controllers/NotificationController');
 router.get('/notification/list', auth, NotificationController.list);
+router.post('/notification/read', auth, NotificationController.markRead);
+router.delete('/notification/delete', auth, NotificationController.delete);
 
 // 文件上传（保存报告原件）
 router.post('/upload/report', auth, UploadController.uploadReport);

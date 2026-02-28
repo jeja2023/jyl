@@ -31,7 +31,7 @@ DbService.init();
 // 中间件
 const errorHandler = require('./middlewares/errorHandler');
 app.use(errorHandler);
-app.use(helmet()); // 设置安全HTTP头
+app.use(helmet({ crossOriginEmbedderPolicy: false, crossOriginResourcePolicy: { policy: 'cross-origin' } })); // 设置安全HTTP头，允许跨域加载存储图片
 app.use(compress({
     filter: (content_type) => {
         return /text|javascript|css|json|svg/i.test(content_type);
@@ -55,13 +55,40 @@ app.use(mount('/storage', serve(staticPath, {
 const apiRouter = require('./routes/index');
 app.use(apiRouter.routes()).use(apiRouter.allowedMethods());
 
+// 生产环境：托管前端构建产物（dist/build/h5）
+// 前端 build 后的静态文件由后端直接托管，前端访问同一端口，无跨域问题
+const distPath = path.join(__dirname, '../client/dist/build/h5');
+if (fs.existsSync(distPath)) {
+    // 所有非 /api、非 /storage 的请求回退到 index.html（SPA 路由支持）
+    app.use(serve(distPath, { maxage: 86400000 }));
+    app.use(async (ctx, next) => {
+        // 只对 GET 请求且路径不匹配静态文件时回退到 index.html
+        if (ctx.method === 'GET' && !ctx.path.startsWith('/api') && !ctx.path.startsWith('/storage')) {
+            const indexFile = path.join(distPath, 'index.html');
+            if (fs.existsSync(indexFile)) {
+                ctx.type = 'html';
+                ctx.body = fs.createReadStream(indexFile);
+                return;
+            }
+        }
+        await next();
+    });
+    console.log(`[生产] 前端静态文件已托管: ${distPath}`);
+}
+
+// 过滤客户端主动断开连接产生的无害流错误
+app.on('error', (err) => {
+    if (err.code === 'ERR_STREAM_PREMATURE_CLOSE' || err.code === 'ECONNRESET' || err.code === 'EPIPE' || err.code === 'ECONNABORTED') return;
+    console.error('[App Error]', err.message);
+});
+
 // 启动服务
 app.listen(port, () => {
     console.log('');
     console.log('╔══════════════════════════════════════════╗');
     console.log('║          甲友乐 JYL Server               ║');
     console.log('╠══════════════════════════════════════════╣');
-    console.log(`║  🌐 服务端口: http://localhost:${port}       ║`);
+    console.log(`║  🌐 服务端口: http://localhost:${port}      ║`);
     console.log('║  📊 数据库: MySQL                        ║');
     console.log('║  🔐 认证方式: JWT                        ║');
     console.log('║  📁 文件存储: storage/reports            ║');

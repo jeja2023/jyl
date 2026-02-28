@@ -32,6 +32,21 @@ class CheckupController {
         Response.success(ctx, list);
     }
 
+    // 标记完成
+    static async complete(ctx) {
+        const { id } = ctx.request.body;
+        const userId = ctx.state.user.id;
+        const result = await CheckupReminder.update(
+            { isCompleted: true },
+            { where: { id, UserId: userId } }
+        );
+        if (result[0]) {
+            Response.success(ctx, null, '已标记完成');
+        } else {
+            throw new Error('操作失败或记录不存在');
+        }
+    }
+
     // 删除提醒
     static async delete(ctx) {
         const { id } = ctx.request.body;

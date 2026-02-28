@@ -63,6 +63,19 @@
            <text v-else @click="loginType = 'password'">已有账号？<text class="blue">去登录</text></text>
         </view>
 
+        <!-- 用户协议 (移至按钮上方) -->
+        <view class="agreement-area">
+          <u-checkbox-group v-model="agreementChecked">
+            <u-checkbox shape="circle" :name="true" activeColor="#3E7BFF" size="14"></u-checkbox>
+          </u-checkbox-group>
+          <view class="ag-text">
+            登录即代表您同意 
+            <text class="link" @click="goToPage('agreement')">《用户协议》</text> 
+            和 
+            <text class="link" @click="goToPage('privacy')">《隐私政策》</text>
+          </view>
+        </view>
+
         <u-button 
           type="primary" 
           :loading="loading" 
@@ -92,17 +105,7 @@
         </view>
       </view>
 
-      <view class="agreement-area">
-        <u-checkbox-group v-model="agreementChecked">
-          <u-checkbox shape="circle" :name="true" activeColor="#3E7BFF" size="14"></u-checkbox>
-        </u-checkbox-group>
-        <view class="ag-text">
-          登录即代表您同意 
-          <text class="link" @click="goToPage('agreement')">《用户协议》</text> 
-          和 
-          <text class="link" @click="goToPage('privacy')">《隐私政策》</text>
-        </view>
-      </view>
+
     </view>
 
     <!-- 完善资料弹窗（新用户） -->
@@ -213,6 +216,9 @@ const handlePhoneRegister = async () => {
         } else {
             completeLogin(res);
         }
+        // 清空敏感字段
+        phoneForm.code = '';
+        phoneForm.password = '';
     } catch (e) {
         // failed
     } finally {
@@ -604,7 +610,7 @@ const skipRegister = () => {
   font-size: 26rpx;
   color: #86909C;
   margin-top: 10rpx;
-  margin-bottom: 60rpx;
+  margin-bottom: 40rpx;
   font-weight: 600;
   .blue { color: #3E7BFF; margin-left: 8rpx; text-decoration: underline; }
 }
@@ -673,17 +679,18 @@ const skipRegister = () => {
 }
 
 .agreement-area {
-  margin-top: 60rpx;
+  margin-bottom: 40rpx;
   display: flex;
   align-items: flex-start;
-  justify-content: center;
-  padding: 20rpx 0;
+  justify-content: flex-start;
+  padding: 0 20rpx;
   
   .ag-text {
     font-size: 24rpx;
     color: #86909C;
     line-height: 1.4;
-    margin-left: 8rpx;
+    margin-left: 12rpx;
+    font-weight: 500;
     
     .link { color: #3E7BFF; font-weight: 700; margin: 0 4rpx; }
   }

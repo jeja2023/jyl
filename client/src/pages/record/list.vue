@@ -26,15 +26,18 @@
             <text class="full">{{ currentFullName }}</text>
           </view>
           <view class="title-right">
-            <view class="zoom-btn" @click="changeCount('zoomIn')"><u-icon name="minus" size="12"></u-icon></view>
+            <view class="zoom-btn" @click="changeCount('zoomOut')"><u-icon name="minus" size="12"></u-icon></view>
             <text class="sub">显示{{ chartData.labels.length }}次</text>
-            <view class="zoom-btn" @click="changeCount('zoomOut')"><u-icon name="plus" size="12"></u-icon></view>
+            <view class="zoom-btn" @click="changeCount('zoomIn')"><u-icon name="plus" size="12"></u-icon></view>
           </view>
         </view>
         
         <!-- 简易折线图 (使用 Canvas) -->
-        <view class="chart-container">
+        <view class="chart-container" v-show="hasValidChartData">
           <canvas canvas-id="trendChart" class="trend-canvas" :style="{width: canvasWidth + 'px', height: '200px'}"></canvas>
+        </view>
+        <view class="empty-chart-box" v-show="!hasValidChartData">
+           <text style="color: #C9CDD4; font-size: 26rpx;">近期记录中无此指标数据</text>
         </view>
         
         <!-- 最新值显示 -->
@@ -44,7 +47,7 @@
              <u-icon v-if="valueStatusInfo.icon" :name="valueStatusInfo.icon" size="18" :color="valueStatusInfo.color === 'error' ? '#F53F3F' : '#FF7D00'"></u-icon>
              <text class="value" :class="'color-' + valueStatusInfo.color">{{ latestValue }}</text>
           </view>
-          <text class="unit">{{ currentUnit }}</text>
+          <text class="unit" :class="{'detected': list[0]?.units?.[currentTab]}">{{ latestUnit }}</text>
         </view>
       </view>
       
@@ -74,28 +77,21 @@
             
             <view class="record-center">
               <!-- 血检数据部分 -->
-              <view class="blood-metrics" v-if="item.TSH || item.FT4 || item.FT3">
-                <view class="val-item">
-                  <text class="val" :class="'color-' + getIndicatorInfo(item.TSH, 0.27, 4.2).color">{{ item.TSH || '-' }}</text>
-                  <text class="label">TSH</text>
-                  <u-icon v-if="getIndicatorInfo(item.TSH, 0.27, 4.2).icon" :name="getIndicatorInfo(item.TSH, 0.27, 4.2).icon" size="8" :color="getIndicatorInfo(item.TSH, 0.27, 4.2).color === 'error' ? '#F53F3F' : '#FF7D00'" class="mini-arrow"></u-icon>
-                </view>
-                <view class="val-item">
-                  <text class="val" :class="'color-' + getIndicatorInfo(item.FT4, 12, 22).color">{{ item.FT4 || '-' }}</text>
-                  <text class="label">FT4</text>
-                  <u-icon v-if="getIndicatorInfo(item.FT4, 12, 22).icon" :name="getIndicatorInfo(item.FT4, 12, 22).icon" size="8" :color="getIndicatorInfo(item.FT4, 12, 22).color === 'error' ? '#F53F3F' : '#FF7D00'" class="mini-arrow"></u-icon>
-                </view>
-                <view class="val-item">
-                  <text class="val" :class="'color-' + getIndicatorInfo(item.FT3, 3.1, 6.8).color">{{ item.FT3 || '-' }}</text>
-                  <text class="label">FT3</text>
-                  <u-icon v-if="getIndicatorInfo(item.FT3, 3.1, 6.8).icon" :name="getIndicatorInfo(item.FT3, 3.1, 6.8).icon" size="8" :color="getIndicatorInfo(item.FT3, 3.1, 6.8).color === 'error' ? '#F53F3F' : '#FF7D00'" class="mini-arrow"></u-icon>
+              <view class="blood-metrics" v-if="hasBloodData(item)">
+                <view class="val-item" v-for="metricKey in visibleListMetrics" :key="metricKey" v-show="item[metricKey] !== undefined && item[metricKey] !== null && item[metricKey] !== ''">
+                  <text class="val" :class="'color-' + getIndicatorInfo(item[metricKey], getRefRange(metricKey)).color">{{ item[metricKey] }}</text>
+                  <view class="label-row">
+                    <text class="label" :class="{ 'active-tab-text': metricKey === currentTab }">{{ metricKey }}</text>
+                    <text class="mini-unit" v-if="item.units?.[metricKey]">{{ item.units[metricKey] }}</text>
+                  </view>
+                  <u-icon v-if="getIndicatorInfo(item[metricKey], getRefRange(metricKey)).icon" :name="getIndicatorInfo(item[metricKey], getRefRange(metricKey)).icon" size="8" :color="getIndicatorInfo(item[metricKey], getRefRange(metricKey)).color === 'error' ? '#F53F3F' : '#FF7D00'" class="mini-arrow"></u-icon>
                 </view>
               </view>
 
               <!-- B超状态标记 (如果是混合录入或纯B超) -->
               <view class="us-entry" v-if="item.thyroidLeft || item.noduleCount || item.tiradsLevel || hasUltrasoundImages(item.ultrasoundImage)">
-                 <view class="us-tag" :class="{'mini': item.TSH || item.FT4 || item.FT3}">
-                    <u-icon name="photo-fill" size="14" :color="item.TSH ? '#86909C' : '#3E7BFF'"></u-icon>
+                 <view class="us-tag" :class="{'mini': hasBloodData(item)}">
+                    <u-icon name="photo-fill" size="14" :color="hasBloodData(item) ? '#86909C' : '#3E7BFF'"></u-icon>
                     <text>B超报告</text>
                     <text class="level" v-if="item.tiradsLevel">TI-RADS {{ item.tiradsLevel }}</text>
                  </view>
@@ -132,10 +128,25 @@ const canvasWidth = ref(300);
 const displayCount = ref(6); // 默认显示近6次
 
 const changeCount = (type) => {
-  if (type === 'zoomOut') {
-    if (displayCount.value < 20) displayCount.value += 2;
-  } else {
-    if (displayCount.value > 2) displayCount.value -= 2;
+  // 当首次点击且默认展示次数大于实际数据量时，先吸附到实际数量
+  if (displayCount.value > list.value.length) {
+    displayCount.value = list.value.length || 2;
+  }
+
+  if (type === 'zoomOut') { // 减号：表示想看更少的细节/更近的时间
+    if (displayCount.value > 2) {
+      displayCount.value -= 1;
+    } else {
+      uni.$u.toast('最少要求显示2次数据以构成趋势');
+    }
+  } else { // 加号：表示想看更多的数据点/更长的时间
+    if (displayCount.value < 20 && displayCount.value < list.value.length) {
+      displayCount.value += 1;
+    } else if (displayCount.value >= list.value.length) {
+      uni.$u.toast('已无法加载更多，当前已是全部记录');
+    } else {
+      uni.$u.toast('最多支持查看近20次的数据');
+    }
   }
 };
 
@@ -160,6 +171,11 @@ const currentUnit = computed(() => currentTabItem.value?.unit || '');
 const currentRefRange = computed(() => currentTabItem.value?.ref || '');
 const currentThemeColor = computed(() => currentTabItem.value?.color || '#3E7BFF');
 
+const latestUnit = computed(() => {
+  if (!latestRecordWithTab.value) return currentUnit.value;
+  return latestRecordWithTab.value.units?.[currentTab.value] || currentUnit.value;
+});
+
 // 图表数据
 const chartData = computed(() => {
   const reversed = [...list.value].reverse().slice(-displayCount.value); // 按当前显示数量切片
@@ -171,18 +187,40 @@ const chartData = computed(() => {
   return { labels, values };
 });
 
-// 最新值
+// 最新值寻找最近有该指标的记录
+const latestRecordWithTab = computed(() => {
+  return list.value.find(item => item[currentTab.value] !== null && item[currentTab.value] !== undefined && item[currentTab.value] !== '') || null;
+});
+
 const latestValue = computed(() => {
-  if (list.value.length === 0) return null;
-  return list.value[0][currentTab.value] || null;
+  return latestRecordWithTab.value ? latestRecordWithTab.value[currentTab.value] : null;
 });
 
 // getIndicatorInfo 和 getIndicatorInfoFromRef 已从 @/utils/indicator.js 导入
 
 // 值状态提示
 const valueStatusInfo = computed(() => {
+  if (latestValue.value === null) return {};
   return getIndicatorInfoFromRef(latestValue.value, currentRefRange.value);
 });
+
+const hasValidChartData = computed(() => {
+  return chartData.value.values.some(v => v !== null && v !== undefined && v !== '');
+});
+
+const visibleListMetrics = computed(() => {
+    const defaults = ['TSH', 'FT4', 'FT3'];
+    if (!defaults.includes(currentTab.value)) {
+        return ['TSH', 'FT4', currentTab.value];
+    }
+    return defaults;
+});
+
+const getRefRange = (key) => tabs.find(t => t.key === key)?.ref || '';
+
+const hasBloodData = (item) => {
+    return visibleListMetrics.value.some(k => item[k] !== undefined && item[k] !== null && item[k] !== '');
+};
 
 // 格式化日期
 const formatDate = (dateStr) => {
@@ -217,25 +255,94 @@ const drawChart = () => {
   const chartHeight = height - padding.top - padding.bottom;
   
   // 计算数据范围
-  const validValues = values.filter(v => v !== null);
+  const validValues = values.filter(v => v !== null && v !== undefined && v !== '');
   if (validValues.length === 0) return;
+
+  // 尝试解析参考范围
+  let refMin = null;
+  let refMax = null;
+  if (currentRefRange.value) {
+    if (currentRefRange.value.includes('-')) {
+      const parts = currentRefRange.value.split('-');
+      refMin = parseFloat(parts[0]);
+      refMax = parseFloat(parts[1]);
+    } else if (currentRefRange.value.includes('<')) {
+      refMin = 0;
+      refMax = parseFloat(currentRefRange.value.replace('<', ''));
+    } else if (currentRefRange.value.includes('>')) {
+      refMin = parseFloat(currentRefRange.value.replace('>', ''));
+      refMax = refMin * 1.5;
+    }
+  }
   
-  const minVal = Math.min(...validValues) * 0.8;
-  const maxVal = Math.max(...validValues) * 1.2;
+  let dataMin = Math.min(...validValues);
+  let dataMax = Math.max(...validValues);
+  
+  let minVal = dataMin;
+  let maxVal = dataMax;
+
+  if (refMin !== null && refMax !== null) {
+      if (minVal > refMin) minVal = refMin;
+      if (maxVal < refMax) maxVal = refMax;
+  }
+  
+  const paddingY = (maxVal - minVal) * 0.1 || 1;
+  minVal -= paddingY;
+  maxVal += paddingY;
+  
+  if (minVal < 0 && dataMin >= 0) minVal = 0;
+  
   const range = maxVal - minVal || 1;
   
   // 清空画布
   ctx.clearRect(0, 0, width, height);
+
+  // 1. 绘制正常参考带
+  if (refMin !== null && refMax !== null) {
+      const yTop = Math.max(padding.top, padding.top + chartHeight - ((refMax - minVal) / range) * chartHeight);
+      const yBottom = Math.min(padding.top + chartHeight, padding.top + chartHeight - ((refMin - minVal) / range) * chartHeight);
+      
+      if (yBottom > yTop) {
+          ctx.setFillStyle('rgba(0, 180, 42, 0.05)');
+          ctx.fillRect(padding.left, yTop, chartWidth, yBottom - yTop);
+          
+          ctx.setStrokeStyle('rgba(0, 180, 42, 0.2)');
+          ctx.setLineWidth(1);
+          if (ctx.setLineDash) ctx.setLineDash([4, 4]);
+          
+          if (yTop >= padding.top) {
+              ctx.beginPath();
+              ctx.moveTo(padding.left, yTop);
+              ctx.lineTo(width - padding.right, yTop);
+              ctx.stroke();
+          }
+          if (yBottom <= padding.top + chartHeight) {
+              ctx.beginPath();
+              ctx.moveTo(padding.left, yBottom);
+              ctx.lineTo(width - padding.right, yBottom);
+              ctx.stroke();
+          }
+          if (ctx.setLineDash) ctx.setLineDash([]);
+      }
+  }
   
-  // 绘制网格线
+  // 2. 绘制网格线和 Y 轴标签
   ctx.setStrokeStyle('#F2F3F5');
   ctx.setLineWidth(1);
+  ctx.setFillStyle('#86909C');
+  ctx.setFontSize(10);
+  ctx.setTextAlign('right');
+  
   for (let i = 0; i <= 4; i++) {
     const y = padding.top + (chartHeight / 4) * i;
+    const val = maxVal - (range / 4) * i;
+
     ctx.beginPath();
     ctx.moveTo(padding.left, y);
     ctx.lineTo(width - padding.right, y);
     ctx.stroke();
+
+    ctx.fillText(Number.isInteger(val) ? val.toString() : val.toFixed(1), padding.left - 8, y + 4);
   }
   
   // 绘制折线
@@ -326,7 +433,17 @@ const fetchList = async () => {
   if (!userStore.isLogin) return;
   try {
     const res = await http.get('/api/record/list');
-    list.value = res.list;
+    list.value = res.list.map(item => {
+      item.units = {};
+      if (item.indicatorUnits) {
+        try {
+          item.units = JSON.parse(item.indicatorUnits);
+        } catch (e) {
+          item.units = {};
+        }
+      }
+      return item;
+    });
     await nextTick();
     drawChart();
   } catch (err) {
@@ -485,6 +602,17 @@ onShow(() => {
     margin: 20rpx 0;
   }
   
+  .empty-chart-box {
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 20rpx 0;
+    background: #F8FAFF;
+    border-radius: 20rpx;
+    border: 1px dashed #E5E6EB;
+  }
+
   .trend-canvas {
     width: 100%;
     height: 200px;
@@ -523,6 +651,10 @@ onShow(() => {
       align-self: flex-end;
       margin-bottom: 8rpx;
       font-weight: 700;
+      
+      &.detected {
+        color: #3E7BFF;
+      }
     }
   }
 }
@@ -681,11 +813,26 @@ onShow(() => {
         line-height: 1.2;
       }
       
-      .label {
-        font-size: 18rpx;
-        color: #C9CDD4;
-        font-weight: 700;
+      .label-row {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
         margin-top: -2rpx;
+        
+        .label {
+          font-size: 18rpx;
+          color: #C9CDD4;
+          font-weight: 700;
+        }
+        
+        .mini-unit {
+          font-size: 14rpx;
+          color: #3E7BFF;
+          font-weight: 500;
+          transform: scale(0.85);
+          transform-origin: left;
+          margin-top: -4rpx;
+        }
       }
       
       .mini-arrow {
@@ -767,5 +914,14 @@ onShow(() => {
   &:active {
     transform: scale(0.9) rotate(90deg);
   }
+}
+
+.active-tab-text {
+  color: #3E7BFF !important;
+  font-weight: 800 !important;
+  background: #EEF4FF;
+  padding: 2rpx 8rpx;
+  border-radius: 6rpx;
+  margin-left: -8rpx;
 }
 </style>

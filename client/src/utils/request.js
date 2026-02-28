@@ -5,12 +5,12 @@ const http = new Request();
 
 /* config */
 http.setConfig((config) => {
-    // 默认地址
-    let baseURL = 'http://localhost:3000';
+    // 优先使用构建时注入的环境变量（生产环境在 .env 中配置 VITE_API_BASE）
+    let baseURL = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
     // #ifdef H5
-    //如果是H5环境，且是局域网访问，自动替换为当前Host IP
-    if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    // 未配置环境变量时，局域网调试自动替换为当前 Host IP
+    if (!import.meta.env.VITE_API_BASE && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
         baseURL = `http://${window.location.hostname}:3000`;
     }
     // #endif

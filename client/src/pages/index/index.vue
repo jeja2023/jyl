@@ -11,8 +11,8 @@ const lastRecord = ref(null);
 const showWikiDetail = ref(false);
 const currentWiki = ref({});
 const hasNotice = ref(false);
-
 const articles = ref([]);
+let articlesLoaded = false;
 
 const fetchArticles = async () => {
     try {
@@ -31,11 +31,10 @@ const checkReminders = async () => {
     return;
   }
   try {
-    // 检查是否有开启中的服药计划
-    const res = await http.get('/api/medication/list');
-    hasNotice.value = res.some(item => item.isActive);
+    const res = await http.get('/api/notification/list', { params: { pageSize: 20 } });
+    hasNotice.value = (res.list || []).some(item => !item.isRead);
   } catch (err) {
-    // console.error('检查提醒失败:', err);
+    // ignore
   }
 };
 
@@ -45,7 +44,17 @@ const fetchLastRecord = async () => {
     // 增加 hasLab 参数，由后端过滤掉纯 B 超记录，确保显示的是最后一次真实血检
     const res = await http.get('/api/record/list', { params: { limit: 1, hasLab: 1 } });
     if (res.list && res.list.length > 0) {
-      lastRecord.value = res.list[0];
+      const record = res.list[0];
+      // 解析单位信息
+      record.units = {};
+      if (record.indicatorUnits) {
+        try {
+          record.units = JSON.parse(record.indicatorUnits);
+        } catch (e) {
+          record.units = {};
+        }
+      }
+      lastRecord.value = record;
     } else {
       lastRecord.value = null;
     }
@@ -56,9 +65,12 @@ const fetchLastRecord = async () => {
 
 // 页面显示时刷新数据
 onShow(() => {
-  // 始终刷新文章
-  fetchArticles();
-  // 登录用户的数据并行获取
+  // 文章只加载一次
+  if (!articlesLoaded) {
+    fetchArticles();
+    articlesLoaded = true;
+  }
+  // 用户数据每次显示时刷新（可能从其他页面返回后有变化）
   if (userStore.isLogin) {
     Promise.all([fetchLastRecord(), checkReminders()]);
   }
@@ -203,7 +215,7 @@ onMounted(() => {
                  <u-icon v-if="getIndicatorInfo(lastRecord.TSH, 0.27, 4.2).icon" :name="getIndicatorInfo(lastRecord.TSH, 0.27, 4.2).icon" size="10" :color="getIndicatorInfo(lastRecord.TSH, 0.27, 4.2).color === 'error' ? '#F53F3F' : '#FF7D00'" class="v-icon-abs"></u-icon>
               </view>
               <text class="v-label">TSH</text>
-              <text class="v-unit">mIU/L</text>
+              <text class="v-unit" :class="{'detected': lastRecord.units && lastRecord.units.TSH}">{{ (lastRecord.units && lastRecord.units.TSH) || 'mIU/L' }}</text>
             </view>
             
             <!-- FT4 -->
@@ -213,7 +225,7 @@ onMounted(() => {
                  <u-icon v-if="getIndicatorInfo(lastRecord.FT4, 12, 22).icon" :name="getIndicatorInfo(lastRecord.FT4, 12, 22).icon" size="10" :color="getIndicatorInfo(lastRecord.FT4, 12, 22).color === 'error' ? '#F53F3F' : '#FF7D00'" class="v-icon-abs"></u-icon>
               </view>
               <text class="v-label">FT4</text>
-              <text class="v-unit">pmol/L</text>
+              <text class="v-unit" :class="{'detected': lastRecord.units && lastRecord.units.FT4}">{{ (lastRecord.units && lastRecord.units.FT4) || 'pmol/L' }}</text>
             </view>
             
             <!-- FT3 -->
@@ -223,7 +235,7 @@ onMounted(() => {
                  <u-icon v-if="getIndicatorInfo(lastRecord.FT3, 3.1, 6.8).icon" :name="getIndicatorInfo(lastRecord.FT3, 3.1, 6.8).icon" size="10" :color="getIndicatorInfo(lastRecord.FT3, 3.1, 6.8).color === 'error' ? '#F53F3F' : '#FF7D00'" class="v-icon-abs"></u-icon>
               </view>
               <text class="v-label">FT3</text>
-              <text class="v-unit">pmol/L</text>
+              <text class="v-unit" :class="{'detected': lastRecord.units && lastRecord.units.FT3}">{{ (lastRecord.units && lastRecord.units.FT3) || 'pmol/L' }}</text>
             </view>
 
             <!-- T4 -->
@@ -233,7 +245,7 @@ onMounted(() => {
                  <u-icon v-if="getIndicatorInfo(lastRecord.T4, 66, 181).icon" :name="getIndicatorInfo(lastRecord.T4, 66, 181).icon" size="8" :color="getIndicatorInfo(lastRecord.T4, 66, 181).color === 'error' ? '#F53F3F' : '#FF7D00'" class="v-icon-abs-small"></u-icon>
               </view>
               <text class="v-label">T4</text>
-              <text class="v-unit">nmol/L</text>
+              <text class="v-unit" :class="{'detected': lastRecord.units && lastRecord.units.T4}">{{ (lastRecord.units && lastRecord.units.T4) || 'nmol/L' }}</text>
             </view>
 
             <!-- T3 -->
@@ -243,7 +255,7 @@ onMounted(() => {
                  <u-icon v-if="getIndicatorInfo(lastRecord.T3, 1.3, 3.1).icon" :name="getIndicatorInfo(lastRecord.T3, 1.3, 3.1).icon" size="8" :color="getIndicatorInfo(lastRecord.T3, 1.3, 3.1).color === 'error' ? '#F53F3F' : '#FF7D00'" class="v-icon-abs-small"></u-icon>
               </view>
               <text class="v-label">T3</text>
-              <text class="v-unit">nmol/L</text>
+              <text class="v-unit" :class="{'detected': lastRecord.units && lastRecord.units.T3}">{{ (lastRecord.units && lastRecord.units.T3) || 'nmol/L' }}</text>
             </view>
 
             <!-- Tg/Cal if exists -->
@@ -252,14 +264,14 @@ onMounted(() => {
                  <text class="v-num small" :class="'color-' + getIndicatorInfo(lastRecord.Tg, 0, 77).color">{{ lastRecord.Tg }}</text>
               </view>
               <text class="v-label">Tg</text>
-              <text class="v-unit">ng/mL</text>
+              <text class="v-unit" :class="{'detected': lastRecord.units && lastRecord.units.Tg}">{{ (lastRecord.units && lastRecord.units.Tg) || 'ng/mL' }}</text>
             </view>
             <view class="v-item primary" v-else-if="lastRecord.Calcium">
               <view class="v-main">
                  <text class="v-num small" :class="'color-' + getIndicatorInfo(lastRecord.Calcium, 2.11, 2.52).color">{{ lastRecord.Calcium }}</text>
               </view>
               <text class="v-label">血钙</text>
-              <text class="v-unit">mmol/L</text>
+              <text class="v-unit" :class="{'detected': lastRecord.units && lastRecord.units.Calcium}">{{ (lastRecord.units && lastRecord.units.Calcium) || 'mmol/L' }}</text>
             </view>
           </view>
         </view>
@@ -627,6 +639,11 @@ page {
           color: #C9CDD4;
           font-weight: 500;
           transform: scale(0.9);
+          
+          &.detected {
+            color: #3E7BFF;
+            font-weight: 700;
+          }
         }
       }
     }
@@ -875,7 +892,7 @@ page {
   }
   
   .detail-content-scroll {
-    padding: 30rpx 40rpx 80rpx;
+    padding: 30rpx 40rpx calc(env(safe-area-inset-bottom) + 160rpx);
     .detail-meta {
       display: flex;
       align-items: center;

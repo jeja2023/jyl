@@ -140,6 +140,10 @@ const HealthRecord = sequelize.define('HealthRecord', {
     ultrasoundImage: {
         type: DataTypes.TEXT,
         comment: 'B超报告图片路径 (JSON数组)'
+    },
+    indicatorUnits: {
+        type: DataTypes.TEXT,
+        comment: '各项指标对应的原始单位 (JSON对象字符串)'
     }
 }, {
     timestamps: true,

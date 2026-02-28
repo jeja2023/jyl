@@ -31,6 +31,7 @@
             <view class="countdown" :class="getCountdownClass(item.date)">
               {{ getCountdown(item.date) }}
             </view>
+            <u-icon v-if="!item.isCompleted" name="checkmark-circle" size="22" color="#27C24C" @click="completeReminder(item)" style="margin-right:16rpx"></u-icon>
             <u-icon name="trash" size="18" color="#86909C" @click="deleteReminder(item)"></u-icon>
           </view>
         </view>
@@ -86,7 +87,7 @@ const newReminder = reactive({
 const loadReminders = async () => {
   try {
     const res = await http.get('/api/checkup/list');
-    reminders.value = res || [];
+    reminders.value = (res || []).filter(item => !item.isCompleted);
   } catch (e) {
     console.error(e);
   }
@@ -127,6 +128,16 @@ const saveReminder = async () => {
     uni.$u.toast('提醒已保存');
     showAdd.value = false;
     loadReminders(); // 刷新列表
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+const completeReminder = async (item) => {
+  try {
+    await http.post('/api/checkup/complete', { id: item.id });
+    item.isCompleted = true;
+    uni.$u.toast('已标记完成');
   } catch (e) {
     console.error(e);
   }

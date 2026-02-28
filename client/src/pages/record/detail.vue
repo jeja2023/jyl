@@ -29,7 +29,8 @@
             </view>
             <view class="label-group">
               <text class="label">{{ item.label }}</text>
-              <text class="unit" v-if="item.unit">{{ item.unit }}</text>
+              <text class="unit" :class="{'detected': record.units && record.units[item.key]}" v-if="record.units && record.units[item.key]">{{ record.units[item.key] }}</text>
+              <text class="unit" v-else-if="item.unit">{{ item.unit }}</text>
             </view>
             <text class="ref-text" v-if="item.ref">参考: {{ item.ref }}</text>
           </view>
@@ -232,7 +233,8 @@ const getIndicatorInfo = (val, refStr) => {
 const getImageUrl = (path) => {
   if (!path) return '';
   if (path.startsWith('http')) return path;
-  return `http://localhost:3000${path}`;
+  const base = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+  return `${base}${path}`;
 };
 
 const previewImage = (images, current) => {
@@ -246,6 +248,17 @@ const previewImage = (images, current) => {
 const fetchDetail = async () => {
   try {
     const res = await http.get(`/api/record/${props.id}`);
+    
+    // 解析单位信息
+    res.units = {};
+    if (res.indicatorUnits) {
+      try {
+        res.units = JSON.parse(res.indicatorUnits);
+      } catch (e) {
+        res.units = {};
+      }
+    }
+    
     record.value = res;
   } catch (err) {
     uni.$u.toast('获取记录失败');
@@ -373,6 +386,11 @@ onShow(() => {
         font-size: 16rpx;
         color: #C9CDD4;
         font-weight: 500;
+        
+        &.detected {
+          color: #3E7BFF;
+          font-weight: 700;
+        }
       }
     }
     

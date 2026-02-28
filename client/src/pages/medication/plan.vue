@@ -290,7 +290,7 @@ const editPlan = (item) => {
     newPlan.dosage = item.dosage;
     newPlan.takeTime = item.takeTime;
     newPlan.notes = item.notes;
-    // item.isActive 不在编辑表单中，保持原样或另行处理，这里暂不包含在编辑表单中
+    newPlan.isActive = item.isActive;
     showAdd.value = true;
 };
 
@@ -325,12 +325,14 @@ const deletePlan = (id) => {
 };
 
 const takeMedicine = async (item) => {
+    const prevDate = item.lastTakenDate;
+    item.lastTakenDate = new Date().toISOString().split('T')[0];
     try {
         await http.post('/api/medication/take', { id: item.id });
         uni.$u.toast('已确认服药');
-        item.lastTakenDate = new Date().toISOString().split('T')[0];
     } catch (err) {
-        console.error(err);
+        item.lastTakenDate = prevDate;
+        uni.$u.toast('操作失败');
     }
 };
 

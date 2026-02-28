@@ -1,9 +1,9 @@
 <template>
   <view class="notification-page">
-    <u-navbar title="消息中心" autoBack placeholder :titleStyle="{fontWeight: '700'}"></u-navbar>
+    <u-navbar title="消息中心" autoBack placeholder :titleStyle="{fontWeight: '700'}" @clickLeft="uni.navigateBack()"></u-navbar>
     
     <view class="msg-list">
-      <view class="msg-item" v-for="(item, index) in list" :key="item.id || index">
+      <view class="msg-item" v-for="(item, index) in list" :key="item.id || index" :class="{unread: !item.isRead}" @click="markRead(item)">
         <view class="icon-box" :class="item.type">
           <!-- 系统通知图标 -->
           <u-icon v-if="item.type === 'system'" name="volume-fill" color="#fff" size="24"></u-icon>
@@ -19,9 +19,10 @@
           </view>
           <text class="desc">{{ item.content }}</text>
         </view>
+        <u-icon v-if="item.type === 'system' && typeof item.id === 'number'" name="close" size="16" color="#C9CDD4" @click.stop="deleteMsg(item, index)" style="margin-left:16rpx;flex-shrink:0"></u-icon>
       </view>
       
-      <u-empty v-if="list.length === 0" mode="message" text="暂无消息" marginTop="100"></u-empty>
+      <u-empty v-if="!loading && list.length === 0" mode="message" text="暂无消息" marginTop="100"></u-empty>
     </view>
   </view>
 </template>
@@ -32,13 +33,34 @@ import { onShow } from '@dcloudio/uni-app';
 import http from '@/utils/request.js';
 
 const list = ref([]);
+const loading = ref(true);
 
 const fetchList = async () => {
+  loading.value = true;
   try {
     const res = await http.get('/api/notification/list');
-    list.value = res || [];
+    list.value = res.list || [];
   } catch (e) {
     console.error(e);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const markRead = async (item) => {
+  if (item.isRead || typeof item.id !== 'number') return;
+  try {
+    await http.post('/api/notification/read', { id: item.id });
+    item.isRead = true;
+  } catch (e) { /* 静默失败 */ }
+};
+
+const deleteMsg = async (item, index) => {
+  try {
+    await http.delete('/api/notification/delete', { data: { id: item.id } });
+    list.value.splice(index, 1);
+  } catch (e) {
+    uni.$u.toast('删除失败');
   }
 };
 
@@ -144,6 +166,10 @@ onShow(() => {
     }
   }
   
+  &.unread {
+    border-left: 6rpx solid #3E7BFF;
+  }
+
   &:active {
     background: #F8FAFF;
   }

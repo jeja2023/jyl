@@ -103,4 +103,11 @@ User.prototype.comparePassword = function (password) {
     return bcrypt.compare(password, this.password);
 };
 
+// 序列化时默认去除 password，防止意外泄露
+User.prototype.toJSON = function () {
+    const values = Object.assign({}, this.get());
+    delete values.password;
+    return values;
+};
+
 module.exports = User;

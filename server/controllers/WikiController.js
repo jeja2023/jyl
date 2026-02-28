@@ -308,7 +308,7 @@ class WikiController {
         const article = await WikiArticle.create({
             title,
             summary,
-            content,
+            content: content ? xss(content) : content,
             category: category || '疾病知识',
             cover,
             status: status || 'published', // 管理员发布默认直接发布
@@ -339,7 +339,7 @@ class WikiController {
         await article.update({
             title: title !== undefined ? title : article.title,
             summary: summary !== undefined ? summary : article.summary,
-            content: content !== undefined ? content : article.content,
+            content: content !== undefined ? xss(content) : article.content,
             category: category !== undefined ? category : article.category,
             cover: cover !== undefined ? cover : article.cover,
             status: status !== undefined ? status : article.status,
