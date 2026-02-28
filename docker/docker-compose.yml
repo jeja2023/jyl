@@ -7,7 +7,7 @@ services:
       dockerfile: docker/Dockerfile
     container_name: jyl-app
     ports:
-      - "3000:3000"
+      - "9292:3000"
     volumes:
       - ../storage:/app/storage
       - ./.env:/app/server/.env
