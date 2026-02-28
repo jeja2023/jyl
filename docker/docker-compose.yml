@@ -10,9 +10,10 @@ services:
       - "9292:3000"
     volumes:
       - ../storage:/app/storage
-      - ./.env_docker:/app/server/.env
     env_file:
       - .env_docker
+    environment:
+      - DB_HOST=jyl-db
     depends_on:
       - jyl-db
     restart: always

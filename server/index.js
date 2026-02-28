@@ -24,6 +24,9 @@ if (!fs.existsSync(storageDir)) {
     fs.mkdirSync(storageDir, { recursive: true });
 }
 
+// 打印库连接诊断信息
+console.log(`[启动] 数据库连接检测: HOST=${process.env.DB_HOST || 'localhost'}, USER=${process.env.DB_USER}`);
+
 // 数据库服务 初始化
 const DbService = require('./services/DbService');
 DbService.init();
