@@ -24,10 +24,10 @@ services:
     env_file:
       - .env_docker
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASS}
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASS}
+      MYSQL_ROOT_PASSWORD: jeje_123456
+      MYSQL_DATABASE: jyl
+      MYSQL_USER: jeje
+      MYSQL_PASSWORD: jeje_123456
     volumes:
       - mysql_data:/var/lib/mysql
     restart: always
