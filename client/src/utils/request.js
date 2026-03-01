@@ -5,13 +5,18 @@ const http = new Request();
 
 /* config */
 http.setConfig((config) => {
-    // 优先使用构建时注入的环境变量（生产环境在 .env 中配置 VITE_API_BASE）
+    // 优先使用构建时注入的环境变量
     let baseURL = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
     // #ifdef H5
-    // 未配置环境变量时，局域网调试自动替换为当前 Host IP
-    if (!import.meta.env.VITE_API_BASE && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-        baseURL = `http://${window.location.hostname}:3000`;
+    if (!import.meta.env.VITE_API_BASE) {
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            // 本地开发：直接连后端开发服务
+            baseURL = 'http://localhost:3000';
+        } else {
+            // 生产环境：使用当前页面的协议和域名（由 Nginx 反代转发到后端）
+            baseURL = window.location.origin;
+        }
     }
     // #endif
 
