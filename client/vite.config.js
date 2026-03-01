@@ -2,10 +2,27 @@ import { defineConfig } from 'vite'
 import uni from '@dcloudio/vite-plugin-uni'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// 自定义插件：将 uni-app 框架引用的 DCloud CDN 图片替换为本地资源
+function replaceCdnPlugin() {
+  return {
+    name: 'replace-dcloud-cdn',
+    enforce: 'post',
+    transform(code, id) {
+      if (id.endsWith('.css') || id.includes('.css')) {
+        return code.replace(
+          /https?:\/\/cdn\.dcloud\.net\.cn\/img\/shadow-grey\.png/g,
+          '/static/shadow-grey.png'
+        );
+      }
+    }
+  }
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     uni(),
+    replaceCdnPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
