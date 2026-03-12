@@ -74,7 +74,7 @@
           </view>
           <view class="export-btn" @click="handleExport()">
             <u-icon name="download" size="14" color="#3E7BFF"></u-icon>
-            <text>导出报告</text>
+            <text>导出记录</text>
           </view>
         </view>
       </view>
