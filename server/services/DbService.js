@@ -6,6 +6,7 @@ const CheckupReminder = require('../models/CheckupReminder');
 const HealthTip = require('../models/HealthTip');
 const VerifyCode = require('../models/VerifyCode');
 const Notification = require('../models/Notification');
+const ActionLog = require('../models/ActionLog');
 const logger = require('../utils/logger');
 
 class DbService {
@@ -43,21 +44,23 @@ class DbService {
         const adminPass = process.env.ADMIN_PASS || '123456';
 
         try {
-            const [user, created] = await User.findOrCreate({
-                where: { username: adminUser },
-                defaults: {
+            const user = await User.findOne({ where: { username: adminUser } });
+            
+            if (!user) {
+                await User.create({
+                    username: adminUser,
                     password: adminPass,
                     nickname: '系统管理员',
                     role: 'admin',
                     patientType: '其他'
-                }
-            });
-
-            if (created) {
+                });
                 logger.info(`初始管理员账户已创建: ${adminUser}`);
+            } else if (user.role !== 'admin') {
+                await user.update({ role: 'admin' });
+                logger.info(`已将账户 ${adminUser} 提升为管理员权限`);
             }
         } catch (e) {
-            logger.error('管理员账户检查失败', { message: e.message });
+            logger.error('管理员账户初始化失败', { message: e.message });
         }
     }
 }

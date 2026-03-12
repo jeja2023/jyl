@@ -1,5 +1,6 @@
 const MedicationPlan = require('../models/MedicationPlan');
 const Response = require('../utils/response');
+const { logAction } = require('../utils/actionLog');
 
 class MedicationController {
     // 新增服药计划
@@ -13,6 +14,7 @@ class MedicationController {
         });
 
         Response.success(ctx, plan, '服药计划已添加');
+        logAction(ctx, '添加用药计划', '用药管理', `用户添加了药品: ${data.medicineName}`);
     }
 
     // 获取用户计划列表
@@ -41,6 +43,7 @@ class MedicationController {
         await plan.save();
 
         Response.success(ctx, null, '状态已更新');
+        logAction(ctx, '切换用药状态', '用药管理', `用户将药品 ${plan.medicineName} 状态设为: ${isActive ? '开启' : '关闭'}`);
     }
 
     // 服药打卡
@@ -58,6 +61,7 @@ class MedicationController {
         await plan.save();
 
         Response.success(ctx, { lastTakenDate: today }, '已确认服药');
+        logAction(ctx, '服药打卡', '用药管理', `用户确认服用了药品: ${plan.medicineName}`);
     }
 
     // 更新计划信息
@@ -78,6 +82,7 @@ class MedicationController {
         await plan.save();
 
         Response.success(ctx, plan, '计划已更新');
+        logAction(ctx, '修改用药计划', '用药管理', `用户修改了药品 ${plan.medicineName} 的详情`);
     }
 
     // 删除计划
@@ -91,6 +96,7 @@ class MedicationController {
 
         if (result) {
             Response.success(ctx, null, '计划已删除');
+            logAction(ctx, '删除用药计划', '用药管理', `用户删除了一个服药计划`);
         } else {
             Response.error(ctx, '删除失败或计划不存在', 404);
         }

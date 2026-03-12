@@ -63,17 +63,32 @@ http.interceptors.response.use((response) => {
     // 处理 HTTP 状态码错误
     const { status, data } = response;
 
+    // 防止多个并发请求 401 时弹出多个提示和执行多次跳转
+    if (status === 401) {
+        if (!window._isRedirecting) {
+            window._isRedirecting = true;
+            const errMsg = (data && data.message) ? data.message : '登录已过期';
+            
+            uni.showToast({
+                title: errMsg,
+                icon: 'none'
+            });
+
+            const userStore = useUserStore();
+            userStore.logout();
+
+            // 延迟跳转，让用户看清提示
+            setTimeout(() => {
+                window._isRedirecting = false;
+                uni.reLaunch({ url: '/pages/login/login' });
+            }, 1500);
+        }
+        return Promise.reject(data || 'Unauthorized');
+    }
+
     let errMsg = '服务器异常';
     if (data && data.message) {
         errMsg = data.message;
-    } else if (status === 401) {
-        errMsg = '登录已过期';
-        const userStore = useUserStore();
-        userStore.logout();
-        // 延迟跳转，让用户看清提示
-        setTimeout(() => {
-            uni.reLaunch({ url: '/pages/login/login' });
-        }, 1500);
     }
 
     uni.showToast({

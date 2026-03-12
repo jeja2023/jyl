@@ -6,6 +6,7 @@ const Response = require('../utils/response');
 const SmsService = require('../utils/sms');
 const MailService = require('../utils/mail');
 const { Op } = require('sequelize');
+const { logAction } = require('../utils/actionLog');
 
 class AuthController {
 
@@ -110,6 +111,8 @@ class AuthController {
             username: newUser.username,
             patientType: newUser.patientType
         }, '注册成功');
+
+        logAction(ctx, '注册', '认证', `新用户 ${newUser.username} 注册成功`, 'success', newUser);
     }
 
     /**
@@ -146,6 +149,9 @@ class AuthController {
             token,
             userInfo: AuthController.formatUserInfo(user)
         }, '登录成功');
+        
+        // 异步记录登录日志
+        logAction(ctx, '登录', '认证', `用户 ${user.username || user.email} 登录成功`, 'success', user);
     }
 
     // ==================== 邮箱验证码登录/注册 ====================
@@ -369,6 +375,7 @@ class AuthController {
             userInfo: AuthController.formatUserInfo(user),
             isNewUser
         }, isNewUser ? '注册成功' : '登录成功');
+        logAction(ctx, isNewUser ? '手机注册' : '手机登录', '认证', `用户 ${user.phone} 登录成功`, 'success', user);
     }
 
     /**

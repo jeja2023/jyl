@@ -7,6 +7,7 @@ const CheckupController = require('../controllers/CheckupController');
 const HealthTipController = require('../controllers/HealthTipController');
 const OcrController = require('../controllers/OcrController');
 const UploadController = require('../controllers/UploadController');
+const AdminController = require('../controllers/AdminController');
 const auth = require('../middlewares/auth');
 
 const router = new Router({ prefix: '/api' });
@@ -116,6 +117,12 @@ router.post('/wiki/reject', auth, admin, WikiController.reject); // 审核拒绝
 router.post('/wiki/create', auth, admin, WikiController.create); // 直接发布
 router.post('/wiki/update', auth, admin, WikiController.update); // 更新文章
 router.post('/wiki/delete', auth, admin, WikiController.delete); // 删除文章
+
+// --- 系统管理接口 ---
+router.get('/admin/users', auth, admin, AdminController.listUsers);
+router.post('/admin/users/:id/update', auth, admin, AdminController.updateUser);
+router.delete('/admin/users/:id', auth, admin, AdminController.deleteUser);
+router.get('/admin/logs', auth, admin, AdminController.listLogs);
 
 // 公开接口 (通配符 - 必须放最后)
 const optional = require('../middlewares/auth').optional;

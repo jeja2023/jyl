@@ -43,6 +43,14 @@
 
     <!-- 功能菜单 -->
     <view class="menu-card">
+      <view class="menu-item" v-if="userInfo?.role === 'admin'" @click="uni.navigateTo({ url: '/pages/admin/index' })">
+        <view class="menu-icon" style="background: linear-gradient(135deg, #FF7875 0%, #F5222D 100%);">
+          <u-icon name="man-add-fill" size="20" color="#FFFFFF"></u-icon>
+        </view>
+        <view class="menu-title" style="color: #F5222D; font-weight: 700;">系统管理</view>
+        <u-icon name="arrow-right" size="16" color="#C9CDD4"></u-icon>
+      </view>
+
       <view class="menu-item" @click="goProfile">
         <view class="menu-icon" style="background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);">
           <u-icon name="account" size="20" color="#FFFFFF"></u-icon>
@@ -83,7 +91,7 @@
     
     <!-- 版本信息 -->
     <view class="version-info">
-      <text>甲友乐 v1.0.0</text>
+      <text>甲友乐 v1.5.0</text>
     </view>
   </view>
 </template>
@@ -151,8 +159,18 @@ const goSettings = () => {
   uni.navigateTo({ url: '/pages/my/settings' });
 };
 
+const navTo = (url) => {
+  uni.navigateTo({ 
+    url,
+    fail: (err) => {
+      console.error('跳转管理页面失败:', err);
+      uni.showToast({ title: '功能建设中', icon: 'none' });
+    }
+  });
+};
+
 const goAbout = () => {
-  uni.navigateTo({ url: '/pages/my/about' });
+  navTo('/pages/my/about');
 };
 
 const handleOfficialFeedback = () => {
@@ -227,7 +245,7 @@ onShow(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 100rpx 40rpx 40rpx;
+  padding: 60rpx 40rpx 30rpx;
   
   .avatar-wrapper {
     position: relative;
@@ -293,7 +311,7 @@ onShow(() => {
 // 统计信息看板
 .stats-board {
   position: relative;
-  margin: 0 40rpx 40rpx;
+  margin: 0 40rpx 30rpx;
   display: flex;
   justify-content: space-around;
   padding: 30rpx;
@@ -328,7 +346,7 @@ onShow(() => {
 // 疾病类型标签升级
 .type-badge {
   position: relative;
-  margin: 0 40rpx 40rpx;
+  margin: 0 40rpx 30rpx;
   padding: 20rpx 32rpx;
   background: linear-gradient(135deg, #3E7BFF 0%, #2A5DDF 100%);
   border-radius: 24rpx;
@@ -350,14 +368,14 @@ onShow(() => {
   margin: 0 32rpx;
   background: #FFFFFF;
   border-radius: 40rpx;
-  padding: 20rpx;
+  padding: 12rpx;
   box-shadow: 0 10rpx 40rpx rgba(0, 0, 0, 0.02);
 }
 
 .menu-item {
   display: flex;
   align-items: center;
-  padding: 32rpx 24rpx;
+  padding: 24rpx 24rpx;
   border-radius: 24rpx;
   transition: all 0.2s;
   
@@ -366,9 +384,9 @@ onShow(() => {
   }
   
   .menu-icon {
-    width: 80rpx;
-    height: 80rpx;
-    border-radius: 24rpx;
+    width: 72rpx;
+    height: 72rpx;
+    border-radius: 20rpx;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -386,7 +404,7 @@ onShow(() => {
 
 // 退出登录按钮美化
 .logout-btn {
-  margin: 60rpx 32rpx 0;
+  margin: 40rpx 32rpx 0;
   padding: 32rpx;
   background: #FFF7F7;
   border-radius: 24rpx;
@@ -407,7 +425,7 @@ onShow(() => {
 // 版本信息
 .version-info {
   text-align: center;
-  margin-top: 60rpx;
+  margin-top: 40rpx;
   padding-bottom: 40rpx;
   
   text {

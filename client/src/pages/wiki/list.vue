@@ -145,7 +145,12 @@ const actions = computed(() => {
 });
 
 const goBack = () => {
+  const pages = getCurrentPages();
+  if (pages.length > 1) {
+    uni.navigateBack();
+  } else {
     uni.switchTab({ url: '/pages/index/index' });
+  }
 };
 
 const formatDate = (dateStr) => {

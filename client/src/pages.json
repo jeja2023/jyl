@@ -98,6 +98,27 @@
 			}
 		},
 		{
+			"path": "pages/admin/index",
+			"style": {
+				"navigationBarTitleText": "系统管理",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/admin/users",
+			"style": {
+				"navigationBarTitleText": "用户管理",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/admin/logs",
+			"style": {
+				"navigationBarTitleText": "系统日志",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/my/index",
 			"style": {
 				"navigationBarTitleText": "个人中心",

@@ -3,6 +3,7 @@ const fsPromises = require('fs').promises;
 const path = require('path');
 const Response = require('../utils/response');
 const logger = require('../utils/logger');
+const { logAction } = require('../utils/actionLog');
 
 // 存储目录
 const STORAGE_DIR = path.join(__dirname, '../../storage/reports');
@@ -66,6 +67,7 @@ class UploadController {
             path: relativePath,
             filename: filename
         }, '上传成功');
+        logAction(ctx, '文件上传', '系统管理', `用户上传了${type === 'lab' ? '化验单' : 'B超'}图片: ${filename}`);
     }
 }
 

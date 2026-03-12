@@ -1,5 +1,6 @@
 const HealthRecord = require('../models/HealthRecord');
 const Response = require('../utils/response');
+const { logAction } = require('../utils/actionLog');
 
 class RecordController {
     // 辅助方法：清洗数据，将空字符串转换为 null
@@ -30,6 +31,7 @@ class RecordController {
         });
 
         Response.success(ctx, record, '健康记录已保存');
+        logAction(ctx, '新增记录', '健康记录', `用户新增了日期为 ${data.recordDate} 的检查记录`);
     }
 
     // 获取列表 (按日期倒序)
@@ -127,6 +129,7 @@ class RecordController {
 
         await record.update(data);
         Response.success(ctx, record, '记录已更新');
+        logAction(ctx, '更新记录', '健康记录', `用户更新了日期为 ${record.recordDate} 的检查记录`);
     }
 
     // 删除记录
@@ -139,6 +142,7 @@ class RecordController {
 
         await record.destroy();
         Response.success(ctx, null, '记录已删除');
+        logAction(ctx, '删除记录', '健康记录', `用户删除了日期为 ${record.recordDate} 的检查记录`);
     }
     // 辅助方法：解析图片 JSON 字符串，并确保返回扁平化的字符串数组
     static parseImages(val) {

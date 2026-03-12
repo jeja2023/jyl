@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const https = require('https');
 const Response = require('../utils/response');
+const { logAction } = require('../utils/actionLog');
 
 /**
  * OCR控制器 - 用于化验单图片识别
@@ -31,6 +32,7 @@ class OcrController {
         }
 
         Response.success(ctx, result, '识别成功');
+        logAction(ctx, '图片识别', 'AI服务', `用户使用了 ${type === 'lab' ? '化验单' : 'B超'}识别，识别到 ${result.count} 项数据`);
     }
 
     /**

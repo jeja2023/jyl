@@ -1,6 +1,7 @@
 const WikiArticle = require('../models/WikiArticle');
 const User = require('../models/User');
 const Response = require('../utils/response');
+const { logAction } = require('../utils/actionLog');
 const { Op } = require('sequelize');
 const xss = require('xss');
 
@@ -106,6 +107,7 @@ class WikiController {
         });
 
         Response.success(ctx, { id: article.id }, '投稿成功，等待审核');
+        logAction(ctx, '文章投稿', '甲友百科', `用户提交了文章投稿: 《${article.title}》`);
     }
 
     /**
@@ -175,6 +177,7 @@ class WikiController {
         });
 
         Response.success(ctx, article, '修改成功，等待审核');
+        logAction(ctx, '修改投稿', '甲友百科', `用户修改了投稿文章: 《${article.title}》`);
     }
 
     /**
@@ -202,6 +205,7 @@ class WikiController {
         await article.destroy();
 
         Response.success(ctx, null, '删除成功');
+        logAction(ctx, '删除投稿', '甲友百科', `用户删除了投稿文章: 《${article.title}》`);
     }
 
     // ==================== 管理员审核接口 ====================
@@ -255,6 +259,7 @@ class WikiController {
         });
 
         Response.success(ctx, null, '审核通过');
+        logAction(ctx, '文章审核通过', '管理后台', `管理员通过了文章审核: 《${article.title}》`);
     }
 
     /**
@@ -286,6 +291,7 @@ class WikiController {
         });
 
         Response.success(ctx, null, '已拒绝');
+        logAction(ctx, '文章审核拒绝', '管理后台', `管理员拒绝了文章审核: 《${article.title}》，原因: ${reason}`);
     }
 
     /**
@@ -318,6 +324,7 @@ class WikiController {
         });
 
         Response.success(ctx, article, '发布成功');
+        logAction(ctx, '管理员发布文章', '管理后台', `管理员直接发布了文章: 《${article.title}》`);
     }
 
     /**
@@ -348,6 +355,7 @@ class WikiController {
         });
 
         Response.success(ctx, article, '更新成功');
+        logAction(ctx, '管理员更新文章', '管理后台', `管理员更新了文章: 《${article.title}》`);
     }
 
     /**
@@ -369,6 +377,7 @@ class WikiController {
         await article.destroy();
 
         Response.success(ctx, null, '删除成功');
+        logAction(ctx, '管理员删除文章', '管理后台', `管理员删除了文章: 《${article.title}》`);
     }
 
     /**
