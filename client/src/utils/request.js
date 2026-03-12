@@ -80,7 +80,7 @@ http.interceptors.response.use((response) => {
             // 延迟跳转，让用户看清提示
             setTimeout(() => {
                 window._isRedirecting = false;
-                uni.reLaunch({ url: '/pages/login/login' });
+                uni.reLaunch({ url: '/pages/login' });
             }, 1500);
         }
         return Promise.reject(data || 'Unauthorized');

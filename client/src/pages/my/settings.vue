@@ -208,7 +208,7 @@ const handleDeleteAccount = () => {
                 // 调用注销接口
                 uni.$u.toast('账号已注销');
                 userStore.logout();
-                uni.reLaunch({ url: '/pages/login/login' });
+                uni.reLaunch({ url: '/pages/login' });
               } catch (e) {
                 uni.$u.toast('注销失败');
               }

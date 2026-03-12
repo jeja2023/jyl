@@ -91,7 +91,7 @@
     
     <!-- 版本信息 -->
     <view class="version-info">
-      <text>甲友乐 v1.5.5</text>
+      <text>甲友乐 v1.5.6</text>
     </view>
   </view>
 </template>
@@ -197,7 +197,7 @@ const handleLogout = () => {
       if (res.confirm) {
         userStore.logout();
         uni.reLaunch({
-          url: '/pages/login/login'
+          url: '/pages/login'
         });
       }
     }

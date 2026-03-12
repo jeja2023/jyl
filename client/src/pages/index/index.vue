@@ -77,7 +77,7 @@ onShow(() => {
 });
 
 const goToLogin = () => {
-  uni.navigateTo({ url: '/pages/login/login' });
+  uni.navigateTo({ url: '/pages/login' });
 };
 
 const navigateToAdd = () => {

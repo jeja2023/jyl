@@ -66,14 +66,32 @@ app.use(apiRouter.routes()).use(apiRouter.allowedMethods());
 // 前端 build 后的静态文件由后端直接托管，前端访问同一端口，无跨域问题
 const distPath = path.join(__dirname, '../client/dist/build/h5');
 if (fs.existsSync(distPath)) {
-    // 所有非 /api、非 /storage 的请求回退到 index.html（SPA 路由支持）
-    app.use(serve(distPath, { maxage: 86400000 }));
+    // 针对 PWA 和 SPA 关键文件的缓存优化中间件
     app.use(async (ctx, next) => {
-        // 只对 GET 请求且路径不匹配静态文件时回退到 index.html
+        // 匹配 PWA 注册文件、Service Worker 和 入口 HTML
+        const pwaFiles = ['/index.html', '/sw.js', '/registerSW.js', '/manifest.webmanifest'];
+        if (pwaFiles.includes(ctx.path) || ctx.path === '/') {
+            ctx.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+            ctx.set('Pragma', 'no-cache');
+            ctx.set('Expires', '0');
+        }
+        await next();
+    });
+
+    // 1. 先尝试匹配静态文件（带有缓存设置，除了上面排除的文件）
+    app.use(serve(distPath, { 
+        maxage: 86400000, 
+        greedy: false 
+    }));
+
+    // 2. 如果静态文件未匹配，且是 GET 请求，则作为 SPA 回退到 index.html
+    app.use(async (ctx, next) => {
         if (ctx.method === 'GET' && !ctx.path.startsWith('/api') && !ctx.path.startsWith('/storage')) {
             const indexFile = path.join(distPath, 'index.html');
             if (fs.existsSync(indexFile)) {
                 ctx.type = 'html';
+                // 确保回退的 index.html 也不被缓存
+                ctx.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
                 ctx.body = fs.createReadStream(indexFile);
                 return;
             }

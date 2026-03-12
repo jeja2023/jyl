@@ -71,5 +71,9 @@ export default defineConfig({
         silenceDeprecations: ['import', 'legacy-js-api'],
       }
     }
+  },
+  build: {
+    // 自动清理 dist 目录，防止旧的引用的旧 Hash 文件堆积
+    emptyOutDir: true,
   }
 })
