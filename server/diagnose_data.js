@@ -1,6 +1,6 @@
-const sequelize = require('./server/db');
-const HealthRecord = require('./server/models/HealthRecord');
-const User = require('./server/models/User');
+const sequelize = require('./db');
+const HealthRecord = require('./models/HealthRecord');
+const User = require('./models/User');
 
 async function checkData() {
     try {
