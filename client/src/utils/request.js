@@ -1,26 +1,13 @@
 import Request from 'luch-request';
 import { useUserStore } from '@/store/index.js';
 
+import { getBaseURL } from './config.js';
+
 const http = new Request();
 
 /* config */
 http.setConfig((config) => {
-    // 优先使用构建时注入的环境变量
-    let baseURL = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
-
-    // #ifdef H5
-    if (!import.meta.env.VITE_API_BASE) {
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            // 本地开发：直接连后端开发服务
-            baseURL = 'http://localhost:3000';
-        } else {
-            // 生产环境：使用当前页面的协议和域名（由 Nginx 反代转发到后端）
-            baseURL = window.location.origin;
-        }
-    }
-    // #endif
-
-    config.baseURL = baseURL;
+    config.baseURL = getBaseURL();
     config.timeout = 10000;
     return config;
 });

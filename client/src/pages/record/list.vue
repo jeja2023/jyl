@@ -130,6 +130,7 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
+import { getBaseURL } from '@/utils/config.js';
 import { getIndicatorInfo, getIndicatorInfoFromRef } from '@/utils/indicator.js';
 
 const userStore = useUserStore();
@@ -165,7 +166,7 @@ const changeCount = (type) => {
 const handleExport = (id) => {
   const userStore = useUserStore();
   const token = userStore.token;
-  const baseUrl = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+  const baseUrl = getBaseURL();
   let url = `${baseUrl}/api/record/export?token=${token}`;
   if (id) {
     url += `&id=${id}`;

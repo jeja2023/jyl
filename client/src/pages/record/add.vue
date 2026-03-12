@@ -227,6 +227,7 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
+import { getBaseURL } from '@/utils/config.js';
 import { onLoad } from '@dcloudio/uni-app';
 
 const userStore = useUserStore();
@@ -371,7 +372,7 @@ const confirmUltrasoundDate = (e) => {
 const getImageUrl = (path) => {
   if (!path) return '';
   if (path.startsWith('http')) return path;
-  const base = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+  const base = getBaseURL();
   return `${base}${path}`;
 };
 
