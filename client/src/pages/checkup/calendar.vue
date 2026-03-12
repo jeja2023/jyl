@@ -10,6 +10,7 @@
         color="#3E7BFF"
         :minDate="minSelectDate"
         :maxDate="maxSelectDate"
+        :monthNum="120"
         @confirm="selectDate"
         @close="showCalendar = false"
       ></u-calendar>

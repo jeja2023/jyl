@@ -48,7 +48,7 @@ const HealthRecord = sequelize.define('HealthRecord', {
     // --- 进阶/特定病种指标 ---
     TRAb: {
         type: DataTypes.STRING(20),
-        comment: '促甲状腺素受体抗体 (IU/L) - 甲亢/Graves关键'
+        comment: '促甲状腺激素受体抗体 (IU/L) - 甲亢/Graves关键'
     },
     Tg: {
         type: DataTypes.STRING(20),

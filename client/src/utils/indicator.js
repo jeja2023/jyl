@@ -62,7 +62,7 @@ export const INDICATOR_REFS = {
     T4:        { min: 66,    max: 181,   unit: 'nmol/L', name: '总甲状腺素' },
     Tg:        { min: 0,     max: 77,    unit: 'ng/mL',  name: '甲状腺球蛋白' },
     TPOAb:     { min: 0,     max: 34,    unit: 'IU/mL',  name: '抗甲状腺过氧化物酶抗体' },
-    TGAb:      { min: 0,     max: 115,   unit: 'IU/mL',  name: '甲状腺球蛋白抗体' },
+    TGAb:      { min: 0,     max: 115,   unit: 'IU/mL',  name: '抗甲状腺球蛋白抗体' },
     TRAb:      { min: 0,     max: 1.75,  unit: 'IU/L',   name: '促甲状腺激素受体抗体' },
     Calcitonin:{ min: 0,     max: 10,    unit: 'pg/mL',  name: '降钙素' },
     Calcium:   { min: 2.11,  max: 2.52,  unit: 'mmol/L', name: '血钙' },

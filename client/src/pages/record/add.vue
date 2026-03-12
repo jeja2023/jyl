@@ -265,17 +265,17 @@ const ultrasoundImages = ref([]);
 const coreFields = [
   { key: 'TSH', label: '促甲状腺激素 (TSH)', unit: 'mIU/L' },
   { key: 'FT4', label: '游离甲状腺素 (FT4)', unit: 'pmol/L' },
-  { key: 'FT3', label: '游离三碘甲腺原氨酸 (FT3)', unit: 'pmol/L' },
+  { key: 'FT3', label: '游离三碘甲状腺原氨酸 (FT3)', unit: 'pmol/L' },
   { key: 'TPOAb', label: '抗甲状腺过氧化物酶抗体 (TPO-Ab)', unit: 'IU/mL' },
   { key: 'TGAb', label: '抗甲状腺球蛋白抗体 (TG-Ab)', unit: 'IU/mL' },
-  { key: 'T3', label: '三碘甲腺原氨酸 (T3)', unit: 'nmol/L' },
-  { key: 'T4', label: '甲状腺素 (T4)', unit: 'nmol/L' }
+  { key: 'T3', label: '三碘甲状腺原氨酸 (T3)', unit: 'nmol/L' },
+  { key: 'T4', label: '总甲状腺素 (T4)', unit: 'nmol/L' }
 ];
 
 const moreFields = [
   { key: 'Calcitonin', label: '降钙素 (CT)', unit: 'pg/mL' },
   { key: 'Tg', label: '甲状腺球蛋白 (Tg)', unit: 'ng/mL' },
-  { key: 'TRAb', label: '促甲状腺素受体抗体 (TRAb)', unit: 'IU/L' }
+  { key: 'TRAb', label: '促甲状腺激素受体抗体 (TRAb)', unit: 'IU/L' }
 ];
 
 const calciumFields = [
