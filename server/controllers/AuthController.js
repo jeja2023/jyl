@@ -116,6 +116,20 @@ class AuthController {
     }
 
     /**
+     * 检查用户名是否已存在
+     * GET /api/auth/check-username
+     */
+    static async checkUsername(ctx) {
+        const { username } = ctx.query;
+        if (!username) {
+            return Response.success(ctx, { exists: false });
+        }
+
+        const user = await User.findOne({ where: { username } });
+        Response.success(ctx, { exists: !!user });
+    }
+
+    /**
      * 账号登录 (支持用户名或邮箱)
      * POST /api/auth/login
      */
@@ -178,6 +192,25 @@ class AuthController {
 
         if (recentCode) {
             return Response.error(ctx, '验证码发送太频繁，请1分钟后再试');
+        }
+
+        // 如果是注册流程，预先检查邮箱或用户名是否已存在
+        if (type === 'register') {
+            const { username } = ctx.request.body;
+            // 构造查询条件
+            const orConditions = [{ email }];
+            if (username) {
+                orConditions.push({ username });
+            }
+            
+            const existUser = await User.findOne({ 
+                where: { [Op.or]: orConditions } 
+            });
+            
+            if (existUser) {
+                if (existUser.email === email) return Response.error(ctx, '该邮箱已注册，请直接登录');
+                if (username && existUser.username === username) return Response.error(ctx, '该用户名已被占用');
+            }
         }
 
         // 生成验证码

@@ -41,9 +41,10 @@
 
         <!-- 邮箱注册表单 -->
         <view v-else class="form-fields">
-          <view class="input-group">
+          <view class="input-group" :class="{'input-error': usernameExists}">
             <u-icon name="account" size="22" color="#3E7BFF"></u-icon>
-            <u--input placeholder="设置唯一用户名" border="none" v-model="emailForm.username" class="custom-input"></u--input>
+            <u--input placeholder="设置唯一用户名" border="none" v-model="emailForm.username" @blur="handleCheckUsername" class="custom-input"></u--input>
+            <view v-if="usernameExists" class="error-badge">已存在</view>
           </view>
           <view class="input-group">
             <u-icon name="email" size="22" color="#3E7BFF"></u-icon>
@@ -142,7 +143,8 @@ const emailForm = reactive({ username: '', email: '', code: '', password: '', co
 const regForm = reactive({ patientType: '' });
 const loginType = ref('password'); // password | email
 const codeTime = ref(0);
-let timer = null;
+const timer = ref(null);
+const usernameExists = ref(false);
 
 const goToPage = (type) => {
     uni.navigateTo({ url: `/pages/my/${type}` });
@@ -150,6 +152,23 @@ const goToPage = (type) => {
 
 // 临时存储登录结果（用于新用户完善资料）
 let pendingLoginResult = null;
+
+// ==================== 用户名重复校验 ====================
+const handleCheckUsername = async () => {
+    if (!emailForm.username) {
+        usernameExists.value = false;
+        return;
+    }
+    try {
+        const res = await http.get('/api/auth/check-username', { username: emailForm.username });
+        usernameExists.value = res.exists;
+        if (res.exists) {
+            uni.$u.toast('该用户名已被占用');
+        }
+    } catch (e) {
+        console.error('校验用户名失败', e);
+    }
+};
 
 // ==================== 登录入口 ====================
 const submitLogin = () => {
@@ -159,6 +178,9 @@ const submitLogin = () => {
     if (loginType.value === 'password') {
         handleLogin();
     } else {
+        if (usernameExists.value) {
+            return uni.$u.toast('用户名已存在，请重新设置');
+        }
         handleEmailRegister();
     }
 };
@@ -166,12 +188,22 @@ const submitLogin = () => {
 // ==================== 邮箱注册 ====================
 const handleSendEmailCode = async () => {
     if (codeTime.value > 0) return;
+    if (!emailForm.username) {
+        return uni.$u.toast('请先设置用户名');
+    }
+    if (usernameExists.value) {
+        return uni.$u.toast('该用户名已被占用，请更换');
+    }
     if (!emailForm.email || !/^[\w-]+(\.[\w-]+)*@[\w-]+(\.[\w-]+)+$/.test(emailForm.email)) {
         return uni.$u.toast('请输入正确的邮箱地址');
     }
     
     try {
-        await http.post('/api/auth/email/send', { email: emailForm.email, type: 'register' });
+        await http.post('/api/auth/email/send', { 
+            email: emailForm.email, 
+            username: emailForm.username,
+            type: 'register' 
+        });
         uni.$u.toast('邮箱验证码已发送');
         codeTime.value = 60;
         timer = setInterval(() => {
@@ -480,6 +512,21 @@ const skipRegister = () => {
     margin-left: 20rpx;
     
     &:active { opacity: 0.7; }
+  }
+
+  &.input-error {
+    border-color: #F53F3F;
+    background: #FFF7F7;
+  }
+
+  .error-badge {
+    font-size: 20rpx;
+    color: #FFFFFF;
+    background: #F53F3F;
+    padding: 4rpx 12rpx;
+    border-radius: 10rpx;
+    margin-left: 10rpx;
+    white-space: nowrap;
   }
 }
 

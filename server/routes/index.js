@@ -36,6 +36,7 @@ const smsLimiter = ratelimit({
 // 传统用户名密码
 router.post('/auth/register', authLimiter, AuthController.register);
 router.post('/auth/login', authLimiter, AuthController.login);
+router.get('/auth/check-username', AuthController.checkUsername);
 
 // 邮箱验证码与注册
 router.post('/auth/email/send', smsLimiter, AuthController.sendEmailCode);

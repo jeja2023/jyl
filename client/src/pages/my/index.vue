@@ -91,7 +91,7 @@
     
     <!-- 版本信息 -->
     <view class="version-info">
-      <text>甲友乐 v1.5.0</text>
+      <text>甲友乐 v1.5.1</text>
     </view>
   </view>
 </template>
