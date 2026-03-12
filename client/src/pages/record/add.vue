@@ -488,9 +488,16 @@ const processImageData = async (filePath, type) => {
             ].includes(key);
 
             if (isNumericField) {
-                // 对 "0 (已切除)" 这种带单位或注释的数值，只取开头的数字部分
-                const numericPrefix = String(value).match(/^[0-9.]+/)?.[0];
-                form[key] = numericPrefix !== undefined ? numericPrefix : value;
+                // 对 "0.04 (已切除)" 或 "<0.01" 这种内容进行处理
+                // 如果是 < 或 > 开头，尝试捕获整个前缀+数值
+                const specialMatch = String(value).match(/^([<>][\s]*[0-9.]+)/);
+                if (specialMatch) {
+                    form[key] = specialMatch[1].replace(/\s+/g, '');
+                } else {
+                    // 常规数值处理
+                    const numericPrefix = String(value).match(/^[0-9.]+/)?.[0];
+                    form[key] = numericPrefix !== undefined ? numericPrefix : value;
+                }
             } else {
                 // 日期、尺寸(40x14)、分类(4a)等字段保持原样
                 form[key] = value;

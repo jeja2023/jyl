@@ -183,7 +183,12 @@ const chartData = computed(() => {
     const d = new Date(item.recordDate);
     return `${d.getMonth() + 1}/${d.getDate()}`;
   });
-  const values = reversed.map(item => parseFloat(item[currentTab.value]) || null);
+  const values = reversed.map(item => {
+    const val = item[currentTab.value];
+    if (val === null || val === undefined || val === '') return null;
+    const match = String(val).match(/[0-9.]+/);
+    return match ? parseFloat(match[0]) : null;
+  });
   return { labels, values };
 });
 

@@ -18,61 +18,61 @@ const HealthRecord = sequelize.define('HealthRecord', {
     // --- 核心甲功指标 (甲功五项/七项) ---
     // --- 核心甲功指标 (甲功五项/七项) ---
     TSH: {
-        type: DataTypes.DOUBLE,
+        type: DataTypes.STRING(20),
         comment: '促甲状腺激素 (mIU/L)'
     },
     FT3: {
-        type: DataTypes.DOUBLE,
+        type: DataTypes.STRING(20),
         comment: '游离三碘甲状腺原氨酸 (pmol/L)'
     },
     FT4: {
-        type: DataTypes.DOUBLE,
+        type: DataTypes.STRING(20),
         comment: '游离甲状腺素 (pmol/L)'
     },
     T3: {
-        type: DataTypes.DOUBLE,
+        type: DataTypes.STRING(20),
         comment: '三碘甲状腺原氨酸 (nmol/L)'
     },
     T4: {
-        type: DataTypes.DOUBLE,
+        type: DataTypes.STRING(20),
         comment: '总甲状腺素 (nmol/L)'
     },
     TGAb: {
-        type: DataTypes.DOUBLE,
-        comment: '甲状腺球蛋白抗体 (IU/mL)'
+        type: DataTypes.STRING(20),
+        comment: '抗甲状腺球蛋白抗体 (IU/mL)'
     },
     TPOAb: {
-        type: DataTypes.DOUBLE,
+        type: DataTypes.STRING(20),
         comment: '抗甲状腺过氧化物酶抗体 (IU/mL)'
     },
     // --- 进阶/特定病种指标 ---
     TRAb: {
-        type: DataTypes.DOUBLE,
+        type: DataTypes.STRING(20),
         comment: '促甲状腺素受体抗体 (IU/L) - 甲亢/Graves关键'
     },
     Tg: {
-        type: DataTypes.DOUBLE,
+        type: DataTypes.STRING(20),
         comment: '甲状腺球蛋白 (ng/mL) - 甲癌术后复发监测'
     },
     Calcitonin: {
-        type: DataTypes.DOUBLE,
+        type: DataTypes.STRING(20),
         comment: '降钙素 (pg/mL) - 髓样癌筛查'
     },
     // --- 电解质与甲状旁腺 (术后低钙关注) ---
     Calcium: {
-        type: DataTypes.DOUBLE,
+        type: DataTypes.STRING(20),
         comment: '血钙 (mmol/L) - 术后手麻抽筋关注'
     },
     Magnesium: {
-        type: DataTypes.DOUBLE,
+        type: DataTypes.STRING(20),
         comment: '血镁 (mmol/L)'
     },
     Phosphorus: {
-        type: DataTypes.DOUBLE,
+        type: DataTypes.STRING(20),
         comment: '血磷 (mmol/L)'
     },
     PTH: {
-        type: DataTypes.DOUBLE,
+        type: DataTypes.STRING(20),
         comment: '甲状旁腺激素 (pg/mL) - 调节钙磷代谢'
     },
     // --- 身体状态 ---

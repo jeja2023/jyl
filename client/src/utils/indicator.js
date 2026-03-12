@@ -6,14 +6,26 @@ export const getIndicatorInfo = (val, min, max) => {
     if (val === undefined || val === null || val === '') {
         return { status: '未录入', color: 'gray', icon: '' };
     }
-    const floatVal = parseFloat(val);
+    
+    // 处理包含 < 或 > 的字符串
+    let cleanVal = String(val).trim();
+    const hasLess = cleanVal.startsWith('<');
+    const hasGreater = cleanVal.startsWith('>');
+    if (hasLess || hasGreater) {
+        cleanVal = cleanVal.substring(1).trim();
+    }
+
+    const floatVal = parseFloat(cleanVal);
     if (isNaN(floatVal)) {
         return { status: '无效', color: 'gray', icon: '' };
     }
-    if (floatVal > max) {
+
+    // 如果是 <X，且 X 小于等于最小值，通常被视为正常（在低端）；
+    // 如果是 <X，且 X 大于最大值，逻辑上不常见，此处按 X 本身进行判断
+    if (floatVal > max && !hasLess) {
         return { status: '偏高', color: 'error', icon: 'arrow-up-fill' };
     }
-    if (floatVal < min) {
+    if (floatVal < min && !hasGreater) {
         return { status: '偏低', color: 'warning', icon: 'arrow-down-fill' };
     }
     return { status: '正常', color: 'success', icon: '' };
