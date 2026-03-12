@@ -215,8 +215,9 @@
       </u--form>
     </view>
 
-    <u-calendar :show="showCalendar" @confirm="confirmDate" @close="showCalendar = false" color="#3E7BFF" :minDate="minSelectDate" :maxDate="maxSelectDate" :defaultDate="form.recordDate"></u-calendar>
-    <u-calendar :show="showUltrasoundCalendar" @confirm="confirmUltrasoundDate" @close="showUltrasoundCalendar = false" color="#722ED1" :minDate="minSelectDate" :maxDate="maxSelectDate" :defaultDate="form.ultrasoundDate || form.recordDate"></u-calendar>
+    <!-- 替换为 datetime-picker 以支持超长跨度历史记录快速选择 -->
+    <u-datetime-picker :show="showCalendar" v-model="datePickerValue" mode="date" :minDate="-631152000000" :maxDate="Date.now()" @confirm="confirmDate" @cancel="showCalendar = false"></u-datetime-picker>
+    <u-datetime-picker :show="showUltrasoundCalendar" v-model="ultrasoundPickerValue" mode="date" :minDate="-631152000000" :maxDate="Date.now()" @confirm="confirmUltrasoundDate" @cancel="showUltrasoundCalendar = false"></u-datetime-picker>
   </view>
 </template>
 
@@ -231,15 +232,22 @@ const loading = ref(false);
 const showCalendar = ref(false);
 const showUltrasoundCalendar = ref(false);
 const showMore = ref(false);
-const showCalcium = ref(false);
 const showUltrasound = ref(false);
 const activeTab = ref('lab');
+const datePickerValue = ref(Date.now());
+const ultrasoundPickerValue = ref(Date.now());
 const minSelectDate = ref('1950-01-01');
 const maxSelectDate = ref(uni.$u.timeFormat(new Date(), 'yyyy-mm-dd'));
 
 const fmtDate = (d) => {
     if (!d) return '';
-    const dt = new Date(d.replace(/-/g, '/'));
+    // 处理可能传入的日期字符串或时间戳
+    let dt;
+    if (typeof d === 'string') {
+        dt = new Date(d.replace(/-/g, '/'));
+    } else {
+        dt = new Date(d);
+    }
     return isNaN(dt.getTime()) ? d : `${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日`;
 };
 
@@ -301,6 +309,9 @@ const fetchRecordDetail = async (id) => {
     Object.keys(form).forEach(key => {
       if (res[key] !== undefined && res[key] !== null) {
         form[key] = res[key];
+        // 如果是日期字段，同步更新 Picker 的初始值
+        if (key === 'recordDate') datePickerValue.value = new Date(res[key].replace(/-/g, '/')).getTime();
+        if (key === 'ultrasoundDate' && res[key]) ultrasoundPickerValue.value = new Date(res[key].replace(/-/g, '/')).getTime();
       }
     });
     // 回填图片
@@ -343,12 +354,14 @@ const progress = computed(() => {
 });
 
 const confirmDate = (e) => {
-  form.recordDate = e[0];
+  const date = new Date(e.value);
+  form.recordDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   showCalendar.value = false;
 };
 
 const confirmUltrasoundDate = (e) => {
-  form.ultrasoundDate = e[0];
+  const date = new Date(e.value);
+  form.ultrasoundDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   showUltrasoundCalendar.value = false;
 };
 
