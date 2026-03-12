@@ -21,7 +21,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M # 限制 Node 应用最大内存
+          memory: 256M # 极窄 Node 内存
 
   jyl-db:
     image: mysql:8.0
@@ -30,8 +30,10 @@ services:
       - --default-authentication-plugin=mysql_native_password
       - --skip-host-cache
       - --skip-name-resolve
-      - --innodb-buffer-pool-size=256M # 对 2G 内存机器进行优化，减小缓冲池
-      - --max-connections=50
+      - --innodb-buffer-pool-size=128M # 极致精简版内存占用
+      - --max-connections=20
+      - --key-buffer-size=8M
+      - --thread-cache-size=4
     env_file:
       - .env_docker
     environment:
@@ -50,7 +52,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 800M # 限制 MySQL 最大内存
+          memory: 400M # 再次压低数据库上限
 
 volumes:
   mysql_data:
