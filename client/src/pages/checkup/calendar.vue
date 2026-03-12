@@ -7,8 +7,9 @@
       <u-calendar 
         :show="showCalendar" 
         mode="single" 
-        :monthNum="3"
         color="#3E7BFF"
+        :minDate="minSelectDate"
+        :maxDate="maxSelectDate"
         @confirm="selectDate"
         @close="showCalendar = false"
       ></u-calendar>
@@ -78,6 +79,13 @@ const goBack = () => {
 const showCalendar = ref(false);
 const showAdd = ref(false);
 const reminders = ref([]);
+
+const minSelectDate = ref(uni.$u.timeFormat(new Date(), 'yyyy-mm-dd'));
+const maxSelectDate = ref('');
+// 设置为 10 年后
+const d = new Date();
+d.setFullYear(d.getFullYear() + 10);
+maxSelectDate.value = uni.$u.timeFormat(d, 'yyyy-mm-dd');
 const newReminder = reactive({
   date: '',
   note: ''

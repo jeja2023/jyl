@@ -215,8 +215,8 @@
       </u--form>
     </view>
 
-    <u-calendar :show="showCalendar" @confirm="confirmDate" @close="showCalendar = false" color="#3E7BFF"></u-calendar>
-    <u-calendar :show="showUltrasoundCalendar" @confirm="confirmUltrasoundDate" @close="showUltrasoundCalendar = false" color="#722ED1"></u-calendar>
+    <u-calendar :show="showCalendar" @confirm="confirmDate" @close="showCalendar = false" color="#3E7BFF" :minDate="minSelectDate" :maxDate="maxSelectDate"></u-calendar>
+    <u-calendar :show="showUltrasoundCalendar" @confirm="confirmUltrasoundDate" @close="showUltrasoundCalendar = false" color="#722ED1" :minDate="minSelectDate" :maxDate="maxSelectDate"></u-calendar>
   </view>
 </template>
 
@@ -234,6 +234,9 @@ const showMore = ref(false);
 const showCalcium = ref(false);
 const showUltrasound = ref(false);
 const activeTab = ref('lab');
+const minSelectDate = ref('1950-01-01');
+const maxSelectDate = ref(uni.$u.timeFormat(new Date(), 'yyyy-mm-dd'));
+
 const fmtDate = (d) => {
     if (!d) return '';
     const dt = new Date(d.replace(/-/g, '/'));
