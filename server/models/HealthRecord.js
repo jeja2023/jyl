@@ -43,7 +43,7 @@ const HealthRecord = sequelize.define('HealthRecord', {
     },
     TPOAb: {
         type: DataTypes.DOUBLE,
-        comment: '甲状腺过氧化物酶抗体 (IU/mL)'
+        comment: '抗甲状腺过氧化物酶抗体 (IU/mL)'
     },
     // --- 进阶/特定病种指标 ---
     TRAb: {

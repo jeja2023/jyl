@@ -19,11 +19,11 @@
           <view class="grid-inputs" style="margin-top:16rpx">
             <view class="grid-cell">
               <text class="tiny-label">体重 (kg)</text>
-              <u--input v-model="form.weight" type="digit" placeholder="kg" border="bottom" class="tiny-input"></u--input>
+              <u--input v-model="form.weight" type="text" placeholder="kg" border="bottom" class="tiny-input"></u--input>
             </view>
             <view class="grid-cell">
               <text class="tiny-label">心率 (次/分)</text>
-              <u--input v-model="form.heartRate" type="digit" placeholder="次/分" border="bottom" class="tiny-input"></u--input>
+              <u--input v-model="form.heartRate" type="text" placeholder="次/分" border="bottom" class="tiny-input"></u--input>
             </view>
           </view>
         </view>
@@ -68,7 +68,7 @@
               <view class="grid-cell" v-for="item in coreFields" :key="item.key">
                 <text class="tiny-label">{{ item.label }}</text>
                 <view class="input-container">
-                  <u--input v-model="form[item.key]" type="digit" :placeholder="item.unit" border="bottom" class="tiny-input"></u--input>
+                  <u--input v-model="form[item.key]" type="text" :placeholder="item.unit" border="bottom" class="tiny-input"></u--input>
                   <text class="unit-label" :class="{'detected-unit': form.units[item.key]}" v-if="form[item.key]">
                     {{ form.units[item.key] || item.unit }}
                   </text>
@@ -87,7 +87,7 @@
               <view class="input-cell horizontal" v-for="item in moreFields" :key="item.key">
                 <text class="cell-label">{{ item.label }}</text>
                 <view class="input-container flex-right">
-                  <u--input v-model="form[item.key]" type="digit" :placeholder="item.unit" text-align="right" border="none"></u--input>
+                  <u--input v-model="form[item.key]" type="text" :placeholder="item.unit" text-align="right" border="none"></u--input>
                   <text class="unit-label more-unit" :class="{'detected-unit': form.units[item.key]}" v-if="form[item.key]">
                     {{ form.units[item.key] || item.unit }}
                   </text>
@@ -107,7 +107,7 @@
                 <view class="grid-cell" v-for="item in calciumFields" :key="item.key">
                   <text class="tiny-label">{{ item.label }}</text>
                   <view class="input-container">
-                    <u--input v-model="form[item.key]" type="digit" :placeholder="item.unit" border="bottom" class="tiny-input"></u--input>
+                    <u--input v-model="form[item.key]" type="text" :placeholder="item.unit" border="bottom" class="tiny-input"></u--input>
                     <text class="unit-label" :class="{'detected-unit': form.units[item.key]}" v-if="form[item.key]">
                       {{ form.units[item.key] || item.unit }}
                     </text>
@@ -264,8 +264,8 @@ const coreFields = [
   { key: 'TSH', label: '促甲状腺激素 (TSH)', unit: 'mIU/L' },
   { key: 'FT4', label: '游离甲状腺素 (FT4)', unit: 'pmol/L' },
   { key: 'FT3', label: '游离三碘甲腺原氨酸 (FT3)', unit: 'pmol/L' },
-  { key: 'TPOAb', label: '甲状腺过氧化物酶抗体 (TPOAb)', unit: 'IU/mL' },
-  { key: 'TGAb', label: '甲状腺球蛋白抗体 (TGAb)', unit: 'IU/mL' },
+  { key: 'TPOAb', label: '抗甲状腺过氧化物酶抗体 (TPO-Ab)', unit: 'IU/mL' },
+  { key: 'TGAb', label: '抗甲状腺球蛋白抗体 (TG-Ab)', unit: 'IU/mL' },
   { key: 'T3', label: '三碘甲腺原氨酸 (T3)', unit: 'nmol/L' },
   { key: 'T4', label: '甲状腺素 (T4)', unit: 'nmol/L' }
 ];
