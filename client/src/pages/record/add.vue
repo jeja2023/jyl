@@ -232,6 +232,7 @@ const loading = ref(false);
 const showCalendar = ref(false);
 const showUltrasoundCalendar = ref(false);
 const showMore = ref(false);
+const showCalcium = ref(false);
 const showUltrasound = ref(false);
 const activeTab = ref('lab');
 const datePickerValue = ref(Date.now());
