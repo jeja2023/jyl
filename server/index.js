@@ -58,7 +58,7 @@ app.use(compress({
     br: false // 禁用 brotli，因为通常需要额外的配置
 }));
 app.use(cors()); // 跨域支持
-app.use(bodyParser({ jsonLimit: '10mb' })); // 增加限制以支持图片上传
+app.use(bodyParser({ jsonLimit: '50mb', formLimit: '50mb' })); // 进一步放宽限制，防止大图上传报错
 
 // 静态文件服务 - 使用 koa-static 替换手动流式读取，提升性能
 const staticPath = path.join(__dirname, '../storage');

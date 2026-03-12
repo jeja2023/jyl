@@ -408,11 +408,12 @@ const processImageData = async (filePath, type) => {
   try {
     const base64 = await fileToBase64(filePath);
     
-    // OCR识别 + 上传图片
-    const [ocrResult, uploadResult] = await Promise.all([
-      http.post('/api/ocr/recognize', { image: base64, type }),
-      http.post('/api/upload/report', { image: base64, type })
-    ]);
+    // OCR识别与上传改为串行，降低 1核2G 服务器的瞬时压力
+    console.log('[上传] 正在开始 OCR 识别...');
+    const ocrResult = await http.post('/api/ocr/recognize', { image: base64, type });
+    
+    console.log('[上传] 正在保存图片文件...');
+    const uploadResult = await http.post('/api/upload/report', { image: base64, type });
 
     // 1. 保存图片路径
     if (uploadResult && uploadResult.path) {
