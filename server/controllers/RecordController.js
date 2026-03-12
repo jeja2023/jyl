@@ -27,10 +27,15 @@ class RecordController {
             where,
             order: [['recordDate', 'DESC']]
         });
+        
+        console.log(`[导出诊断] 用户 ID: ${userId}, 查找到记录数: ${records?.length || 0}`);
 
         if (!records || records.length === 0) {
+            console.warn(`[导出停止] 用户 ID: ${userId} 没有可导出的记录`);
             return Response.error(ctx, '无记录可导出');
         }
+
+        console.log(`[导出执行] 正在开始生成 Excel 文件...`);
 
         const workbook = new ExcelJS.Workbook();
         const sheet = workbook.addWorksheet('健康指标记录');
@@ -108,6 +113,7 @@ class RecordController {
         ctx.set('Content-Disposition', `attachment; filename=${filename}`);
 
         const buffer = await workbook.xlsx.writeBuffer();
+        console.log(`[导出完成] Excel Buffer 已生成, 大小: ${buffer.length} bytes`);
         ctx.body = buffer;
 
         logAction(ctx, '导出数据', '健康记录', `用户导出了 ${records.length} 条记录`);

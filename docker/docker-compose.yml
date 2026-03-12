@@ -18,10 +18,6 @@ services:
       jyl-db:
         condition: service_healthy
     restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 256M # 极窄 Node 内存
 
   jyl-db:
     image: mysql:8.0
@@ -30,10 +26,6 @@ services:
       - --default-authentication-plugin=mysql_native_password
       - --skip-host-cache
       - --skip-name-resolve
-      - --innodb-buffer-pool-size=128M # 极致精简版内存占用
-      - --max-connections=20
-      - --key-buffer-size=8M
-      - --thread-cache-size=4
     env_file:
       - .env_docker
     environment:
@@ -49,10 +41,6 @@ services:
       timeout: 3s
       retries: 10
     restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 400M # 再次压低数据库上限
 
 volumes:
   mysql_data:
