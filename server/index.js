@@ -95,11 +95,13 @@ if (fs.existsSync(distPath)) {
 
     // 2. 如果静态文件未匹配，且是 GET 请求，则作为 SPA 回退到 index.html
     app.use(async (ctx, next) => {
-        if (ctx.method === 'GET' && !ctx.path.startsWith('/api') && !ctx.path.startsWith('/storage')) {
+        // 只有不带后缀名（即不是文件请求）且不是 API/Storage 的 GET 请求才回退
+        const isPageRequest = !ctx.path.includes('.') && ctx.method === 'GET';
+        
+        if (isPageRequest && !ctx.path.startsWith('/api') && !ctx.path.startsWith('/storage')) {
             const indexFile = path.join(distPath, 'index.html');
             if (fs.existsSync(indexFile)) {
                 ctx.type = 'html';
-                // 确保回退的 index.html 也不被缓存
                 ctx.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
                 ctx.body = fs.createReadStream(indexFile);
                 return;
