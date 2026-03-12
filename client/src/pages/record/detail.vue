@@ -143,8 +143,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
+import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 import { getIndicatorInfoFromRef } from '@/utils/indicator.js';
+
+const userStore = useUserStore();
 
 const props = defineProps({
   id: { type: [String, Number], required: true }
@@ -177,7 +180,6 @@ const onActionSelect = (e) => {
 };
 
 const handleExport = (id) => {
-  const userStore = JSON.parse(uni.getStorageSync('user-storage') || '{}');
   const token = userStore.token;
   const baseUrl = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
   const url = `${baseUrl}/api/record/export?token=${token}&id=${id}`;

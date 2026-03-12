@@ -68,12 +68,12 @@
           <text class="count">共{{ list.length }}条</text>
         </view>
         <view class="action-btns">
-          <view class="export-btn import" @click="handleImport()">
-            <u-icon name="upload" size="16" color="#86909C"></u-icon>
-            <text>导入</text>
+          <view class="export-btn import-btn" @click="handleImport()">
+            <u-icon name="file-text" size="14" color="#722ED1"></u-icon>
+            <text>导入数据</text>
           </view>
           <view class="export-btn" @click="handleExport()">
-            <u-icon name="download" size="16" color="#3E7BFF"></u-icon>
+            <u-icon name="download" size="14" color="#3E7BFF"></u-icon>
             <text>导出报告</text>
           </view>
         </view>
@@ -860,16 +860,16 @@ onShow(() => {
         font-weight: 800;
       }
 
-      &.import {
-        background: #F2F3F5;
-        box-shadow: none;
+      &.import-btn {
+        background: #F5F1FF;
+        box-shadow: 0 4rpx 12rpx rgba(114, 46, 209, 0.08);
         text {
-          color: #86909C;
+          color: #722ED1;
         }
       }
       
       &:active {
-        transform: scale(0.95);
+        transform: scale(0.92);
         opacity: 0.8;
       }
     }
