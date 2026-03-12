@@ -215,8 +215,8 @@
       </u--form>
     </view>
 
-    <u-calendar :show="showCalendar" @confirm="confirmDate" @close="showCalendar = false" color="#3E7BFF" :minDate="minSelectDate" :maxDate="maxSelectDate"></u-calendar>
-    <u-calendar :show="showUltrasoundCalendar" @confirm="confirmUltrasoundDate" @close="showUltrasoundCalendar = false" color="#722ED1" :minDate="minSelectDate" :maxDate="maxSelectDate"></u-calendar>
+    <u-calendar :show="showCalendar" @confirm="confirmDate" @close="showCalendar = false" color="#3E7BFF" :minDate="minSelectDate" :maxDate="maxSelectDate" :defaultDate="form.recordDate"></u-calendar>
+    <u-calendar :show="showUltrasoundCalendar" @confirm="confirmUltrasoundDate" @close="showUltrasoundCalendar = false" color="#722ED1" :minDate="minSelectDate" :maxDate="maxSelectDate" :defaultDate="form.ultrasoundDate || form.recordDate"></u-calendar>
   </view>
 </template>
 
