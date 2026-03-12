@@ -160,6 +160,7 @@ const showDeleteConfirm = ref(false);
 
 const actions = ref([
   { name: '编辑记录', value: 'edit', color: '#3E7BFF' },
+  { name: '导出本条记录', value: 'export', color: '#606266' },
   { name: '删除记录', value: 'delete', color: '#F53F3F' }
 ]);
 
@@ -168,9 +169,46 @@ const onActionSelect = (e) => {
     uni.navigateTo({
       url: `/pages/record/add?id=${props.id}`
     });
+  } else if (e.value === 'export') {
+    handleExport(props.id);
   } else if (e.value === 'delete') {
     showDeleteConfirm.value = true;
   }
+};
+
+const handleExport = (id) => {
+  const userStore = JSON.parse(uni.getStorageSync('user-storage') || '{}');
+  const token = userStore.token;
+  const baseUrl = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+  const url = `${baseUrl}/api/record/export?token=${token}&id=${id}`;
+  
+  // #ifdef H5
+  window.location.href = url;
+  // #endif
+  
+  // #ifndef H5
+  uni.showLoading({ title: '准备导出...' });
+  uni.downloadFile({
+    url,
+    success: (res) => {
+      if (res.statusCode === 200) {
+        uni.openDocument({
+          filePath: res.tempFilePath,
+          showMenu: true,
+          success: () => uni.hideLoading(),
+          fail: () => {
+             uni.hideLoading();
+             uni.$u.toast('预览失败，请尝试在浏览器打开');
+          }
+        });
+      }
+    },
+    fail: () => {
+      uni.hideLoading();
+      uni.$u.toast('导出失败');
+    }
+  });
+  // #endif
 };
 
 const confirmDelete = async () => {

@@ -552,12 +552,13 @@ const fileToBase64 = (filePath) => {
 };
 
 const submit = async () => {
-  const hasLabData = form.TSH || form.FT3 || form.FT4 || form.TPOAb || form.TGAb || form.Tg || form.TRAb;
-  const hasUltrasoundData = form.thyroidLeft || form.noduleCount || form.tiradsLevel || form.ultrasoundNote || ultrasoundImages.value.length > 0;
+  const hasLabData = form.TSH || form.FT3 || form.FT4 || form.TPOAb || form.TGAb || form.Tg || form.TRAb || form.T3 || form.T4 || form.Calcitonin || form.Calcium || form.PTH || form.Magnesium || form.Phosphorus;
+  const hasUltrasoundData = form.thyroidLeft || form.thyroidRight || form.isthmus || form.noduleCount || form.noduleMaxSize || form.tiradsLevel || form.ultrasoundNote || ultrasoundImages.value.length > 0;
+  const hasOtherData = form.weight || form.heartRate || form.feeling;
   const hasImages = reportImages.value.length > 0 || ultrasoundImages.value.length > 0;
   
-  if (!hasLabData && !hasUltrasoundData && !hasImages) {
-      return uni.$u.toast('请上传报告图片或至少填写一项指标');
+  if (!hasLabData && !hasUltrasoundData && !hasOtherData && !hasImages) {
+      return uni.$u.toast('请上传图片或填写至少一项数据');
   }
   
   loading.value = true;

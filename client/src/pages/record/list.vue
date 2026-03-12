@@ -63,8 +63,20 @@
     <!-- 历史记录列表 -->
     <view class="history-section">
       <view class="section-header">
-        <text class="title">检查记录</text>
-        <text class="count">共{{ list.length }}条</text>
+        <view class="title-info">
+          <text class="title">检查记录</text>
+          <text class="count">共{{ list.length }}条</text>
+        </view>
+        <view class="action-btns">
+          <view class="export-btn import" @click="handleImport()">
+            <u-icon name="upload" size="16" color="#86909C"></u-icon>
+            <text>导入</text>
+          </view>
+          <view class="export-btn" @click="handleExport()">
+            <u-icon name="download" size="16" color="#3E7BFF"></u-icon>
+            <text>导出报告</text>
+          </view>
+        </view>
       </view>
       
       <view class="record-list" v-if="list.length > 0">
@@ -147,6 +159,100 @@ const changeCount = (type) => {
     } else {
       uni.$u.toast('最多支持查看近20次的数据');
     }
+  }
+};
+
+const handleExport = (id) => {
+  const userStore = useUserStore();
+  const token = userStore.token;
+  const baseUrl = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+  let url = `${baseUrl}/api/record/export?token=${token}`;
+  if (id) {
+    url += `&id=${id}`;
+  }
+  
+  // #ifdef H5
+  window.location.href = url;
+  // #endif
+  
+  // #ifndef H5
+  uni.showLoading({ title: '准备导出...' });
+  uni.downloadFile({
+    url,
+    success: (res) => {
+      if (res.statusCode === 200) {
+        uni.openDocument({
+          filePath: res.tempFilePath,
+          showMenu: true,
+          success: () => uni.hideLoading(),
+          fail: () => {
+             uni.hideLoading();
+             uni.$u.toast('暂不支持此格式预览，请通过浏览器打开');
+          }
+        });
+      }
+    },
+    fail: () => {
+      uni.hideLoading();
+      uni.$u.toast('导出失败');
+    }
+  });
+  // #endif
+};
+
+const handleImport = () => {
+  // #ifdef H5
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.xlsx, .xls';
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64 = event.target.result;
+      await uploadImportData(base64);
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+  // #endif
+  
+  // #ifndef H5
+  uni.chooseFile({
+    count: 1,
+    extension: ['.xlsx', '.xls'],
+    success: (res) => {
+      const path = res.tempFilePaths[0];
+      // 将文件转为 base64
+      // Uni-app 环境下需要根据平台处理文件转 base64
+      // 这里简化处理，如果是微信小程序可以使用 fs.readFileSync(path, 'base64')
+      // 为了广泛兼容，我们使用 uni.getFileSystemManager
+      const fs = uni.getFileSystemManager();
+      const base64 = fs.readFileSync(path, 'base64');
+      uploadImportData('data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + base64);
+    }
+  });
+  // #endif
+};
+
+const uploadImportData = async (base64) => {
+  uni.showLoading({ title: '正在导入...' });
+  try {
+    const res = await http.post('/api/record/import', { fileData: base64 });
+    uni.hideLoading();
+    uni.showModal({
+      title: '导入成功',
+      content: res.message || `成功导入 ${res.successCount} 条数据`,
+      showCancel: false,
+      success: () => {
+        fetchList(); // 刷新列表
+      }
+    });
+  } catch (err) {
+    uni.hideLoading();
+    uni.$u.toast(err.message || '导入失败');
   }
 };
 
@@ -701,10 +807,16 @@ onShow(() => {
   .section-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-end;
+    align-items: center;
     margin-bottom: 24rpx;
     padding: 0 8rpx;
     
+    .title-info {
+      display: flex;
+      align-items: center;
+      gap: 12rpx;
+    }
+
     .title {
       font-size: 36rpx;
       font-weight: 900;
@@ -726,6 +838,40 @@ onShow(() => {
       font-size: 24rpx;
       color: #C9CDD4;
       font-weight: 700;
+    }
+
+    .action-btns {
+      display: flex;
+      gap: 16rpx;
+    }
+
+    .export-btn {
+      display: flex;
+      align-items: center;
+      gap: 8rpx;
+      padding: 10rpx 24rpx;
+      background: #EEF4FF;
+      border-radius: 40rpx;
+      box-shadow: 0 4rpx 12rpx rgba(62, 123, 255, 0.1);
+      
+      text {
+        font-size: 24rpx;
+        color: #3E7BFF;
+        font-weight: 800;
+      }
+
+      &.import {
+        background: #F2F3F5;
+        box-shadow: none;
+        text {
+          color: #86909C;
+        }
+      }
+      
+      &:active {
+        transform: scale(0.95);
+        opacity: 0.8;
+      }
     }
   }
 }

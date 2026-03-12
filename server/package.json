@@ -1,6 +1,6 @@
 {
   "name": "jyl-server",
-  "version": "1.5.4",
+  "version": "1.5.5",
   "description": "甲友乐后端服务 - 甲状腺健康管理平台",
   "main": "index.js",
   "scripts": {
@@ -20,6 +20,7 @@
     "@koa/cors": "^5.0.0",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.2.3",
+    "exceljs": "^4.4.0",
     "jsonwebtoken": "^9.0.3",
     "koa": "^3.1.1",
     "koa-bodyparser": "^4.4.1",

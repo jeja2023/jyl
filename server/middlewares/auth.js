@@ -6,7 +6,10 @@ const User = require('../models/User');
  * JWT 认证中间件
  */
 const authMiddleware = async (ctx, next) => {
-    const token = ctx.header.authorization ? ctx.header.authorization.split(' ')[1] : null;
+    // 优先从 Header 获取，导出文件等场景支持从 Query 获取
+    const token = ctx.header.authorization 
+        ? ctx.header.authorization.split(' ')[1] 
+        : (ctx.query.token || null);
 
     if (!token) {
         return Response.error(ctx, '未提供认证令牌', 401);

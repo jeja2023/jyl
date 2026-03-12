@@ -63,6 +63,8 @@ router.post('/auth/bindPhone', auth, AuthController.bindPhone);
 router.post('/record/add', auth, RecordController.create);
 router.get('/record/list', auth, RecordController.list);
 router.get('/record/trend', auth, RecordController.trend);
+router.get('/record/export', auth, RecordController.export); // 数据导出
+router.post('/record/import', auth, RecordController.import); // 数据导入
 router.get('/record/:id', auth, RecordController.detail);
 router.put('/record/:id', auth, RecordController.update);
 router.delete('/record/:id', auth, RecordController.delete);
