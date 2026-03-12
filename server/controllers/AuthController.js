@@ -151,6 +151,8 @@ class AuthController {
         });
 
         if (!user || !(await user.comparePassword(password))) {
+            const reason = !user ? '用户不存在' : '密码错误';
+            console.warn(`[登录失败] 用户名/邮箱: ${username}, 原因: ${reason}`);
             return Response.error(ctx, '用户名/邮箱或密码错误', 401);
         }
 
