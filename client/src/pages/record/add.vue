@@ -84,13 +84,15 @@
               <u-icon :name="showMore ? 'arrow-up' : 'arrow-down'" size="16" color="#C9CDD4" class="arrow"></u-icon>
             </view>
             <view class="collapse-body" v-if="showMore">
-              <view class="input-cell horizontal" v-for="item in moreFields" :key="item.key">
-                <text class="cell-label">{{ item.label }}</text>
-                <view class="input-container flex-right">
-                  <u--input v-model="form[item.key]" type="text" :placeholder="item.unit" text-align="right" border="none"></u--input>
-                  <text class="unit-label more-unit" :class="{'detected-unit': form.units[item.key]}" v-if="form[item.key]">
-                    {{ form.units[item.key] || item.unit }}
-                  </text>
+              <view class="grid-inputs">
+                <view class="grid-cell" v-for="item in moreFields" :key="item.key">
+                  <text class="tiny-label">{{ item.label }}</text>
+                  <view class="input-container">
+                    <u--input v-model="form[item.key]" type="text" :placeholder="item.unit" border="bottom" class="tiny-input"></u--input>
+                    <text class="unit-label" :class="{'detected-unit': form.units[item.key]}" v-if="form[item.key]">
+                      {{ form.units[item.key] || item.unit }}
+                    </text>
+                  </view>
                 </view>
               </view>
             </view>
