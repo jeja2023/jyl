@@ -17,7 +17,7 @@ const currentLevel = LOG_LEVELS[process.env.LOG_LEVEL?.toUpperCase()] ?? LOG_LEV
  * 格式化日志消息
  */
 const formatMessage = (level, message, meta = {}) => {
-    const timestamp = new Date().toISOString();
+    const timestamp = new Date().toLocaleString('zh-CN', { hour12: false });
     const metaStr = Object.keys(meta).length > 0 ? ` ${JSON.stringify(meta)}` : '';
     return `[${timestamp}] [${level}] ${message}${metaStr}`;
 };

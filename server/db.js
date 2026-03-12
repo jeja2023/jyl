@@ -13,7 +13,7 @@ const sequelize = new Sequelize(
         host: process.env.DB_HOST,
         port: process.env.DB_PORT || 3306,
         dialect: 'mysql',
-        logging: false, // 设置为 console.log 可查看 SQL 语句
+        logging: process.env.DB_LOGGING === 'true' ? (msg) => console.log(`[SQL] ${msg}`) : false, // 允许通过环境变量开启 SQL 打印
         timezone: '+08:00', // 中国标准时间
         pool: {
             max: 10,      // 连接池最大连接数

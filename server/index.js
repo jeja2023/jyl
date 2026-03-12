@@ -17,6 +17,15 @@ if (!validateEnv()) {
 
 const app = new Koa();
 const port = process.env.PORT || 3000;
+const logger = require('./utils/logger');
+
+// 请求日志中间件
+app.use(async (ctx, next) => {
+    const start = Date.now();
+    await next();
+    const ms = Date.now() - start;
+    logger.request(ctx, ms);
+});
 
 // 确保存储目录存在 (递归创建，支持 Docker 初始挂载环境)
 const storageDir = path.join(__dirname, '../storage/reports');

@@ -1,6 +1,6 @@
 {
   "name": "jyl-server",
-  "version": "1.5.8",
+  "version": "1.5.9",
   "description": "甲友乐后端服务 - 甲状腺健康管理平台",
   "main": "index.js",
   "scripts": {
