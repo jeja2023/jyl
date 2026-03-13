@@ -452,28 +452,31 @@ const processImageData = async (filePath, type) => {
 
           const key = toEnglishMap[cnKey] || cnKey; // 如果有映射则用英文，反之保持原样
           
-          // 特殊逻辑：日期处理
-          if (key === 'recordDate') {
+          // 特殊逻辑：日期处理 (支持将识别到的化验日期或 B超日期同步到主日期)
+          if (key === 'recordDate' || key === 'ultrasoundDate') {
             const defaultDate = uni.$u.timeFormat(new Date(), 'yyyy-mm-dd');
             const currentDate = form.recordDate;
             
-            // 1. 如果当前还是默认的今天，直接覆盖为识别到的日期
+            // 总是设置识别到的具体字段
+            form[key] = value;
+            
+            // 同步逻辑：如果当前主日期还是默认的今天，直接覆盖为识别到的新日期
             if (currentDate === defaultDate) {
                form.recordDate = value;
+               uni.$u.toast(`已自动同步报告日期: ${value}`);
             } 
-            // 2. 如果日期不同，但不是默认值，说明是多张不同日期的报告
+            // 进阶逻辑：如果已存在非今天的日期，且新识别出的日期与其不同，则进行风险提示或备注记录
             else if (currentDate !== value) {
                const d1 = new Date(currentDate).getTime();
                const d2 = new Date(value).getTime();
                const diffDays = Math.abs(d1 - d2) / (1000 * 3600 * 24);
                
                if (diffDays > 7) {
-                  uni.$u.toast(`注意：新报告日期(${value})与当前相差较大，建议分条录入`);
+                  uni.$u.toast(`注意：新识别日期(${value})与当前相差较大，请核对`);
                } else {
                   const note = `[含 ${value.substring(5)} 报告]`;
                   if (!form.feeling.includes(note)) {
                       form.feeling = form.feeling ? `${form.feeling} ${note}` : note;
-                      uni.$u.toast(`已自动在备注中标记日期：${value}`);
                   }
                }
             }
