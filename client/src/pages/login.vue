@@ -78,10 +78,7 @@
             <u-checkbox shape="circle" :name="true" activeColor="#3E7BFF" size="14"></u-checkbox>
           </u-checkbox-group>
           <view class="ag-text">
-            登录即代表您同意 
-            <text class="link" @click="goToPage('agreement')">《用户协议》</text> 
-            和 
-            <text class="link" @click="goToPage('privacy')">《隐私政策》</text>
+            登录即代表您同意<text class="link" @click="goToPage('agreement')">《用户协议》</text>和<text class="link" @click="goToPage('privacy')">《隐私政策》</text>
           </view>
         </view>
 
@@ -352,7 +349,7 @@ const skipRegister = () => {
 .content-body {
   position: relative;
   z-index: 10;
-  padding: 0 80rpx;
+  padding: 0 60rpx;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -606,7 +603,7 @@ const skipRegister = () => {
 .agreement-area {
   margin-bottom: 40rpx;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: flex-start;
   padding: 0 20rpx;
   
@@ -616,8 +613,9 @@ const skipRegister = () => {
     line-height: 1.4;
     margin-left: 12rpx;
     font-weight: 500;
+    white-space: nowrap;
     
-    .link { color: #3E7BFF; font-weight: 700; margin: 0 4rpx; }
+    .link { color: #3E7BFF; font-weight: 700; }
   }
 }
 

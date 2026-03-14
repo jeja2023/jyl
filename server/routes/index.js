@@ -11,6 +11,7 @@ const UploadController = require('../controllers/UploadController');
 const AdminController = require('../controllers/AdminController');
 const FamilyController = require('../controllers/FamilyController');
 const ShareController = require('../controllers/ShareController');
+const AssessController = require('../controllers/AssessController');
 const auth = require('../middlewares/auth');
 
 const router = new Router({ prefix: '/api' });
@@ -132,6 +133,12 @@ router.get('/family/list', auth, FamilyController.list);
 router.post('/family/add', auth, FamilyController.create);
 router.post('/family/update', auth, FamilyController.update);
 router.post('/family/delete', auth, FamilyController.delete);
+
+// 症状自测相关
+router.get('/assess/history', auth, AssessController.getHistory);
+router.post('/assess/save', auth, AssessController.saveAssessment);
+router.get('/assess/:id', auth, AssessController.getDetail);
+router.delete('/assess/:id', auth, AssessController.deleteAssessment);
 
 // 百科文章
 const WikiController = require('../controllers/WikiController');

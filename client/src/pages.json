@@ -70,6 +70,13 @@
 			}
 		},
 		{
+			"path": "pages/assess/history",
+			"style": {
+				"navigationBarTitleText": "测评详情",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/wiki/list",
 			"style": {
 				"navigationBarTitleText": "甲友百科",
