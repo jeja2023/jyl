@@ -177,7 +177,7 @@ const HealthRecord = sequelize.define('HealthRecord', {
 // 建立关联
 User.hasMany(HealthRecord);
 HealthRecord.belongsTo(User);
-FamilyMember.hasMany(HealthRecord);
-HealthRecord.belongsTo(FamilyMember);
+FamilyMember.hasMany(HealthRecord, { foreignKey: 'memberId' });
+HealthRecord.belongsTo(FamilyMember, { foreignKey: 'memberId' });
 
 module.exports = HealthRecord;
