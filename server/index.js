@@ -3,6 +3,7 @@ const bodyParser = require('koa-bodyparser');
 const cors = require('@koa/cors');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const serve = require('koa-static');
 const mount = require('koa-mount');
 const compress = require('koa-compress');
@@ -18,6 +19,16 @@ if (!validateEnv()) {
 const app = new Koa();
 const port = process.env.PORT || 3000;
 const logger = require('./utils/logger');
+const { startCleanupJobs } = require('./utils/cleanup');
+
+// 请求链路 ID
+app.use(async (ctx, next) => {
+    const incomingId = ctx.get('X-Request-Id');
+    const requestId = incomingId || (crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex'));
+    ctx.state.requestId = requestId;
+    ctx.set('X-Request-Id', requestId);
+    await next();
+});
 
 // 请求日志中间件
 app.use(async (ctx, next) => {
@@ -38,7 +49,9 @@ console.log(`[启动] 数据库连接检测: HOST=${process.env.DB_HOST || 'loca
 
 // 数据库服务 初始化
 const DbService = require('./services/DbService');
-DbService.init();
+DbService.init().then(() => {
+    startCleanupJobs();
+});
 
 // 中间件
 const errorHandler = require('./middlewares/errorHandler');
@@ -57,7 +70,21 @@ app.use(compress({
     deflate: { flush: require('zlib').constants.Z_SYNC_FLUSH },
     br: false // 禁用 brotli，因为通常需要额外的配置
 }));
-app.use(cors()); // 跨域支持
+// 跨域支持（生产环境可配置白名单）
+const corsOptions = {};
+if (process.env.NODE_ENV === 'production' && process.env.CORS_ORIGINS) {
+    const allowedOrigins = process.env.CORS_ORIGINS
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+    corsOptions.origin = (ctx) => {
+        const reqOrigin = ctx.get('Origin');
+        if (!reqOrigin) return '*';
+        return allowedOrigins.includes(reqOrigin) ? reqOrigin : false;
+    };
+    corsOptions.credentials = true;
+}
+app.use(cors(corsOptions));
 app.use(bodyParser({ jsonLimit: '50mb', formLimit: '50mb' })); // 进一步放宽限制，防止大图上传报错
 
 // 静态文件服务 - 使用 koa-static 替换手动流式读取，提升性能

@@ -8,7 +8,7 @@ const config = {
     // 默认值（当后端尚未加载完成或失败时使用）
     SUPPORT_EMAIL: 'support@jiayoule.com',
     WECHAT_SUPPORT: 'JYL_Support',
-    VERSION: '1.4.0',
+    VERSION: '1.6.2',
 
     /**
      * 从后端同步最新配置

@@ -50,7 +50,8 @@ const logger = {
     // 请求日志 (简化版)
     request: (ctx, duration) => {
         const { method, url, status } = ctx;
-        logger.info(`${method} ${url} ${status || 200} - ${duration}ms`);
+        const requestId = ctx.state?.requestId;
+        logger.info(`${method} ${url} ${status || 200} - ${duration}ms${requestId ? ` [${requestId}]` : ''}`);
     }
 };
 

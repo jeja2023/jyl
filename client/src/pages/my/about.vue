@@ -64,11 +64,11 @@
     </view>
 
     <view class="footer-section">
-      <view class="copyright">© 2026 甲友乐健康科技 版权所有</view>
+      <view class="copyright">© 2026 甲友乐健康 版权所有</view>
       <view class="agreement-links">
-        <text>用户协议</text>
+        <text class="link-item" @click="goTo('agreement')">用户协议</text>
         <view class="divider"></view>
-        <text>隐私政策</text>
+        <text class="link-item" @click="goTo('privacy')">隐私政策</text>
       </view>
     </view>
   </view>
@@ -76,7 +76,12 @@
 
 <script setup>
 import config from '@/config/index.js';
-// 基础关于页面，逻辑简单
+
+const goTo = (path) => {
+  uni.navigateTo({
+    url: `/pages/my/${path}`
+  });
+};
 </script>
 
 <style lang="scss" scoped>
@@ -167,25 +172,25 @@ import config from '@/config/index.js';
     }
   }
   
-.disclaimer-card {
-  background: #FFF7F7;
-  border: 1px solid #FFEBEB;
-  
-  .card-title {
-    color: #F53F3F;
-    &::before {
-      background: #F53F3F;
+  .disclaimer-card {
+    background: #FFF7F7;
+    border: 1px solid #FFEBEB;
+    
+    .card-title {
+      color: #F53F3F;
+      &::before {
+        background: #F53F3F;
+      }
+    }
+    
+    .highlight {
+      color: #F53F3F;
+      font-weight: 800;
+      margin-bottom: 16rpx;
     }
   }
-  
-  .highlight {
-    color: #F53F3F;
-    font-weight: 800;
-    margin-bottom: 16rpx;
-  }
-}
 
-.contact-item {
+  .contact-item {
     display: flex;
     padding: 12rpx 0;
     font-size: 28rpx;
@@ -219,17 +224,23 @@ import config from '@/config/index.js';
     justify-content: center;
     align-items: center;
     
-    text {
+    .link-item {
       font-size: 24rpx;
       color: #86909C;
       font-weight: 600;
+      padding: 10rpx 20rpx;
+      
+      &:active {
+        color: #3E7BFF;
+        opacity: 0.8;
+      }
     }
     
     .divider {
       width: 2rpx;
       height: 20rpx;
       background: #E5E6EB;
-      margin: 0 24rpx;
+      margin: 0 4rpx;
     }
   }
 }

@@ -4,7 +4,7 @@
     <view class="top-bg"></view>
     
     <!-- 用户信息区域 -->
-    <view class="user-section">
+    <view class="user-section" @click="handleUserClick">
       <view class="avatar-wrapper">
         <u-avatar :src="userInfo?.avatar" size="72" shape="circle" :text="avatarText"></u-avatar>
       </view>
@@ -12,13 +12,13 @@
         <text class="nickname">{{ displayName }}</text>
         <text class="phone">{{ maskedAccount }}</text>
       </view>
-      <view class="edit-btn" @click="goProfile">
+      <view class="edit-btn" v-if="userStore.isLogin" @click.stop="goProfile">
         <u-icon name="edit-pen" size="16" color="#3E7BFF"></u-icon>
       </view>
     </view>
 
     <!-- 统计信息看板 -->
-    <view class="stats-board">
+    <view class="stats-board" @click="handleUserClick">
       <view class="stats-item">
         <text class="num">{{ stats.checkupDays }}</text>
         <text class="label">记录天数</text>
@@ -30,20 +30,20 @@
       </view>
       <view class="divider"></view>
       <view class="stats-item">
-        <text class="num">{{ stats.wikiReads }}</text>
-        <text class="label">百科阅读</text>
+        <text class="num">{{ stats.familyCount }}</text>
+        <text class="label">家庭成员</text>
       </view>
     </view>
 
     <!-- 疾病类型标签 -->
-    <view class="type-badge" v-if="userInfo?.patientType && userInfo.patientType !== '其他'">
+    <view class="type-badge" v-if="userStore.isLogin && userInfo?.patientType && userInfo.patientType !== '其他'">
       <u-icon name="heart-fill" size="18" color="#FFFFFF"></u-icon>
       <text>{{ userInfo.patientType }}</text>
     </view>
 
     <!-- 功能菜单 -->
     <view class="menu-card">
-      <view class="menu-item" v-if="userInfo?.role === 'admin'" @click="uni.navigateTo({ url: '/pages/admin/index' })">
+      <view class="menu-item" v-if="userStore.isLogin && userInfo?.role === 'admin'" @click="uni.navigateTo({ url: '/pages/admin/index' })">
         <view class="menu-icon" style="background: linear-gradient(135deg, #FF7875 0%, #F5222D 100%);">
           <u-icon name="man-add-fill" size="20" color="#FFFFFF"></u-icon>
         </view>
@@ -51,7 +51,7 @@
         <u-icon name="arrow-right" size="16" color="#C9CDD4"></u-icon>
       </view>
 
-      <view class="menu-item" @click="goProfile">
+      <view class="menu-item" @click="handleMenuClick('/pages/my/profile')">
         <view class="menu-icon" style="background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);">
           <u-icon name="account" size="20" color="#FFFFFF"></u-icon>
         </view>
@@ -59,7 +59,7 @@
         <u-icon name="arrow-right" size="16" color="#C9CDD4"></u-icon>
       </view>
       
-      <view class="menu-item" @click="goSettings">
+      <view class="menu-item" @click="handleMenuClick('/pages/my/settings')">
         <view class="menu-icon" style="background: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);">
           <u-icon name="setting" size="20" color="#FFFFFF"></u-icon>
         </view>
@@ -85,13 +85,13 @@
     </view>
 
     <!-- 退出登录 -->
-    <view class="logout-btn" @click="handleLogout">
+    <view class="logout-btn" v-if="userStore.isLogin" @click="handleLogout">
       <text>退出登录</text>
     </view>
     
     <!-- 版本信息 -->
     <view class="version-info">
-      <text>甲友乐 v1.5.9</text>
+      <text>甲友乐 v1.6.1</text>
     </view>
   </view>
 </template>
@@ -109,16 +109,17 @@ const userInfo = computed(() => userStore.userInfo);
 const stats = ref({
   checkupDays: 0,
   labReports: 0,
-  wikiReads: 0
+  familyCount: 0
 });
 
 // 显示名称优先级：昵称 > 用户名 > 邮箱前缀 > 访客
 const displayName = computed(() => {
+  if (!userStore.isLogin) return '未登录';
   if (userInfo.value?.nickname) return userInfo.value.nickname;
   if (userInfo.value?.username) return userInfo.value.username;
   if (userInfo.value?.email) return userInfo.value.email.split('@')[0];
   if (userInfo.value?.phone) return `甲友${userInfo.value.phone.slice(-4)}`;
-  return '未登录';
+  return '甲友';
 });
 
 // 头像文字（无头像时显示）
@@ -126,19 +127,25 @@ const avatarText = computed(() => {
   return displayName.value.slice(0, 1);
 });
 
-// 账号展示脱敏 (优先手机，其次邮箱)
+// 账号展示脱敏 (优先邮箱，其次手机)
 const maskedAccount = computed(() => {
+  if (!userStore.isLogin) return '点击登录账号';
+  
   const phone = userInfo.value?.phone;
   const email = userInfo.value?.email;
+  const username = userInfo.value?.username;
   
-  if (phone) {
-    return phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
-  }
   if (email) {
     const [name, domain] = email.split('@');
     return name.length > 3 ? `${name.slice(0, 3)}***@${domain}` : `***@${domain}`;
   }
-  return '未登录';
+  if (phone) {
+    return phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
+  }
+  if (username) {
+    return username;
+  }
+  return '已登录';
 });
 
 const fetchStats = async () => {
@@ -149,6 +156,22 @@ const fetchStats = async () => {
   } catch (err) {
     console.error('获取统计数据失败', err);
   }
+};
+
+const handleUserClick = () => {
+  if (!userStore.isLogin) {
+    uni.navigateTo({ url: '/pages/login' });
+  } else {
+    goProfile();
+  }
+};
+
+const handleMenuClick = (url) => {
+  if (!userStore.isLogin) {
+    uni.navigateTo({ url: '/pages/login' });
+    return;
+  }
+  uni.navigateTo({ url });
 };
 
 const goProfile = () => {
@@ -175,15 +198,18 @@ const goAbout = () => {
 
 const handleOfficialFeedback = () => {
     uni.showActionSheet({
-        itemList: ['复制客服微信', '前往意见反馈'],
+        itemList: [`复制微信：${config.WECHAT_SUPPORT}`, `复制邮箱：${config.SUPPORT_EMAIL}`],
         success: (res) => {
             if (res.tapIndex === 0) {
                 uni.setClipboardData({
                     data: config.WECHAT_SUPPORT,
                     success: () => uni.$u.toast('客服微信已复制')
                 });
-            } else {
-                uni.navigateTo({ url: '/pages/my/about' });
+            } else if (res.tapIndex === 1) {
+                uni.setClipboardData({
+                    data: config.SUPPORT_EMAIL,
+                    success: () => uni.$u.toast('客服邮箱已复制')
+                });
             }
         }
     });
@@ -207,6 +233,8 @@ const handleLogout = () => {
 onShow(() => {
   if (userStore.isLogin) {
     fetchStats();
+  } else {
+    uni.reLaunch({ url: '/pages/login' });
   }
 });
 </script>

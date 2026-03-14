@@ -57,6 +57,7 @@
         <view class="ref-range">
           <text>{{ currentRefRange }} <text class="ref-unit">{{ currentUnit }}</text></text>
         </view>
+        <text class="ref-mid" v-if="refMidValue">参考中值：{{ refMidValue }}</text>
       </view>
     </view>
 
@@ -88,6 +89,10 @@
             </view>
             
             <view class="record-center">
+              <view class="member-tag" v-if="item.FamilyMember">
+                <u-icon name="account" size="12" color="#3E7BFF"></u-icon>
+                <text>{{ formatMember(item.FamilyMember) }}</text>
+              </view>
               <!-- 血检数据部分 -->
               <view class="blood-metrics" v-if="hasBloodData(item)">
                 <view class="val-item" v-for="metricKey in visibleListMetrics" :key="metricKey" v-show="item[metricKey] !== undefined && item[metricKey] !== null && item[metricKey] !== ''">
@@ -132,6 +137,7 @@ import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 import { getBaseURL } from '@/utils/config.js';
 import { getIndicatorInfo, getIndicatorInfoFromRef } from '@/utils/indicator.js';
+import { setCache, getCache } from '@/utils/cache.js';
 
 const userStore = useUserStore();
 const list = ref([]);
@@ -277,6 +283,28 @@ const currentFullName = computed(() => currentTabItem.value?.fullName || '');
 const currentUnit = computed(() => currentTabItem.value?.unit || '');
 const currentRefRange = computed(() => currentTabItem.value?.ref || '');
 const currentThemeColor = computed(() => currentTabItem.value?.color || '#3E7BFF');
+const refMidValue = computed(() => {
+  const ref = currentRefRange.value;
+  if (!ref) return '';
+  if (ref.includes('-')) {
+    const parts = ref.split('-');
+    const min = parseFloat(parts[0]);
+    const max = parseFloat(parts[1]);
+    if (isNaN(min) || isNaN(max)) return '';
+    return ((min + max) / 2).toFixed(2);
+  }
+  if (ref.includes('<')) {
+    const max = parseFloat(ref.replace('<', ''));
+    if (isNaN(max)) return '';
+    return (max / 2).toFixed(2);
+  }
+  if (ref.includes('>')) {
+    const min = parseFloat(ref.replace('>', ''));
+    if (isNaN(min)) return '';
+    return min.toFixed(2);
+  }
+  return '';
+});
 
 const latestUnit = computed(() => {
   if (!latestRecordWithTab.value) return currentUnit.value;
@@ -362,7 +390,7 @@ const drawChart = () => {
   
   const width = canvasWidth.value;
   const height = 200;
-  const padding = { top: 30, right: 20, bottom: 40, left: 50 };
+  const padding = { top: 30, right: 20, bottom: 40, left: 65 };
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
   
@@ -437,6 +465,20 @@ const drawChart = () => {
           if (ctx.setLineDash) ctx.setLineDash([]);
       }
   }
+
+  // 1.1 参考中值线
+  if (refMin !== null && refMax !== null) {
+      const mid = (refMin + refMax) / 2;
+      const yMid = padding.top + chartHeight - ((mid - minVal) / range) * chartHeight;
+      ctx.setStrokeStyle('rgba(62, 123, 255, 0.35)');
+      ctx.setLineWidth(1);
+      if (ctx.setLineDash) ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(padding.left, yMid);
+      ctx.lineTo(width - padding.right, yMid);
+      ctx.stroke();
+      if (ctx.setLineDash) ctx.setLineDash([]);
+  }
   
   // 2. 绘制网格线和 Y 轴标签
   ctx.setStrokeStyle('#F2F3F5');
@@ -454,7 +496,7 @@ const drawChart = () => {
     ctx.lineTo(width - padding.right, y);
     ctx.stroke();
 
-    ctx.fillText(Number.isInteger(val) ? val.toString() : val.toFixed(1), padding.left - 8, y + 4);
+    ctx.fillText(Number.isInteger(val) ? val.toString() : val.toFixed(1), padding.left - 10, y + 4);
   }
   
   // 绘制折线
@@ -522,7 +564,14 @@ const drawChart = () => {
     // 绘制具体数值
     ctx.setFillStyle(p.status.color !== 'success' ? dotColor : '#86909C');
     ctx.setFontSize(10);
-    ctx.setTextAlign('center');
+    // 动态调整对齐方式，防止首尾数值与坐标轴或边界重叠
+    if (idx === 0) {
+      ctx.setTextAlign('left');
+    } else if (idx === points.length - 1) {
+      ctx.setTextAlign('right');
+    } else {
+      ctx.setTextAlign('center');
+    }
     // 如果有箭头，数值放在箭头上方
     const textOffset = p.status.icon ? 22 : 12;
     ctx.fillText(p.value, p.x, p.y - textOffset);
@@ -548,18 +597,31 @@ const fetchList = async () => {
     list.value = res.list.map(item => {
       item.units = {};
       if (item.indicatorUnits) {
-        try {
-          item.units = JSON.parse(item.indicatorUnits);
-        } catch (e) {
-          item.units = {};
+        if (typeof item.indicatorUnits === 'object') {
+          item.units = item.indicatorUnits;
+        } else {
+          try {
+            item.units = JSON.parse(item.indicatorUnits);
+          } catch (e) {
+            item.units = {};
+          }
         }
       }
       return item;
     });
+    setCache('record_list', list.value, 1800);
     await nextTick();
     drawChart();
   } catch (err) {
-    console.error(err);
+    const cached = getCache('record_list');
+    if (cached) {
+      list.value = cached;
+      await nextTick();
+      drawChart();
+      uni.$u.toast('当前为离线数据');
+    } else {
+      console.error(err);
+    }
   }
 };
 
@@ -576,9 +638,14 @@ const navigateToAdd = () => {
   uni.navigateTo({ url: '/pages/record/add' });
 };
 
-const navigateToDetail = (id) => {
-  uni.navigateTo({ url: `/pages/record/detail?id=${id}` });
-};
+  const navigateToDetail = (id) => {
+    uni.navigateTo({ url: `/pages/record/detail?id=${id}` });
+  };
+
+  const formatMember = (m) => {
+    if (!m) return '';
+    return `${m.name}${m.relation ? ' · ' + m.relation : ''}`;
+  };
 
 onMounted(() => {
   // 获取屏幕宽度
@@ -588,6 +655,10 @@ onMounted(() => {
 });
 
 onShow(() => {
+  if (!userStore.isLogin) {
+    uni.reLaunch({ url: '/pages/login' });
+    return;
+  }
   fetchList();
 });
 </script>
@@ -795,6 +866,13 @@ onShow(() => {
   }
 }
 
+.ref-mid {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #86909C;
+  font-weight: 600;
+}
+
 .value-box {
   display: flex;
   align-items: center;
@@ -946,6 +1024,19 @@ onShow(() => {
     display: flex;
     flex-direction: column;
     gap: 16rpx;
+  }
+
+  .member-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6rpx;
+    background: #EEF4FF;
+    color: #3E7BFF;
+    font-size: 20rpx;
+    padding: 4rpx 10rpx;
+    border-radius: 10rpx;
+    font-weight: 700;
+    width: fit-content;
   }
 
   .blood-metrics {

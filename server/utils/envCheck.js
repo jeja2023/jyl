@@ -15,7 +15,18 @@ const optionalEnvVars = [
     { key: 'PORT', description: '服务端口', default: '3000' },
     { key: 'DB_PORT', description: '数据库端口', default: '3306' },
     { key: 'JWT_EXPIRE', description: 'JWT 过期时间', default: '7d' },
-    { key: 'LOG_LEVEL', description: '日志级别', default: 'INFO' }
+    { key: 'LOG_LEVEL', description: '日志级别', default: 'INFO' },
+    { key: 'DB_SYNC_ALTER', description: '开发环境自动同步表结构', default: 'true(仅开发环境)' },
+    { key: 'API_RATE_LIMIT', description: 'API 全局限流 (每分钟)', default: '120' },
+    { key: 'CORS_ORIGINS', description: '生产环境允许的跨域来源(逗号分隔)', default: '未配置' },
+    { key: 'OCR_TIMEOUT_MS', description: 'OCR 请求超时(毫秒)', default: '10000' },
+    { key: 'LOGIN_FAIL_MAX', description: '登录失败阈值', default: '5' },
+    { key: 'LOGIN_LOCK_MINUTES', description: '登录锁定时长(分钟)', default: '15' },
+    { key: 'CLEANUP_ENABLE', description: '是否启用清理任务', default: 'false' },
+    { key: 'CLEANUP_INTERVAL_HOURS', description: '清理任务执行间隔(小时)', default: '6' },
+    { key: 'VERIFY_CODE_CLEANUP_DAYS', description: '验证码清理天数(已使用)', default: '1' },
+    { key: 'ORPHAN_FILE_TTL_DAYS', description: '孤儿文件清理阈值(天)', default: '7' },
+    { key: 'SHARE_EXPIRE', description: '分享链接有效期', default: '7d' }
 ];
 
 /**

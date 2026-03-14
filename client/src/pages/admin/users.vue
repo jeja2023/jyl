@@ -11,7 +11,7 @@
     <view class="search-header">
       <view class="search-box">
         <u-search 
-          placeholder="搜索昵称/用户名/手机号" 
+          placeholder="搜索昵称/用户名/邮箱" 
           v-model="keyword" 
           @search="onSearch" 
           @clear="onSearch"
@@ -42,7 +42,7 @@
             </view>
             <view class="account-line">
               <text class="label">账户:</text>
-              <text class="value">{{ user.username || user.phone || user.email || 'H5访客' }}</text>
+              <text class="value">{{ user.username || user.email || user.phone || 'H5访客' }}</text>
             </view>
             <view class="time-line">
               <text class="label">注册:</text>

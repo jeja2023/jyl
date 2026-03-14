@@ -1,5 +1,6 @@
 const Router = require('koa-router');
 const ratelimit = require('koa-ratelimit');
+const { koaBody } = require('koa-body');
 const AuthController = require('../controllers/AuthController');
 const RecordController = require('../controllers/RecordController');
 const MedicationController = require('../controllers/MedicationController');
@@ -8,9 +9,23 @@ const HealthTipController = require('../controllers/HealthTipController');
 const OcrController = require('../controllers/OcrController');
 const UploadController = require('../controllers/UploadController');
 const AdminController = require('../controllers/AdminController');
+const FamilyController = require('../controllers/FamilyController');
+const ShareController = require('../controllers/ShareController');
 const auth = require('../middlewares/auth');
 
 const router = new Router({ prefix: '/api' });
+
+// 全局 API 限流（可通过环境变量调整）
+const apiLimiter = ratelimit({
+    driver: 'memory',
+    db: new Map(),
+    duration: 60000,
+    errorMessage: '请求太频繁，请稍后再试',
+    id: (ctx) => ctx.ip,
+    max: parseInt(process.env.API_RATE_LIMIT || '120', 10),
+    disableHeader: false
+});
+router.use(apiLimiter);
 
 // 速率限制器
 const authLimiter = ratelimit({
@@ -75,11 +90,13 @@ router.get('/medication/list', auth, MedicationController.list);
 router.post('/medication/update', auth, MedicationController.update);
 router.post('/medication/toggle', auth, MedicationController.toggle);
 router.post('/medication/take', auth, MedicationController.take); // 服药打卡
+router.get('/medication/stats', auth, MedicationController.stats);
 router.delete('/medication/delete', auth, MedicationController.delete);
 
 // 复查提醒相关
 router.post('/checkup/add', auth, CheckupController.create);
 router.get('/checkup/list', auth, CheckupController.list);
+router.get('/checkup/suggest', auth, CheckupController.suggest);
 router.post('/checkup/complete', auth, CheckupController.complete);
 router.delete('/checkup/delete', auth, CheckupController.delete);
 
@@ -97,7 +114,24 @@ router.post('/notification/read', auth, NotificationController.markRead);
 router.delete('/notification/delete', auth, NotificationController.delete);
 
 // 文件上传（保存报告原件）
-router.post('/upload/report', auth, UploadController.uploadReport);
+const uploadBody = koaBody({
+    multipart: true,
+    json: true,
+    urlencoded: true,
+    formidable: {
+        maxFileSize: 10 * 1024 * 1024
+    }
+});
+router.post('/upload/report', auth, uploadBody, UploadController.uploadReport);
+
+// 分享
+router.post('/share/record', auth, ShareController.createRecordShare);
+
+// 家庭成员管理
+router.get('/family/list', auth, FamilyController.list);
+router.post('/family/add', auth, FamilyController.create);
+router.post('/family/update', auth, FamilyController.update);
+router.post('/family/delete', auth, FamilyController.delete);
 
 // 百科文章
 const WikiController = require('../controllers/WikiController');
@@ -105,7 +139,11 @@ const admin = require('../middlewares/auth').admin;
 
 // 公开接口 (非通配符)
 router.get('/wiki/list', WikiController.list); // 公开：列表
-router.post('/wiki/init', WikiController.initData); // 初始化数据
+if (process.env.NODE_ENV === 'development') {
+    router.post('/wiki/init', WikiController.initData); // 初始化数据（开发环境）
+} else {
+    router.post('/wiki/init', auth, admin, WikiController.initData); // 初始化数据（生产需管理员）
+}
 
 // 用户投稿接口（需登录）
 router.post('/wiki/submit', auth, WikiController.submit); // 用户投稿
@@ -130,6 +168,7 @@ router.get('/admin/logs', auth, admin, AdminController.listLogs);
 // 公开接口 (通配符 - 必须放最后)
 const optional = require('../middlewares/auth').optional;
 router.get('/wiki/:id', optional, WikiController.detail); // 公开：详情 (带可选认证)
+router.get('/share/record/:token', ShareController.getRecordShare);
 
 module.exports = router;
 

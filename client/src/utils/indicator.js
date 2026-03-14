@@ -78,3 +78,93 @@ export const checkIndicator = (key, val) => {
     }
     return getIndicatorInfo(val, ref.min, ref.max);
 };
+
+const DEFAULT_ADVICE = {
+    high: '偏高，请结合症状与医生建议调整用药或复查。',
+    low: '偏低，请结合症状与医生建议调整用药或复查。',
+    normal: '在参考范围内，继续保持。'
+};
+
+const INDICATOR_ADVICE = {
+    TSH: {
+        high: {
+            default: 'TSH偏高，可能提示甲状腺功能偏低。',
+            甲减: 'TSH偏高，可能提示甲减控制不足。',
+            甲亢: 'TSH偏高，可能提示治疗过度或药量偏大。'
+        },
+        low: {
+            default: 'TSH偏低，可能提示甲状腺功能偏亢。',
+            甲亢: 'TSH偏低，可能提示甲亢控制不足。',
+            甲减: 'TSH偏低，可能提示药量偏大。'
+        }
+    },
+    FT3: {
+        high: { default: 'FT3偏高，提示甲状腺激素偏高。' },
+        low: { default: 'FT3偏低，提示甲状腺激素偏低。' }
+    },
+    FT4: {
+        high: { default: 'FT4偏高，提示甲状腺激素偏高。' },
+        low: { default: 'FT4偏低，提示甲状腺激素偏低。' }
+    },
+    T3: {
+        high: { default: 'T3偏高，提示甲状腺激素偏高。' },
+        low: { default: 'T3偏低，提示甲状腺激素偏低。' }
+    },
+    T4: {
+        high: { default: 'T4偏高，提示甲状腺激素偏高。' },
+        low: { default: 'T4偏低，提示甲状腺激素偏低。' }
+    },
+    Tg: {
+        high: { default: 'Tg偏高，建议结合病史与随访。' },
+        low: { default: 'Tg偏低，通常无明显异常意义。' }
+    },
+    TPOAb: {
+        high: { default: 'TPOAb偏高，提示免疫相关性增高。' },
+        low: { default: 'TPOAb偏低。' }
+    },
+    TGAb: {
+        high: { default: 'TGAb偏高，提示免疫相关性增高。' },
+        low: { default: 'TGAb偏低。' }
+    },
+    TRAb: {
+        high: { default: 'TRAb偏高，常见于甲亢相关。' },
+        low: { default: 'TRAb偏低。' }
+    },
+    Calcitonin: {
+        high: { default: '降钙素偏高，建议结合医生评估。' },
+        low: { default: '降钙素偏低。' }
+    },
+    Calcium: {
+        high: { default: '血钙偏高，建议复查或咨询医生。' },
+        low: { default: '血钙偏低，注意补钙与维生素D。' }
+    },
+    Magnesium: {
+        high: { default: '血镁偏高，建议复查。' },
+        low: { default: '血镁偏低，注意补充。' }
+    },
+    Phosphorus: {
+        high: { default: '血磷偏高，建议复查。' },
+        low: { default: '血磷偏低，注意补充。' }
+    },
+    PTH: {
+        high: { default: 'PTH偏高，建议结合钙磷代谢评估。' },
+        low: { default: 'PTH偏低，注意钙磷代谢。' }
+    }
+};
+
+export const getIndicatorAdvice = (key, val, refStr, profile = {}) => {
+    const statusInfo = getIndicatorInfoFromRef(val, refStr);
+    if (!statusInfo || statusInfo.status === '未知' || statusInfo.status === '未录入') return '';
+
+    const status = statusInfo.status === '偏高' ? 'high' : statusInfo.status === '偏低' ? 'low' : 'normal';
+    if (status === 'normal') return '';
+
+    const patientType = profile?.patientType;
+    const adviceBlock = INDICATOR_ADVICE[key]?.[status];
+    if (adviceBlock) {
+        if (patientType && adviceBlock[patientType]) return adviceBlock[patientType];
+        if (adviceBlock.default) return adviceBlock.default;
+    }
+
+    return DEFAULT_ADVICE[status] || '';
+};

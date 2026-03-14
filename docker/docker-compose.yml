@@ -14,6 +14,7 @@ services:
       - .env_docker
     environment:
       - DB_HOST=jyl-db
+      - TZ=Asia/Shanghai
     depends_on:
       jyl-db:
         condition: service_healthy
@@ -24,12 +25,16 @@ services:
     container_name: jyl-db
     command:
       - --default-authentication-plugin=mysql_native_password
+      - --default-time-zone=+08:00
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
       - --skip-host-cache
       - --skip-name-resolve
     env_file:
       - .env_docker
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASS}
+      TZ: Asia/Shanghai
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS}
       MYSQL_DATABASE: ${DB_NAME}
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASS}

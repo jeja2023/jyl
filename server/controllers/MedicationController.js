@@ -1,6 +1,8 @@
 const MedicationPlan = require('../models/MedicationPlan');
+const MedicationLog = require('../models/MedicationLog');
 const Response = require('../utils/response');
 const { logAction } = require('../utils/actionLog');
+const { calculateStats } = require('../services/MedicationService');
 
 class MedicationController {
     // 新增服药计划
@@ -60,8 +62,21 @@ class MedicationController {
         plan.lastTakenDate = today;
         await plan.save();
 
+        await MedicationLog.findOrCreate({
+            where: { UserId: userId, MedicationPlanId: plan.id, date: today },
+            defaults: { takenAt: new Date() }
+        });
+
         Response.success(ctx, { lastTakenDate: today }, '已确认服药');
         logAction(ctx, '服药打卡', '用药管理', `用户确认服用了药品: ${plan.medicineName}`);
+    }
+
+    // 服药依从性统计
+    static async stats(ctx) {
+        const userId = ctx.state.user.id;
+        const days = parseInt(ctx.query.days || '7', 10);
+        const result = await calculateStats(userId, Math.max(1, Math.min(days, 60)));
+        Response.success(ctx, result);
     }
 
     // 更新计划信息

@@ -7,6 +7,8 @@ const HealthTip = require('../models/HealthTip');
 const VerifyCode = require('../models/VerifyCode');
 const Notification = require('../models/Notification');
 const ActionLog = require('../models/ActionLog');
+const FamilyMember = require('../models/FamilyMember');
+const MedicationLog = require('../models/MedicationLog');
 const logger = require('../utils/logger');
 
 class DbService {
@@ -16,8 +18,16 @@ class DbService {
                 await sequelize.authenticate();
                 logger.info('数据库连接成功，开始同步模型...');
 
-                // 执行模型同步 (增加 alter: true 以自动更新表结构，如添加 email 字段)
-                await sequelize.sync({ alter: true });
+                // 执行模型同步
+                // 生产环境默认不进行 alter，避免结构变更风险
+                const isDev = process.env.NODE_ENV !== 'production';
+                const allowAlter = isDev && process.env.DB_SYNC_ALTER !== 'false';
+                if (!isDev && process.env.DB_SYNC_ALTER === 'true') {
+                    logger.warn('生产环境不建议使用 DB_SYNC_ALTER，已自动忽略');
+                }
+
+                const syncOptions = allowAlter ? { alter: true } : {};
+                await sequelize.sync(syncOptions);
                 logger.info('数据库模型同步成功');
 
                 // 4. 初始化数据（如管理员）

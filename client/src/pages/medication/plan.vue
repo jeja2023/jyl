@@ -28,6 +28,22 @@
         <view class="tip-decoration"></view>
       </view>
 
+      <!-- 依从性统计 -->
+      <view class="stats-card" v-if="stats">
+        <view class="stats-item">
+          <text class="label">近{{ stats.days }}天依从率</text>
+          <text class="value">{{ stats.adherenceRate }}%</text>
+        </view>
+        <view class="stats-item">
+          <text class="label">连续打卡</text>
+          <text class="value">{{ stats.streak }}天</text>
+        </view>
+        <view class="stats-item">
+          <text class="label">已服/应服</text>
+          <text class="value">{{ stats.takenDoses }}/{{ stats.expectedDoses }}</text>
+        </view>
+      </view>
+
       <!-- 列表头部 -->
       <view class="section-header">
         <view class="header-left">
@@ -105,14 +121,14 @@
             <text class="empty-text">暂无用药提醒，点击右上角添加</text>
           </view>
           
-          <!-- 底部占位，防止被最后的内容遮挡 -->
+          <!-- 底部占位 -->
           <view style="height: 100rpx;"></view>
         </view>
       </view>
     </view>
 
     <!-- 添加计划弹窗 -->
-    <u-popup :show="showAdd" @close="closePopup" mode="bottom" round="24">
+    <u-popup :show="showAdd" @close="closePopup" mode="bottom" round="24" :lockScroll="true">
       <view class="popup-container">
         <view class="popup-header">
           <text class="popup-title">{{ editingId ? '编辑用药提醒' : '添加用药提醒' }}</text>
@@ -186,6 +202,7 @@
 import { ref, reactive, onMounted, computed } from 'vue';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
+import { setCache, getCache } from '@/utils/cache.js';
 
 const userStore = useUserStore();
 const plans = ref([]);
@@ -194,6 +211,7 @@ const showTime = ref(false);
 const timeValue = ref('06:30');
 const editingId = ref(null);
 const tipContent = ref('加载中...');
+const stats = ref(null);
 
 const newPlan = reactive({
   medicineName: '',
@@ -216,11 +234,30 @@ const fetchPlans = async () => {
     if (userStore.isLogin) {
        const res = await http.get('/api/medication/list');
        if(res) plans.value = res;
+       setCache('medication_plans', plans.value, 1800);
     }
   } catch (err) {
-    console.error(err);
+    const cached = getCache('medication_plans');
+    if (cached) {
+      plans.value = cached;
+      uni.$u.toast('当前为离线数据');
+    } else {
+      console.error(err);
+    }
   }
 
+};
+
+const fetchStats = async () => {
+  try {
+    if (userStore.isLogin) {
+      stats.value = await http.get('/api/medication/stats?days=7');
+      setCache('medication_stats', stats.value, 900);
+    }
+  } catch (e) {
+    const cached = getCache('medication_stats');
+    stats.value = cached || null;
+  }
 };
 
 const fetchTip = async () => {
@@ -279,6 +316,7 @@ const savePlan = async () => {
     
     closePopup();
     fetchPlans();
+    fetchStats();
   } catch (err) {
     console.error(err);
   }
@@ -328,12 +366,13 @@ const takeMedicine = async (item) => {
     const prevDate = item.lastTakenDate;
     item.lastTakenDate = new Date().toISOString().split('T')[0];
     try {
-        await http.post('/api/medication/take', { id: item.id });
-        uni.$u.toast('已确认服药');
-    } catch (err) {
-        item.lastTakenDate = prevDate;
-        uni.$u.toast('操作失败');
-    }
+    await http.post('/api/medication/take', { id: item.id });
+    uni.$u.toast('已确认服药');
+    fetchStats();
+  } catch (err) {
+    item.lastTakenDate = prevDate;
+    uni.$u.toast('操作失败');
+  }
 };
 
 const isTakenToday = (item) => {
@@ -361,6 +400,7 @@ const togglePlan = async (item) => {
 onMounted(() => {
   fetchPlans();
   fetchTip();
+  fetchStats();
 });
 </script>
 
@@ -434,6 +474,39 @@ onMounted(() => {
     height: 240rpx;
     background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
     border-radius: 50%;
+  }
+}
+
+.stats-card {
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 28rpx;
+  margin-bottom: 32rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(62, 123, 255, 0.08);
+
+  .stats-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+
+    .label {
+      font-size: 22rpx;
+      color: #86909C;
+      margin-bottom: 6rpx;
+      font-weight: 600;
+    }
+
+    .value {
+      font-size: 30rpx;
+      font-weight: 900;
+      color: #3E7BFF;
+      font-family: 'DIN Condensed', sans-serif;
+    }
   }
 }
 

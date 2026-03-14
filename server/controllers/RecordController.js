@@ -1,4 +1,5 @@
 const HealthRecord = require('../models/HealthRecord');
+const FamilyMember = require('../models/FamilyMember');
 const Response = require('../utils/response');
 const { logAction } = require('../utils/actionLog');
 const ExcelJS = require('exceljs');
@@ -89,7 +90,7 @@ class RecordController {
                 PTH: item.PTH,
                 weight: item.weight,
                 heartRate: item.heartRate,
-                feeling: (item.ultrasoundNote || '') + ' ' + (item.feeling || '')
+                feeling: [item.ultrasoundNote, item.conclusion, item.feeling].filter(Boolean).join(' ')
             };
             sheet.addRow(rowData);
         });
@@ -252,6 +253,18 @@ class RecordController {
         // 数据清洗
         RecordController.cleanData(data);
 
+        if (!data.recordDate) {
+            return Response.error(ctx, '缺少报告日期');
+        }
+
+        // 成员校验
+        if (data.memberId) {
+            const member = await FamilyMember.findOne({ where: { id: data.memberId, UserId: userId } });
+            if (!member) {
+                return Response.error(ctx, '家庭成员不存在', 400);
+            }
+        }
+
         // 如果填写了B超数据但没填B超日期，默认使用主日期
         if ((data.thyroidLeft || data.noduleCount || data.ultrasoundNote) && !data.ultrasoundDate) {
             data.ultrasoundDate = data.recordDate;
@@ -287,6 +300,9 @@ class RecordController {
 
         const { count, rows } = await HealthRecord.findAndCountAll({
             where,
+            include: [
+                { model: FamilyMember, attributes: ['id', 'name', 'relation'] }
+            ],
             order: [['recordDate', 'DESC']],
             limit: parseInt(limit),
             offset: parseInt(offset)
@@ -297,6 +313,8 @@ class RecordController {
             const row = item.toJSON();
             row.reportImage = RecordController.parseImages(row.reportImage);
             row.ultrasoundImage = RecordController.parseImages(row.ultrasoundImage);
+            row.indicatorUnits = RecordController.parseJson(row.indicatorUnits) || row.indicatorUnits;
+            row.ocrReview = RecordController.parseJson(row.ocrReview) || row.ocrReview;
             return row;
         });
 
@@ -312,7 +330,10 @@ class RecordController {
         const userId = ctx.state.user.id;
 
         const record = await HealthRecord.findOne({
-            where: { id, UserId: userId }
+            where: { id, UserId: userId },
+            include: [
+                { model: FamilyMember, attributes: ['id', 'name', 'relation'] }
+            ]
         });
 
         if (!record) {
@@ -323,6 +344,8 @@ class RecordController {
         const row = record.toJSON();
         row.reportImage = RecordController.parseImages(row.reportImage);
         row.ultrasoundImage = RecordController.parseImages(row.ultrasoundImage);
+        row.indicatorUnits = RecordController.parseJson(row.indicatorUnits) || row.indicatorUnits;
+        row.ocrReview = RecordController.parseJson(row.ocrReview) || row.ocrReview;
 
         Response.success(ctx, row);
     }
@@ -354,9 +377,21 @@ class RecordController {
         // 数据清洗
         RecordController.cleanData(data);
 
+        // 成员校验（允许置空）
+        if (Object.prototype.hasOwnProperty.call(data, 'memberId')) {
+            if (data.memberId) {
+                const member = await FamilyMember.findOne({ where: { id: data.memberId, UserId: userId } });
+                if (!member) {
+                    return Response.error(ctx, '家庭成员不存在', 400);
+                }
+            } else {
+                data.memberId = null;
+            }
+        }
+
         // 如果填写了B超数据但没填B超日期，默认使用主日期 (同步创建时的逻辑)
         if ((data.thyroidLeft || data.noduleCount || data.ultrasoundNote) && !data.ultrasoundDate) {
-            data.ultrasoundDate = data.recordDate;
+            data.ultrasoundDate = data.recordDate || record.recordDate;
         }
 
         await record.update(data);
@@ -393,7 +428,17 @@ class RecordController {
         // 深度清理：确保数组内是字符串，如果是嵌套数组则展开 (修复历史 Bug 产生的数据)
         return result.map(item => Array.isArray(item) ? item[0] : item).filter(i => i && typeof i === 'string');
     }
+
+    // 辅助方法：解析 JSON 字符串
+    static parseJson(val) {
+        if (!val) return null;
+        if (typeof val === 'object') return val;
+        try {
+            return JSON.parse(val);
+        } catch (e) {
+            return null;
+        }
+    }
 }
 
 module.exports = RecordController;
-

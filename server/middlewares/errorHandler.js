@@ -10,7 +10,8 @@ const errorHandler = async (ctx, next) => {
     } catch (err) {
         logger.error(`[${ctx.method}] ${ctx.url} - 服务器错误`, { 
             message: err.message, 
-            stack: err.stack?.split('\n').slice(0, 3).join(' | ') // 记录前3行堆栈
+            stack: err.stack?.split('\n').slice(0, 3).join(' | '), // 记录前3行堆栈
+            requestId: ctx.state?.requestId
         });
 
         // 处理不同类型的错误

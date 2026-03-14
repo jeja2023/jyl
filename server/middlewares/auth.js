@@ -34,7 +34,7 @@ const authMiddleware = async (ctx, next) => {
             nickname: user.nickname
         };
     } catch (err) {
-        console.error('[认证失败]', err.message, 'Token:', token);
+        console.error('[认证失败]', err.message);
         if (err.name === 'TokenExpiredError') {
             return Response.error(ctx, '令牌已过期', 401);
         }

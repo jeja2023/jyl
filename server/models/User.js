@@ -78,6 +78,15 @@ const User = sequelize.define('User', {
         type: DataTypes.DATE,
         comment: '最后登录时间'
     },
+    loginFailCount: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+        comment: '登录失败次数'
+    },
+    loginLockedUntil: {
+        type: DataTypes.DATE,
+        comment: '登录锁定截止时间'
+    },
     wikiReadCount: {
         type: DataTypes.INTEGER,
         defaultValue: 0,

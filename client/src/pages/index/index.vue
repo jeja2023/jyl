@@ -3,27 +3,11 @@ import { ref, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
-import { wikiArticles } from '@/utils/wiki-data.js';
 import { getIndicatorInfo } from '@/utils/indicator.js';
 
 const userStore = useUserStore();
 const lastRecord = ref(null);
-const showWikiDetail = ref(false);
-const currentWiki = ref({});
 const hasNotice = ref(false);
-const articles = ref([]);
-let articlesLoaded = false;
-
-const fetchArticles = async () => {
-    try {
-        const res = await http.get('/api/wiki/list', {
-            params: { page: 1, pageSize: 2 }
-        });
-        articles.value = res.list;
-    } catch (e) {
-        console.error('获取百科文章失败', e);
-    }
-};
 
 const checkReminders = async () => {
   if (!userStore.isLogin) {
@@ -65,11 +49,11 @@ const fetchLastRecord = async () => {
 
 // 页面显示时刷新数据
 onShow(() => {
-  // 文章只加载一次
-  if (!articlesLoaded) {
-    fetchArticles();
-    articlesLoaded = true;
+  if (!userStore.isLogin) {
+    uni.reLaunch({ url: '/pages/login' });
+    return;
   }
+  
   // 用户数据每次显示时刷新（可能从其他页面返回后有变化）
   if (userStore.isLogin) {
     Promise.all([fetchLastRecord(), checkReminders()]);
@@ -90,6 +74,11 @@ const goToMedication = () => {
   uni.navigateTo({ url: '/pages/medication/plan' });
 };
 
+const goToShareExport = () => {
+  if (!userStore.isLogin) return goToLogin();
+  uni.navigateTo({ url: '/pages/share/export' });
+};
+
 const goToCalendar = () => {
   if (!userStore.isLogin) return goToLogin();
   uni.navigateTo({ url: '/pages/checkup/calendar' });
@@ -100,8 +89,9 @@ const goToAssess = () => {
   uni.navigateTo({ url: '/pages/assess/symptom' });
 };
 
-const goToWiki = () => {
-  uni.navigateTo({ url: '/pages/wiki/list' });
+const goToFamily = () => {
+  if (!userStore.isLogin) return goToLogin();
+  uni.navigateTo({ url: '/pages/my/family' });
 };
 
 const goToDetail = (id) => {
@@ -109,27 +99,9 @@ const goToDetail = (id) => {
   uni.navigateTo({ url: `/pages/record/detail?id=${id}` });
 };
 
-const viewDetail = async (item) => {
-  uni.showLoading({ title: '加载中' });
-  try {
-      const res = await http.get(`/api/wiki/${item.id}`);
-      currentWiki.value = res;
-      showWikiDetail.value = true;
-  } catch(e) {
-      // 捕获异常
-  } finally {
-      uni.hideLoading();
-  }
-};
-
 const goToNotification = () => {
     if (!userStore.isLogin) return goToLogin();
     uni.navigateTo({ url: '/pages/notification/index' });
-};
-
-// 功能开发中提示
-const showTip = (msg) => {
-  uni.$u.toast(msg);
 };
 
 const getTshColor = (tsh) => {
@@ -293,69 +265,47 @@ onMounted(() => {
             <view class="icon-bg blue-gradient"><u-icon name="edit-pen" color="#fff" size="24"></u-icon></view>
             <text>指标录入</text>
          </view>
-         <view class="grid-card" @click="goToMedication">
-            <view class="icon-bg orange-gradient"><u-icon name="bell-fill" color="#fff" size="24"></u-icon></view>
-            <text>用药提醒</text>
-         </view>
          <view class="grid-card" @click="goToCalendar">
             <view class="icon-bg green-gradient"><u-icon name="calendar-fill" color="#fff" size="24"></u-icon></view>
             <text>复查日历</text>
          </view>
-         <view class="grid-card" @click="goToAssess">
-            <view class="icon-bg purple-gradient"><u-icon name="eye-fill" color="#fff" size="24"></u-icon></view>
-            <text>症状自测</text>
+         <view class="grid-card" @click="goToMedication">
+            <view class="icon-bg orange-gradient"><u-icon name="bell-fill" color="#fff" size="24"></u-icon></view>
+            <text>用药提醒</text>
+         </view>
+         <view class="grid-card" @click="goToFamily">
+            <view class="icon-bg purple-gradient"><u-icon name="account-fill" color="#fff" size="24"></u-icon></view>
+            <text>家庭成员</text>
          </view>
       </view>
 
-      <!-- 健康百科 - 采用卡片流设计 -->
+      <!-- 日常工具 -->
       <view class="section-title">
-        <text>甲友百科</text>
-        <view class="more-btn" @click="goToWiki">
-          <text>更多</text>
-          <u-icon name="arrow-right" size="12"></u-icon>
-        </view>
+        <text>日常工具</text>
       </view>
 
-      <view class="article-track">
-        <view class="article-card" v-for="(item, index) in articles.slice(0, 2)" :key="index" @click="viewDetail(item)">
-          <image v-if="item.cover" :src="item.cover" mode="aspectFill" class="article-img"></image>
-          <view v-else class="article-img placeholder">
-             <u-icon name="image" size="30" color="#E5E6EB"></u-icon>
-          </view>
-          
-          <view class="article-content">
-            <text class="a-title">{{ item.title }}</text>
-            <text class="a-summary">{{ item.summary }}</text>
-            <view class="a-footer">
-               <view class="a-tag">{{ item.category }}</view>
-               <text class="a-read">{{ item.views > 1000 ? (item.views/1000).toFixed(1) + 'k' : item.views }}+ 阅读</text>
+      <view class="tool-list">
+        <view class="tool-card" @click="goToAssess">
+          <view class="tool-left">
+            <view class="tool-icon cyan-gradient"><u-icon name="eye-fill" color="#fff" size="20"></u-icon></view>
+            <view class="tool-text">
+              <text class="tool-title">症状自测</text>
+              <text class="tool-desc">快速评估当前状态</text>
             </view>
           </view>
+          <u-icon name="arrow-right" size="14" color="#C9CDD4"></u-icon>
+        </view>
+        <view class="tool-card" @click="goToShareExport">
+          <view class="tool-left">
+            <view class="tool-icon pink-gradient"><u-icon name="download" color="#fff" size="20"></u-icon></view>
+            <view class="tool-text">
+              <text class="tool-title">导出分享</text>
+              <text class="tool-desc">生成报告 Excel 与网页链接</text>
+            </view>
+          </view>
+          <u-icon name="arrow-right" size="14" color="#C9CDD4"></u-icon>
         </view>
       </view>
-
-      <!-- 文章详情弹窗 -->
-      <u-popup :show="showWikiDetail" mode="bottom" round="20" @close="showWikiDetail = false" :closeOnClickOverlay="true">
-        <view class="detail-popup">
-          <view class="detail-header">
-            <view class="detail-title">{{ currentWiki.title }}</view>
-            <u-icon name="close" size="24" color="#86909C" @click="showWikiDetail = false"></u-icon>
-          </view>
-          <scroll-view scroll-y="true" class="detail-content-scroll">
-            <view class="detail-meta">
-              <view class="tag">{{ currentWiki.category || '科普' }}</view>
-              <text class="date">{{ currentWiki.createdAt ? new Date(currentWiki.createdAt).toLocaleDateString() : '' }}</text>
-            </view>
-            <view class="detail-body">
-                <u-parse :content="currentWiki.content"></u-parse>
-            </view>
-            <view class="disclaimer">
-              <u-icon name="info-circle" size="14" color="#C9CDD4"></u-icon>
-              <text>本内容仅供科普参考，不能替代医生诊断</text>
-            </view>
-          </scroll-view>
-        </view>
-      </u-popup>
     </view>
   </view>
 </template>
@@ -723,8 +673,9 @@ page {
   }
 /* 快捷金刚区 */
 .shortcut-grid {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20rpx;
   margin-bottom: 48rpx;
   padding: 10rpx 0;
   
@@ -753,14 +704,14 @@ page {
     }
     
     text {
-      font-size: 26rpx;
+      font-size: 24rpx;
       font-weight: 700;
       color: #4E5969;
     }
   }
 }
 
-/* 百科板块 */
+/* 通用板块标题 */
 .section-title {
   display: flex;
   justify-content: space-between;
@@ -785,141 +736,77 @@ page {
     }
   }
   
-  .more-btn {
-    display: flex;
-    align-items: center;
-    font-size: 26rpx;
-    color: #86909C;
-    font-weight: 600;
-  }
 }
 
-.article-track {
+.tool-list {
   display: flex;
   flex-direction: column;
-  gap: 28rpx;
+  gap: 20rpx;
+  margin-bottom: 20rpx;
 }
 
-.article-card {
+.tool-card {
   background: #FFFFFF;
-  border-radius: 36rpx;
-  padding: 24rpx;
+  border-radius: 28rpx;
+  padding: 24rpx 28rpx;
   display: flex;
   align-items: center;
-  box-shadow: 0 10rpx 30rpx rgba(0,0,0,0.03);
-  transition: all 0.3s;
-  
-  &:active {
-    transform: translateY(-4rpx);
-    box-shadow: 0 15rpx 35rpx rgba(0,0,0,0.08);
+  justify-content: space-between;
+  box-shadow: 0 10rpx 24rpx rgba(0, 0, 0, 0.04);
+  border: 1rpx solid rgba(62, 123, 255, 0.05);
+
+  .tool-left {
+    display: flex;
+    align-items: center;
+    gap: 20rpx;
   }
-  
-  .article-img {
-    width: 200rpx;
-    height: 160rpx;
-    border-radius: 24rpx;
-    margin-right: 24rpx;
-    background: #F2F3F5;
-    object-fit: cover;
-    &.placeholder {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+
+  .tool-icon {
+    width: 80rpx;
+    height: 80rpx;
+    border-radius: 22rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
   }
-  
-  .article-content {
-    flex: 1;
-    height: 160rpx;
+
+  .tool-dot {
+    position: absolute;
+    top: 8rpx;
+    right: 8rpx;
+    width: 16rpx;
+    height: 16rpx;
+    background: #FF5C5C;
+    border-radius: 50%;
+    border: 3rpx solid #fff;
+  }
+
+  .tool-text {
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    
-    .a-title {
-      font-size: 30rpx;
-      font-weight: 800;
-      color: #1D2129;
-      line-height: 1.3;
-    }
-    
-    .a-summary {
-      font-size: 22rpx;
-      color: #86909C;
-      font-weight: 500;
-    }
-    
-    .a-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      .a-tag {
-        font-size: 18rpx;
-        padding: 4rpx 16rpx;
-        background: #F2F7FF;
-        color: #3E7BFF;
-        border-radius: 40rpx;
-        font-weight: 700;
-      }
-      .a-read {
-        font-size: 20rpx;
-        color: #C9CDD4;
-        font-weight: 600;
-      }
-    }
+    gap: 6rpx;
+  }
+
+  .tool-title {
+    font-size: 28rpx;
+    font-weight: 800;
+    color: #1D2129;
+  }
+
+  .tool-desc {
+    font-size: 22rpx;
+    color: #86909C;
   }
 }
 
-/* 详情弹窗 */
-.detail-popup {
-  background: #FFFFFF;
-  border-radius: 50rpx 50rpx 0 0;
-  overflow: hidden;
-  max-height: 85vh;
-  
-  .detail-header {
-    padding: 45rpx 40rpx 30rpx;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    border-bottom: 1rpx solid #F2F3F5;
-    .detail-title {
-      font-size: 38rpx;
-      font-weight: 900;
-      color: #1D2129;
-      line-height: 1.4;
-      flex: 1;
-    }
-  }
-  
-  .detail-content-scroll {
-    padding: 30rpx 40rpx calc(env(safe-area-inset-bottom) + 160rpx);
-    .detail-meta {
-      display: flex;
-      align-items: center;
-      margin-bottom: 30rpx;
-      .tag {
-        padding: 6rpx 20rpx;
-        background: #3E7BFF;
-        color: #FFF;
-        font-size: 22rpx;
-        border-radius: 50rpx;
-        font-weight: 700;
-        margin-right: 20rpx;
-      }
-      .date { font-size: 24rpx; color: #86909C; }
-    }
-    .detail-body { font-size: 32rpx; line-height: 1.8; color: #4E5969; }
-    .disclaimer {
-      margin-top: 40rpx;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10rpx;
-      font-size: 24rpx;
-      color: #C9CDD4;
-    }
-  }
-}
+/* 渐变工具色 */
+.blue-gradient { background: linear-gradient(135deg, #6FA3FF 0%, #3E7BFF 100%); }
+.orange-gradient { background: linear-gradient(135deg, #FFC069 0%, #FF9500 100%); }
+.green-gradient { background: linear-gradient(135deg, #73D13D 0%, #2ED477 100%); }
+.purple-gradient { background: linear-gradient(135deg, #B37FEB 0%, #9D68FF 100%); }
+.cyan-gradient { background: linear-gradient(135deg, #4EE5E5 0%, #13C2C2 100%); }
+.pink-gradient { background: linear-gradient(135deg, #FF99D1 0%, #EB2F96 100%); }
 
 /* 颜色工具 */
 .color-gray { color: #C9CDD4 !important; }

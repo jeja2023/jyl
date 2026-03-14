@@ -12,6 +12,9 @@
       <!-- 日期头部 -->
       <view class="date-header">
         <text class="date">{{ record.recordDate }}</text>
+        <view class="status-tag info-bg" v-if="memberName">
+          <text>{{ memberName }}</text>
+        </view>
       </view>
 
       <!-- 化验指标区域 -->
@@ -33,6 +36,7 @@
               <text class="unit" v-else-if="item.unit">{{ item.unit }}</text>
             </view>
             <text class="ref-text" v-if="item.ref">参考: {{ item.ref }}</text>
+            <text class="advice" v-if="getAdvice(item)">{{ getAdvice(item) }}</text>
           </view>
         </view>
         
@@ -91,6 +95,11 @@
           <text class="note-label">报告原文：</text>
           <text class="note-content">{{ record.ultrasoundNote }}</text>
         </view>
+
+        <view class="raw-note" v-if="record.conclusion">
+          <text class="note-label">超声提示：</text>
+          <text class="note-content">{{ record.conclusion }}</text>
+        </view>
         
         <!-- B超报告原图 -->
         <view class="images-area" v-if="record.ultrasoundImage && record.ultrasoundImage.length">
@@ -146,7 +155,8 @@ import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 import { getBaseURL } from '@/utils/config.js';
-import { getIndicatorInfoFromRef } from '@/utils/indicator.js';
+import { getIndicatorInfoFromRef, getIndicatorAdvice } from '@/utils/indicator.js';
+import { setCache, getCache } from '@/utils/cache.js';
 
 const userStore = useUserStore();
 
@@ -161,10 +171,17 @@ const onBack = () => {
 const record = ref({});
 const showAction = ref(false);
 const showDeleteConfirm = ref(false);
+const memberName = computed(() => {
+  const m = record.value?.FamilyMember;
+  if (!m) return '';
+  return `${m.name}${m.relation ? ' · ' + m.relation : ''}`;
+});
 
 const actions = ref([
   { name: '编辑记录', value: 'edit', color: '#3E7BFF' },
   { name: '导出本条记录', value: 'export', color: '#606266' },
+  { name: '复制报告摘要', value: 'share', color: '#4E5969' },
+  { name: '复制分享链接', value: 'shareLink', color: '#4E5969' },
   { name: '删除记录', value: 'delete', color: '#F53F3F' }
 ]);
 
@@ -175,6 +192,10 @@ const onActionSelect = (e) => {
     });
   } else if (e.value === 'export') {
     handleExport(props.id);
+  } else if (e.value === 'share') {
+    copySummary();
+  } else if (e.value === 'shareLink') {
+    copyShareLink();
   } else if (e.value === 'delete') {
     showDeleteConfirm.value = true;
   }
@@ -271,6 +292,57 @@ const getIndicatorInfo = (val, refStr) => {
   };
 };
 
+const copySummary = () => {
+  const summary = buildSummary(record.value);
+  uni.setClipboardData({
+    data: summary,
+    success: () => {
+      uni.$u.toast('已复制摘要');
+    }
+  });
+};
+
+const copyShareLink = async () => {
+  try {
+    const res = await http.post('/api/share/record', { id: props.id });
+    const token = res?.token;
+    if (!token) return uni.$u.toast('生成分享链接失败');
+    const baseUrl = getBaseURL();
+    const url = `${baseUrl}/#/pages/share/record?token=${token}`;
+    uni.setClipboardData({
+      data: url,
+      success: () => uni.$u.toast('分享链接已复制')
+    });
+  } catch (e) {
+    uni.$u.toast('生成分享链接失败');
+  }
+};
+
+const buildSummary = (data) => {
+  if (!data) return '';
+  const member = data.FamilyMember ? `${data.FamilyMember.name}${data.FamilyMember.relation ? ' · ' + data.FamilyMember.relation : ''}` : '本人';
+  const parts = [];
+  parts.push(`甲友乐检查摘要`);
+  parts.push(`日期：${data.recordDate || '-'}`);
+  parts.push(`对象：${member}`);
+  const metrics = ['TSH','FT3','FT4','T3','T4','TPOAb','TGAb','TRAb','Tg','Calcitonin','Calcium','PTH'];
+  const metricText = metrics
+    .filter(k => data[k] !== undefined && data[k] !== null && data[k] !== '')
+    .map(k => `${k}: ${data[k]}`)
+    .join('，');
+  if (metricText) parts.push(`化验：${metricText}`);
+  if (data.tiradsLevel) parts.push(`TI-RADS：${data.tiradsLevel}`);
+  if (data.ultrasoundNote) parts.push(`超声所见：${data.ultrasoundNote}`);
+  if (data.conclusion) parts.push(`超声提示：${data.conclusion}`);
+  if (data.feeling) parts.push(`备注：${data.feeling}`);
+  return parts.join('\n');
+};
+
+const getAdvice = (item) => {
+  const profile = userStore.userInfo || {};
+  return getIndicatorAdvice(item.key, record.value[item.key], item.ref, profile);
+};
+
 const getImageUrl = (path) => {
   if (!path) return '';
   if (path.startsWith('http')) return path;
@@ -293,17 +365,28 @@ const fetchDetail = async () => {
     // 解析单位信息
     res.units = {};
     if (res.indicatorUnits) {
-      try {
-        res.units = JSON.parse(res.indicatorUnits);
-      } catch (e) {
-        res.units = {};
+      if (typeof res.indicatorUnits === 'object') {
+        res.units = res.indicatorUnits;
+      } else {
+        try {
+          res.units = JSON.parse(res.indicatorUnits);
+        } catch (e) {
+          res.units = {};
+        }
       }
     }
     
     record.value = res;
+    setCache(`record_detail_${props.id}`, res, 1800);
   } catch (err) {
-    uni.$u.toast('获取记录失败');
-    console.error(err);
+    const cached = getCache(`record_detail_${props.id}`);
+    if (cached) {
+      record.value = cached;
+      uni.$u.toast('当前为离线数据');
+    } else {
+      uni.$u.toast('获取记录失败');
+      console.error(err);
+    }
   }
 };
 
@@ -442,6 +525,14 @@ onShow(() => {
       white-space: nowrap;
       transform: scale(0.85);
       margin-top: 2rpx;
+    }
+
+    .advice {
+      margin-top: 6rpx;
+      font-size: 18rpx;
+      color: #4E5969;
+      line-height: 1.4;
+      text-align: center;
     }
   }
 }

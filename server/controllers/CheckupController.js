@@ -1,5 +1,6 @@
 const CheckupReminder = require('../models/CheckupReminder');
 const Response = require('../utils/response');
+const { suggestForUser } = require('../services/CheckupService');
 
 class CheckupController {
     // 新增复查提醒
@@ -64,6 +65,13 @@ class CheckupController {
         } else {
             throw new Error('删除失败或记录不存在');
         }
+    }
+
+    // 智能建议
+    static async suggest(ctx) {
+        const userId = ctx.state.user.id;
+        const result = await suggestForUser(userId);
+        Response.success(ctx, result, '智能建议已生成');
     }
 }
 

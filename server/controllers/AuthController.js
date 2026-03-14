@@ -1,6 +1,7 @@
 const HealthRecord = require('../models/HealthRecord');
 const User = require('../models/User');
 const VerifyCode = require('../models/VerifyCode');
+const FamilyMember = require('../models/FamilyMember');
 const jwt = require('jsonwebtoken');
 const Response = require('../utils/response');
 const SmsService = require('../utils/sms');
@@ -18,7 +19,7 @@ class AuthController {
     static async stats(ctx) {
         const { id } = ctx.state.user;
 
-        const [daysCount, labCount, user] = await Promise.all([
+        const [daysCount, labCount, familyCount] = await Promise.all([
             // 1. 记录天数 (不同日期的记录数)
             HealthRecord.count({
                 where: { UserId: id },
@@ -41,14 +42,14 @@ class AuthController {
                     ]
                 }
             }),
-            // 3. 百科阅读
-            User.findByPk(id, { attributes: ['wikiReadCount'] })
+            // 3. 家庭成员数量
+            FamilyMember.count({ where: { UserId: id } })
         ]);
 
         Response.success(ctx, {
             checkupDays: daysCount,
             labReports: labCount,
-            wikiReads: user ? (user.wikiReadCount || 0) : 0
+            familyCount
         });
     }
 
@@ -150,14 +151,33 @@ class AuthController {
             }
         });
 
+        // 登录锁定检查
+        if (user && user.loginLockedUntil && new Date(user.loginLockedUntil) > new Date()) {
+            const lockMinutes = parseInt(process.env.LOGIN_LOCK_MINUTES || '15', 10);
+            return Response.error(ctx, `账号已锁定，请${lockMinutes}分钟后再试`, 403);
+        }
+
         if (!user || !(await user.comparePassword(password))) {
+            if (user) {
+                const maxFail = parseInt(process.env.LOGIN_FAIL_MAX || '5', 10);
+                const lockMinutes = parseInt(process.env.LOGIN_LOCK_MINUTES || '15', 10);
+                const nextFail = (user.loginFailCount || 0) + 1;
+                const updateData = { loginFailCount: nextFail };
+
+                if (nextFail >= maxFail) {
+                    updateData.loginLockedUntil = new Date(Date.now() + lockMinutes * 60 * 1000);
+                    updateData.loginFailCount = 0;
+                }
+
+                await user.update(updateData);
+            }
             const reason = !user ? '用户不存在' : '密码错误';
             console.warn(`[登录失败] 用户名/邮箱: ${username}, 原因: ${reason}`);
             return Response.error(ctx, '用户名/邮箱或密码错误', 401);
         }
 
         // 更新最后登录时间
-        await user.update({ lastLoginAt: new Date() });
+        await user.update({ lastLoginAt: new Date(), loginFailCount: 0, loginLockedUntil: null });
 
         const token = AuthController.generateToken(user);
 

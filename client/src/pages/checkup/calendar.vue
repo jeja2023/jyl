@@ -20,6 +20,10 @@
         <u-icon name="plus-circle" size="22" color="#3E7BFF"></u-icon>
         <text>添加下一次复查日期</text>
       </view>
+      <view class="add-section smart" @click="applySuggestion">
+        <u-icon name="integral" size="22" color="#722ED1"></u-icon>
+        <text>智能生成复查建议</text>
+      </view>
       
       <!-- 提醒列表 -->
       <view class="remind-list" v-if="reminders.length > 0">
@@ -47,7 +51,7 @@
     </view>
     
     <!-- 添加弹窗 -->
-    <u-popup :show="showAdd" mode="bottom" round="20" @close="showAdd = false">
+    <u-popup :show="showAdd" mode="bottom" round="20" @close="showAdd = false" :lockScroll="true">
       <view class="popup-content">
         <view class="popup-title">添加复查提醒</view>
         <view class="form-item">
@@ -72,6 +76,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import http from '@/utils/request.js';
+import { setCache, getCache } from '@/utils/cache.js';
 
 const goBack = () => {
   uni.navigateBack();
@@ -97,8 +102,15 @@ const loadReminders = async () => {
   try {
     const res = await http.get('/api/checkup/list');
     reminders.value = (res || []).filter(item => !item.isCompleted);
+    setCache('checkup_list', reminders.value, 1800);
   } catch (e) {
-    console.error(e);
+    const cached = getCache('checkup_list');
+    if (cached) {
+      reminders.value = cached;
+      uni.$u.toast('当前为离线数据');
+    } else {
+      console.error(e);
+    }
   }
 };
 
@@ -139,6 +151,21 @@ const saveReminder = async () => {
     loadReminders(); // 刷新列表
   } catch (e) {
     console.error(e);
+  }
+};
+
+const applySuggestion = async () => {
+  try {
+    const res = await http.get('/api/checkup/suggest');
+    if (res?.nextDate) {
+      newReminder.date = res.nextDate;
+      newReminder.note = res.note || '智能建议';
+      showAdd.value = true;
+    } else {
+      uni.$u.toast('暂无法生成建议');
+    }
+  } catch (e) {
+    uni.$u.toast('获取建议失败');
   }
 };
 
@@ -231,6 +258,12 @@ const getCountdownClass = (dateStr) => {
   border: 2rpx dashed #3E7BFF;
   color: #3E7BFF;
   font-size: 28rpx;
+}
+
+.add-section.smart {
+  background: linear-gradient(135deg, #F5F1FF 0%, #FAF5FF 100%);
+  border-color: #722ED1;
+  color: #722ED1;
 }
 
 .remind-list {

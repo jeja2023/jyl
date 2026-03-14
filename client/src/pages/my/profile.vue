@@ -20,10 +20,10 @@
         </view>
         
         <view class="info-item">
-          <text class="label">手机号</text>
+          <text class="label">邮箱</text>
           <view class="value-area">
-            <text class="value">{{ maskedPhone }}</text>
-            <u-icon name="checkmark-circle" size="16" color="#27C24C" v-if="userInfo?.phone"></u-icon>
+            <text class="value">{{ maskedEmail }}</text>
+            <u-icon name="checkmark-circle" size="16" color="#27C24C" v-if="userInfo?.email"></u-icon>
           </view>
         </view>
         
@@ -68,7 +68,7 @@
     </view>
 
     <!-- 编辑昵称弹窗 -->
-    <u-popup :show="showNicknameEdit" mode="center" round="20" @close="showNicknameEdit = false">
+    <u-popup :show="showNicknameEdit" mode="center" round="20" @close="showNicknameEdit = false" :lockScroll="true">
       <view class="edit-popup">
         <text class="popup-title">修改昵称</text>
         <u--input v-model="editForm.nickname" placeholder="请输入昵称" border="surround" class="edit-input"></u--input>
@@ -110,10 +110,11 @@ const avatarText = computed(() => {
   return name.slice(0, 1);
 });
 
-const maskedPhone = computed(() => {
-  const phone = userInfo.value?.phone;
-  if (!phone) return '未绑定';
-  return phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
+const maskedEmail = computed(() => {
+  const email = userInfo.value?.email;
+  if (!email) return '未绑定';
+  const [name, domain] = email.split('@');
+  return name.length > 3 ? `${name.slice(0, 3)}***@${domain}` : `***@${domain}`;
 });
 
 const genderText = computed(() => {

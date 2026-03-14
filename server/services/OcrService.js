@@ -46,11 +46,13 @@ class OcrService {
         const signature = crypto.createHmac('sha256', secretSigning).update(stringToSign).digest('hex');
 
         const authorization = `${algorithm} Credential=${secretId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+        const timeoutMs = parseInt(process.env.OCR_TIMEOUT_MS || '10000', 10);
 
         return new Promise((resolve, reject) => {
             const req = https.request({
                 hostname: host,
                 method: 'POST',
+                timeout: timeoutMs,
                 headers: {
                     'Content-Type': 'application/json; charset=utf-8',
                     'Host': host,
@@ -77,6 +79,10 @@ class OcrService {
                         reject(new Error('解析OCR响应失败'));
                     }
                 });
+            });
+
+            req.setTimeout(timeoutMs, () => {
+                req.destroy(new Error('OCR request timeout'));
             });
 
             req.on('error', (e) => reject(new Error(`网络请求失败: ${e.message}`)));

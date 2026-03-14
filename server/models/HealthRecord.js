@@ -1,6 +1,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../db');
 const User = require('./User');
+const FamilyMember = require('./FamilyMember');
 
 const HealthRecord = sequelize.define('HealthRecord', {
     id: {
@@ -133,6 +134,10 @@ const HealthRecord = sequelize.define('HealthRecord', {
         type: DataTypes.TEXT,
         comment: 'B超报告原文/备注'
     },
+    conclusion: {
+        type: DataTypes.TEXT,
+        comment: '超声提示/结论'
+    },
     reportImage: {
         type: DataTypes.TEXT,
         comment: '化验单图片路径 (JSON数组)'
@@ -144,6 +149,15 @@ const HealthRecord = sequelize.define('HealthRecord', {
     indicatorUnits: {
         type: DataTypes.TEXT,
         comment: '各项指标对应的原始单位 (JSON对象字符串)'
+    },
+    ocrReview: {
+        type: DataTypes.TEXT,
+        comment: 'OCR 识别与人工复核记录 (JSON对象字符串)'
+    },
+    memberId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: '家庭成员ID(为空表示本人)'
     }
 }, {
     timestamps: true,
@@ -163,5 +177,7 @@ const HealthRecord = sequelize.define('HealthRecord', {
 // 建立关联
 User.hasMany(HealthRecord);
 HealthRecord.belongsTo(User);
+FamilyMember.hasMany(HealthRecord);
+HealthRecord.belongsTo(FamilyMember);
 
 module.exports = HealthRecord;

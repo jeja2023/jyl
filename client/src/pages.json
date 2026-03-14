@@ -138,6 +138,12 @@
 			}
 		},
 		{
+			"path": "pages/my/family",
+			"style": {
+				"navigationBarTitleText": "家庭成员"
+			}
+		},
+		{
 			"path": "pages/my/about",
 			"style": {
 				"navigationBarTitleText": "关于甲友乐",
@@ -147,13 +153,28 @@
 		{
 			"path": "pages/my/agreement",
 			"style": {
-				"navigationBarTitleText": "用户协议"
+				"navigationBarTitleText": "用户协议",
+				"navigationStyle": "custom"
 			}
 		},
 		{
 			"path": "pages/my/privacy",
 			"style": {
-				"navigationBarTitleText": "隐私政策"
+				"navigationBarTitleText": "隐私政策",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/share/export",
+			"style": {
+				"navigationBarTitleText": "报告导出与分享",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/share/record",
+			"style": {
+				"navigationBarTitleText": "报告分享"
 			}
 		}
 	],

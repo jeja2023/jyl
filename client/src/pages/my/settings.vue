@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <view class="settings-page">
     <u-navbar title="账号设置" autoBack placeholder :titleStyle="{fontWeight: '700'}"></u-navbar>
     
@@ -20,12 +20,12 @@
         
         <view class="setting-item">
           <view class="item-left">
-            <u-icon name="phone" size="20" color="#27C24C"></u-icon>
-            <text class="item-title">绑定手机号</text>
+            <u-icon name="email" size="20" color="#3E7BFF"></u-icon>
+            <text class="item-title">账号邮箱</text>
           </view>
           <view class="item-right">
-            <text class="item-desc success">{{ maskedPhone }}</text>
-            <u-icon name="checkmark-circle" size="16" color="#27C24C" v-if="userInfo?.phone"></u-icon>
+            <text class="item-desc success">{{ maskedEmail }}</text>
+            <u-icon name="checkmark-circle" size="16" color="#27C24C" v-if="userInfo?.email"></u-icon>
           </view>
         </view>
       </view>
@@ -67,7 +67,7 @@
     </view>
 
     <!-- 修改密码弹窗 -->
-    <u-popup :show="showPasswordModal" mode="center" round="20" @close="showPasswordModal = false">
+    <u-popup :show="showPasswordModal" mode="center" round="20" @close="showPasswordModal = false" :lockScroll="true">
       <view class="password-popup">
         <text class="popup-title">{{ hasPassword ? '修改密码' : '设置密码' }}</text>
         
@@ -105,28 +105,31 @@ const showPasswordModal = ref(false);
 const saving = ref(false);
 const cacheSize = ref('0 KB');
 const hasPassword = ref(true); // 假设已设置密码
-
 const passwordForm = ref({
   oldPassword: '',
   newPassword: '',
   confirmPassword: ''
 });
 
-// 手机号脱敏
-const maskedPhone = computed(() => {
-  const phone = userInfo.value?.phone;
-  if (!phone) return '未绑定';
-  return phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
+// 邮箱脱敏
+const maskedEmail = computed(() => {
+  const email = userInfo.value?.email;
+  if (!email) return '未绑定';
+  const [name, domain] = email.split('@');
+  return name.length > 3 ? `${name.slice(0, 3)}***@${domain}` : `***@${domain}`;
 });
 
 // 计算缓存大小
 const calculateCacheSize = () => {
   try {
     let totalSize = 0;
-    for (let key in uni.getStorageInfoSync().keys) {
-      const data = uni.getStorageSync(key);
-      if (data) {
-        totalSize += JSON.stringify(data).length;
+    const storageInfo = uni.getStorageInfoSync();
+    if (storageInfo && storageInfo.keys) {
+      for (let key of storageInfo.keys) {
+        const data = uni.getStorageSync(key);
+        if (data) {
+          totalSize += JSON.stringify(data).length;
+        }
       }
     }
     if (totalSize > 1024 * 1024) {
@@ -137,7 +140,7 @@ const calculateCacheSize = () => {
       cacheSize.value = totalSize + ' B';
     }
   } catch (e) {
-    cacheSize.value = '计算中...';
+    cacheSize.value = '0 KB';
   }
 };
 
@@ -188,10 +191,11 @@ const handleClearCache = () => {
   });
 };
 
+
 // 注销账号
 const handleDeleteAccount = () => {
   uni.showModal({
-    title: '⚠️ 危险操作',
+    title: '危险操作',
     content: '注销后您的所有数据将被永久删除，此操作不可恢复！',
     confirmColor: '#F05050',
     confirmText: '确认注销',
@@ -199,13 +203,13 @@ const handleDeleteAccount = () => {
       if (res.confirm) {
         uni.showModal({
           title: '再次确认',
-          content: '请输入"确认注销"以继续',
+          content: '请输入“确认注销”以继续',
           editable: true,
           placeholderText: '确认注销',
           success: async (res2) => {
             if (res2.confirm && res2.content === '确认注销') {
               try {
-                // 调用注销接口
+                // TODO: 调用注销接口
                 uni.$u.toast('账号已注销');
                 userStore.logout();
                 uni.reLaunch({ url: '/pages/login' });

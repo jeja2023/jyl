@@ -100,7 +100,7 @@
     </view>
 
     <!-- 完善资料弹窗（新用户） -->
-    <u-popup :show="showRegister" mode="center" round="20" @close="showRegister = false" :closeOnClickOverlay="false">
+    <u-popup :show="showRegister" mode="center" round="20" @close="showRegister = false" :closeOnClickOverlay="false" :lockScroll="true">
       <view class="register-popup">
         <view class="popup-title">欢迎加入甲友乐</view>
         <view class="popup-desc">请选择您的疾病类型，以便提供更精准的健康管理服务</view>

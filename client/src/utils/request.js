@@ -5,6 +5,17 @@ import { getBaseURL } from './config.js';
 
 const http = new Request();
 
+// 跨平台的重定向状态（避免使用 window）
+const redirectState = (() => {
+    if (typeof globalThis !== 'undefined') {
+        if (!globalThis.__JYL_REDIRECTING__) {
+            globalThis.__JYL_REDIRECTING__ = { value: false };
+        }
+        return globalThis.__JYL_REDIRECTING__;
+    }
+    return { value: false };
+})();
+
 /* config */
 http.setConfig((config) => {
     config.baseURL = getBaseURL();
@@ -48,12 +59,13 @@ http.interceptors.response.use((response) => {
     }
 }, (response) => {
     // 处理 HTTP 状态码错误
-    const { status, data } = response;
+    const status = response.statusCode || response.status;
+    const data = response.data;
 
     // 防止多个并发请求 401 时弹出多个提示和执行多次跳转
     if (status === 401) {
-        if (!window._isRedirecting) {
-            window._isRedirecting = true;
+        if (!redirectState.value) {
+            redirectState.value = true;
             const errMsg = (data && data.message) ? data.message : '登录已过期';
             
             uni.showToast({
@@ -66,7 +78,7 @@ http.interceptors.response.use((response) => {
 
             // 延迟跳转，让用户看清提示
             setTimeout(() => {
-                window._isRedirecting = false;
+                redirectState.value = false;
                 uni.reLaunch({ url: '/pages/login' });
             }, 1500);
         }

@@ -1,11 +1,14 @@
 {
   "name": "jyl-server",
-  "version": "1.5.9",
+  "version": "1.6.2",
   "description": "甲友乐后端服务 - 甲状腺健康管理平台",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "migrate": "sequelize-cli db:migrate",
+    "migrate:undo": "sequelize-cli db:migrate:undo",
+    "test": "node --test"
   },
   "keywords": [
     "甲状腺",
@@ -23,6 +26,7 @@
     "exceljs": "^4.4.0",
     "jsonwebtoken": "^9.0.3",
     "koa": "^3.1.1",
+    "koa-body": "^6.0.1",
     "koa-bodyparser": "^4.4.1",
     "koa-compress": "^5.1.1",
     "koa-helmet": "^9.0.0",
@@ -36,6 +40,7 @@
     "xss": "^1.0.15"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11"
+    "nodemon": "^3.1.11",
+    "sequelize-cli": "^6.6.2"
   }
 }

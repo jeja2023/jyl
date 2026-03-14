@@ -9,6 +9,13 @@
         <!-- 基础信息卡片 -->
         <view class="form-card">
           <view class="card-title">基础档案</view>
+          <view class="input-cell" @click="showMemberSheet = true">
+            <view class="cell-label">记录对象</view>
+            <view class="cell-val">
+              <text>{{ currentMemberName }}</text>
+              <u-icon name="arrow-right" color="#86909C"></u-icon>
+            </view>
+          </view>
           <view class="input-cell" @click="showCalendar = true">
             <view class="cell-label">报告日期</view>
             <view class="cell-val">
@@ -59,6 +66,12 @@
             <view class="ocr-tip" v-if="ocrLoading">
               <u-loading-icon size="14"></u-loading-icon>
               <text>正在深度提取指标数据...</text>
+            </view>
+            <view class="ocr-review-banner" v-if="ocrReview.lab">
+              <text class="review-text">
+                {{ ocrReview.lab.reviewed ? 'OCR 已复核' : 'OCR 结果待复核' }}
+              </text>
+              <u-button size="mini" type="primary" text="查看/复核" @click="openOcrReview('lab')"></u-button>
             </view>
           </view>
 
@@ -140,6 +153,12 @@
               <u-loading-icon size="14" color="#722ED1"></u-loading-icon>
               <text>正在解析超声报告...</text>
             </view>
+            <view class="ocr-review-banner us-review" v-if="ocrReview.ultrasound">
+              <text class="review-text">
+                {{ ocrReview.ultrasound.reviewed ? 'OCR 已复核' : 'OCR 结果待复核' }}
+              </text>
+              <u-button size="mini" type="primary" text="查看/复核" @click="openOcrReview('ultrasound')"></u-button>
+            </view>
 
             <view class="section-title">甲状腺径线</view>
             <view class="grid-inputs">
@@ -217,14 +236,49 @@
       </u--form>
     </view>
 
+    <u-popup :show="ocrReviewVisible" mode="bottom" :lockScroll="true" @close="closeOcrReview">
+      <view class="ocr-review-popup">
+        <view class="popup-header" @touchmove.stop.prevent="">
+          <text>OCR 识别结果复核</text>
+          <u-icon name="close" size="18" @click="closeOcrReview"></u-icon>
+        </view>
+        <view class="popup-sub" @touchmove.stop.prevent="">
+          <text>请核对并修正后再应用到表单</text>
+          <view class="overwrite-toggle">
+            <text>覆盖已填</text>
+            <u-switch v-model="ocrOverwrite" size="20"></u-switch>
+          </view>
+        </view>
+        <scroll-view scroll-y class="popup-body" @touchmove.stop.prevent="">
+          <view class="review-item" v-for="item in ocrReviewItems" :key="item.key">
+            <text class="review-label">{{ item.label }}</text>
+            <view class="review-input">
+              <u--textarea v-if="item.multiline" v-model="item.value" autoHeight maxlength="-1" border="none"></u--textarea>
+              <u--input v-else v-model="item.value" type="text" placeholder="请输入" border="bottom"></u--input>
+              <text class="review-unit" v-if="item.unit">{{ item.unit }}</text>
+            </view>
+          </view>
+          <view class="review-raw" v-if="ocrReviewRawText">
+            <text class="raw-title">OCR 原文（节选）</text>
+            <u--textarea v-model="ocrReviewRawText" disabled autoHeight maxlength="-1" border="none"></u--textarea>
+          </view>
+        </scroll-view>
+        <view class="popup-actions">
+          <u-button text="暂不应用" shape="circle" @click="closeOcrReview"></u-button>
+          <u-button type="primary" text="应用并标记已复核" shape="circle" @click="applyOcrReview"></u-button>
+        </view>
+      </view>
+    </u-popup>
+
     <!-- 替换为 datetime-picker 以支持超长跨度历史记录快速选择 -->
     <u-datetime-picker :show="showCalendar" v-model="datePickerValue" mode="date" :minDate="-631152000000" :maxDate="Date.now()" @confirm="confirmDate" @cancel="showCalendar = false"></u-datetime-picker>
     <u-datetime-picker :show="showUltrasoundCalendar" v-model="ultrasoundPickerValue" mode="date" :minDate="-631152000000" :maxDate="Date.now()" @confirm="confirmUltrasoundDate" @cancel="showUltrasoundCalendar = false"></u-datetime-picker>
+    <u-action-sheet :show="showMemberSheet" :actions="memberActions" @select="onMemberSelect" @close="showMemberSheet = false"></u-action-sheet>
   </view>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 import { getBaseURL } from '@/utils/config.js';
@@ -234,6 +288,7 @@ const userStore = useUserStore();
 const loading = ref(false);
 const showCalendar = ref(false);
 const showUltrasoundCalendar = ref(false);
+const showMemberSheet = ref(false);
 const showMore = ref(false);
 const showCalcium = ref(false);
 const showUltrasound = ref(false);
@@ -257,11 +312,26 @@ const fmtDate = (d) => {
 
 const ocrLoading = ref(false);
 const ultrasoundLoading = ref(false);
+const ocrReview = reactive({ lab: null, ultrasound: null });
+const ocrReviewVisible = ref(false);
+const ocrReviewType = ref('lab');
+const ocrReviewItems = ref([]);
+const ocrReviewRawText = ref('');
+const ocrOverwrite = ref(false);
 const recordId = ref(null);
 const isEdit = computed(() => !!recordId.value);
 
+watch(ocrReviewVisible, (visible) => {
+  // #ifdef H5
+  const overflow = visible ? 'hidden' : '';
+  document.body.style.overflow = overflow;
+  document.documentElement.style.overflow = overflow;
+  // #endif
+});
+
 const reportImages = ref([]);
 const ultrasoundImages = ref([]);
+const familyMembers = ref([]);
 
 const coreFields = [
   { key: 'TSH', label: '促甲状腺激素 (TSH)', unit: 'mIU/L' },
@@ -286,7 +356,74 @@ const calciumFields = [
   { key: 'PTH', label: '甲状旁腺激素 (PTH)', unit: 'pg/mL' }
 ];
 
+const OCR_CN_TO_KEY = {
+  '报告日期': 'recordDate',
+  '检查日期': 'ultrasoundDate',
+  '促甲状腺激素': 'TSH',
+  '游离T3': 'FT3',
+  '游离T4': 'FT4',
+  '总T3': 'T3',
+  '总T4': 'T4',
+  'TPO抗体': 'TPOAb',
+  'TG抗体': 'TGAb',
+  'TR抗体': 'TRAb',
+  '甲状腺球蛋白': 'Tg',
+  '降钙素': 'Calcitonin',
+  '血钙': 'Calcium',
+  '血镁': 'Magnesium',
+  '血磷': 'Phosphorus',
+  '甲状旁腺激素': 'PTH',
+  '左叶': 'thyroidLeft',
+  '右叶': 'thyroidRight',
+  '峡部': 'isthmus',
+  '结节数目': 'noduleCount',
+  '最大径约': 'noduleMaxSize',
+  '结节位置': 'noduleLocation',
+  'TIRADS分级': 'tiradsLevel',
+  'TIRADS分类': 'tiradsLevel',
+  '结节特征': 'noduleFeatures',
+  '淋巴结': 'lymphNode',
+  '超声所见': 'ultrasoundNote',
+  '超声提示': 'conclusion'
+};
+
+const OCR_NUMERIC_FIELDS = new Set([
+  'TSH', 'FT3', 'FT4', 'TPOAb', 'TGAb', 'TRAb', 'Tg',
+  'Calcitonin', 'Calcium', 'Magnesium', 'Phosphorus', 'PTH',
+  'T3', 'T4', 'weight', 'heartRate'
+]);
+
+const OCR_TEXT_FIELDS = new Set(['ultrasoundNote', 'conclusion']);
+
+const LAB_ORDER = ['recordDate', 'TSH', 'FT4', 'FT3', 'TPOAb', 'TGAb', 'T3', 'T4', 'Calcitonin', 'Tg', 'TRAb', 'Calcium', 'Magnesium', 'Phosphorus', 'PTH'];
+const US_ORDER = ['ultrasoundDate', 'thyroidLeft', 'thyroidRight', 'isthmus', 'noduleCount', 'noduleMaxSize', 'noduleLocation', 'tiradsLevel', 'noduleFeatures', 'lymphNode', 'ultrasoundNote', 'conclusion'];
+
+const UNIT_MAP = [...coreFields, ...moreFields, ...calciumFields].reduce((acc, item) => {
+  acc[item.key] = item.unit;
+  return acc;
+}, {});
+
+const LABEL_MAP = [...coreFields, ...moreFields, ...calciumFields].reduce((acc, item) => {
+  acc[item.key] = item.label;
+  return acc;
+}, {
+  recordDate: '报告日期',
+  ultrasoundDate: '检查日期',
+  thyroidLeft: '左叶',
+  thyroidRight: '右叶',
+  isthmus: '峡部',
+  noduleCount: '结节数目',
+  noduleMaxSize: '最大径约',
+  noduleLocation: '结节位置',
+  tiradsLevel: 'C-TIRADS分类',
+  noduleFeatures: '结节特征',
+  lymphNode: '颈部淋巴结',
+  ultrasoundNote: '超声所见',
+  conclusion: '超声提示'
+});
+
 const form = reactive({
+  memberId: null,
   recordDate: uni.$u.timeFormat(new Date(), 'yyyy-mm-dd'),
   ultrasoundDate: '', // 默认为空，提交时如为空则取 recordDate
   TSH: '', FT3: '', FT4: '', TPOAb: '', TGAb: '', TRAb: '', Tg: '', 
@@ -298,13 +435,37 @@ const form = reactive({
   units: {} // 存放各指标对应的真实单位
 });
 
+const memberActions = computed(() => {
+  const actions = [{ name: '本人', value: null }];
+  familyMembers.value.forEach(m => {
+    actions.push({ name: `${m.name}${m.relation ? ' · ' + m.relation : ''}`, value: m.id });
+  });
+  return actions;
+});
+
+const currentMemberName = computed(() => {
+  if (!form.memberId) return '本人';
+  const m = familyMembers.value.find(i => i.id === form.memberId);
+  return m ? `${m.name}${m.relation ? ' · ' + m.relation : ''}` : '本人';
+});
+
 onLoad(async (options) => {
+  await loadFamilyMembers();
   if (options.id) {
     recordId.value = options.id;
     uni.setNavigationBarTitle({ title: '编辑档案' });
     await fetchRecordDetail(options.id);
   }
 });
+
+const loadFamilyMembers = async () => {
+  try {
+    const res = await http.get('/api/family/list');
+    familyMembers.value = res || [];
+  } catch (e) {
+    familyMembers.value = [];
+  }
+};
 
 const fetchRecordDetail = async (id) => {
   try {
@@ -319,22 +480,55 @@ const fetchRecordDetail = async (id) => {
       }
     });
     // 回填图片
-    const ensureArray = (val) => {
+    const normalizeImageArray = (val) => {
       if (!val) return [];
-      if (Array.isArray(val)) return val;
-      try { return JSON.parse(val); } catch(e) { return [val]; }
+      let arr = val;
+      if (!Array.isArray(arr)) {
+        try {
+          arr = JSON.parse(val);
+        } catch (e) {
+          arr = [val];
+        }
+      }
+      if (!Array.isArray(arr)) arr = [arr];
+      const result = [];
+      arr.forEach((item) => {
+        if (Array.isArray(item)) {
+          item.forEach((sub) => {
+            if (sub && typeof sub === 'string') result.push(sub);
+          });
+        } else if (item && typeof item === 'string') {
+          result.push(item);
+        }
+      });
+      return result;
     };
     
-    reportImages.value = ensureArray(res.reportImage);
-    ultrasoundImages.value = ensureArray(res.ultrasoundImage);
+    reportImages.value = normalizeImageArray(res.reportImage);
+    ultrasoundImages.value = normalizeImageArray(res.ultrasoundImage);
 
     // 回填单位信息
     if (res.indicatorUnits) {
-        try {
-            form.units = JSON.parse(res.indicatorUnits);
-        } catch (e) {
-            form.units = {};
+        if (typeof res.indicatorUnits === 'object') {
+            form.units = res.indicatorUnits;
+        } else {
+            try {
+                form.units = JSON.parse(res.indicatorUnits);
+            } catch (e) {
+                form.units = {};
+            }
         }
+    }
+
+    if (res.ocrReview) {
+      try {
+        const parsed = typeof res.ocrReview === 'string' ? JSON.parse(res.ocrReview) : res.ocrReview;
+        ocrReview.lab = parsed?.lab || null;
+        ocrReview.ultrasound = parsed?.ultrasound || null;
+      } catch (e) {
+        ocrReview.lab = null;
+        ocrReview.ultrasound = null;
+      }
     }
 
     // 自动展开有数据的区域
@@ -369,6 +563,11 @@ const confirmUltrasoundDate = (e) => {
   showUltrasoundCalendar.value = false;
 };
 
+const onMemberSelect = (e) => {
+  form.memberId = e.value || null;
+  showMemberSheet.value = false;
+};
+
 const getImageUrl = (path) => {
   if (!path) return '';
   if (path.startsWith('http')) return path;
@@ -384,6 +583,203 @@ const previewImage = (images, index) => {
 const removeImage = (type, index) => {
   if (type === 'report') reportImages.value.splice(index, 1);
   else ultrasoundImages.value.splice(index, 1);
+};
+
+const hasValue = (val) => val !== undefined && val !== null && val !== '';
+
+const normalizeOcrIndicators = (indicators = {}) => {
+  const normalized = {};
+  const units = {};
+
+  for (const [cnKey, value] of Object.entries(indicators)) {
+    if (cnKey.endsWith('单位')) {
+      const baseKey = cnKey.replace('单位', '');
+      const mappedKey = OCR_CN_TO_KEY[baseKey];
+      if (mappedKey) units[mappedKey] = value;
+      continue;
+    }
+
+    const mappedKey = OCR_CN_TO_KEY[cnKey] || cnKey;
+    normalized[mappedKey] = value;
+  }
+
+  return { normalized, units };
+};
+
+const mergeOcrReview = (type, normalized, units, rawText) => {
+  if (!ocrReview[type]) {
+    ocrReview[type] = {
+      recognized: {},
+      units: {},
+      rawText: [],
+      images: [],
+      reviewed: false
+    };
+  }
+
+  const review = ocrReview[type];
+
+  for (const [key, value] of Object.entries(normalized || {})) {
+    if (!hasValue(value)) continue;
+    if (!hasValue(review.recognized[key])) {
+      review.recognized[key] = value;
+    }
+  }
+
+  for (const [key, value] of Object.entries(units || {})) {
+    if (!hasValue(value)) continue;
+    if (!review.units[key]) review.units[key] = value;
+  }
+
+  if (rawText) {
+    if (!Array.isArray(review.rawText)) review.rawText = review.rawText ? [review.rawText] : [];
+    review.rawText.push(rawText);
+  }
+
+  review.reviewed = false;
+  review.updatedAt = new Date().toISOString();
+  review.pendingCount = Object.values(review.recognized).filter(hasValue).length;
+
+  return review;
+};
+
+const buildReviewItems = (type, recognized, units) => {
+  const order = type === 'ultrasound' ? US_ORDER : LAB_ORDER;
+  const items = [];
+  const used = new Set();
+
+  const pushItem = (key) => {
+    const value = recognized[key];
+    if (!hasValue(value)) return;
+    items.push({
+      key,
+      label: LABEL_MAP[key] || key,
+      value: String(value),
+      unit: units[key] || UNIT_MAP[key] || '',
+      multiline: OCR_TEXT_FIELDS.has(key)
+    });
+    used.add(key);
+  };
+
+  order.forEach(pushItem);
+  Object.keys(recognized || {}).forEach((key) => {
+    if (!used.has(key)) pushItem(key);
+  });
+
+  return items;
+};
+
+const openOcrReview = (type) => {
+  const review = ocrReview[type];
+  if (!review) return;
+
+  ocrReviewType.value = type;
+  ocrOverwrite.value = false;
+  const displayData = review.reviewed && review.applied ? review.applied : (review.recognized || {});
+  ocrReviewItems.value = buildReviewItems(type, displayData, review.units || {});
+  ocrReviewRawText.value = Array.isArray(review.rawText)
+    ? review.rawText.join('\n---\n')
+    : (review.rawText || '');
+  ocrReviewVisible.value = true;
+};
+
+const closeOcrReview = () => {
+  ocrReviewVisible.value = false;
+};
+
+const normalizeNumericValue = (value) => {
+  const text = String(value).trim();
+  const specialMatch = text.match(/^([<>]\s*[0-9.]+)/);
+  if (specialMatch) return specialMatch[1].replace(/\s+/g, '');
+  const numericPrefix = text.match(/^[0-9.]+/)?.[0];
+  return numericPrefix !== undefined ? numericPrefix : text;
+};
+
+const applyOcrToForm = (data, units, type, overwrite) => {
+  let newCount = 0;
+
+  for (const [key, value] of Object.entries(data || {})) {
+    if (!hasValue(value)) continue;
+    if (!Object.prototype.hasOwnProperty.call(form, key)) continue;
+
+    if (key === 'recordDate') {
+      const defaultDate = uni.$u.timeFormat(new Date(), 'yyyy-mm-dd');
+      const currentDate = form.recordDate;
+      if (overwrite || currentDate === defaultDate) {
+        form.recordDate = value;
+        if (currentDate === defaultDate) {
+          uni.$u.toast(`已同步报告日期 ${value}`);
+        }
+        newCount++;
+      } else if (currentDate !== value) {
+        const d1 = new Date(currentDate).getTime();
+        const d2 = new Date(value).getTime();
+        const diffDays = Math.abs(d1 - d2) / (1000 * 3600 * 24);
+        if (diffDays > 7) {
+          uni.$u.toast(`注意：OCR 日期(${value})与当前差异较大，请核对`);
+        }
+      }
+      continue;
+    }
+
+    if (key === 'ultrasoundDate') {
+      if (overwrite || !hasValue(form.ultrasoundDate)) {
+        form.ultrasoundDate = value;
+        newCount++;
+      }
+      continue;
+    }
+
+    if (!overwrite && hasValue(form[key])) continue;
+
+    const finalValue = OCR_NUMERIC_FIELDS.has(key) ? normalizeNumericValue(value) : value;
+    form[key] = finalValue;
+    newCount++;
+  }
+
+  for (const [key, value] of Object.entries(units || {})) {
+    if (!hasValue(value)) continue;
+    if (overwrite || !form.units[key]) {
+      form.units[key] = value;
+    }
+  }
+
+  if (data.Calcitonin || data.Tg || data.TRAb || data.T3) showMore.value = true;
+  if (data.Calcium || data.PTH || data.Magnesium) showCalcium.value = true;
+  if (type === 'ultrasound') activeTab.value = 'ultrasound';
+
+  return newCount;
+};
+
+const applyOcrReview = () => {
+  const type = ocrReviewType.value;
+  const review = ocrReview[type];
+  if (!review) return;
+
+  const applied = {};
+  ocrReviewItems.value.forEach((item) => {
+    if (hasValue(item.value)) applied[item.key] = item.value;
+  });
+
+  const appliedCount = applyOcrToForm(applied, review.units || {}, type, ocrOverwrite.value);
+  const corrections = {};
+
+  for (const [key, value] of Object.entries(applied)) {
+    if (!hasValue(review.recognized?.[key])) continue;
+    if (String(review.recognized[key]) !== String(value)) {
+      corrections[key] = { from: review.recognized[key], to: value };
+    }
+  }
+
+  review.reviewed = true;
+  review.reviewedAt = new Date().toISOString();
+  review.applied = applied;
+  review.corrections = corrections;
+  review.overwrite = ocrOverwrite.value;
+  review.appliedCount = appliedCount;
+
+  ocrReviewVisible.value = false;
+  uni.$u.toast(`已应用 ${appliedCount} 项并标记已复核`);
 };
 
 const chooseImage = (type) => {
@@ -407,125 +803,78 @@ const processImageData = async (filePath, type) => {
 
   try {
     const base64 = await fileToBase64(filePath);
-    
-    // OCR识别与上传改为串行，降低 1核2G 服务器的瞬时压力
-    console.log('[上传] 正在开始 OCR 识别...');
-    const ocrResult = await http.post('/api/ocr/recognize', { image: base64, type });
-    
-    console.log('[上传] 正在保存图片文件...');
-    const uploadResult = await http.post('/api/upload/report', { image: base64, type });
 
-    // 1. 保存图片路径
+    console.log('[OCR] 开始识别...');
+    const ocrResult = await http.post('/api/ocr/recognize', { image: base64, type });
+
+    if (ocrResult && ocrResult.indicators) {
+      const { normalized, units } = normalizeOcrIndicators(ocrResult.indicators);
+      const review = mergeOcrReview(type, normalized, units, ocrResult.rawText);
+      openOcrReview(type);
+
+      if (normalized.Calcitonin || normalized.Tg || normalized.TRAb || normalized.T3) showMore.value = true;
+      if (normalized.Calcium || normalized.PTH || normalized.Magnesium) showCalcium.value = true;
+      if (isUltrasound) activeTab.value = 'ultrasound';
+
+      if (review && review.pendingCount > 0) {
+        uni.$u.toast(`已识别 ${review.pendingCount} 项待复核`);
+      }
+    }
+
+    console.log('[上传] 开始上传图片...');
+    let uploadResult;
+    try {
+      uploadResult = await uploadReportFile(filePath, type);
+    } catch (uploadErr) {
+      console.warn('uploadFile 失败，改用 base64 上传', uploadErr);
+      uploadResult = await http.post('/api/upload/report', { image: base64, type });
+    }
+
     if (uploadResult && uploadResult.path) {
       if (isUltrasound) ultrasoundImages.value.push(uploadResult.path);
       else reportImages.value.push(uploadResult.path);
-    }
 
-    // 2. 提取并合并指标（不覆盖已有数据）
-    if (ocrResult && ocrResult.indicators) {
-      const indicators = ocrResult.indicators;
-      let newCount = 0;
-      
-      // 中文键名到表单变量名映射
-      const toEnglishMap = {
-          '报告日期': 'recordDate', '检查日期': 'ultrasoundDate',
-          '促甲状腺激素': 'TSH', '游离T3': 'FT3', '游离T4': 'FT4', '总T3': 'T3', '总T4': 'T4',
-          'TPO抗体': 'TPOAb', 'TG抗体': 'TGAb', 'TR抗体': 'TRAb', '甲状腺球蛋白': 'Tg',
-          '降钙素': 'Calcitonin', '血钙': 'Calcium', '血镁': 'Magnesium', '血磷': 'Phosphorus', '甲状旁腺激素': 'PTH',
-          '左叶': 'thyroidLeft', '右叶': 'thyroidRight', '峡部': 'isthmus',
-          '结节数目': 'noduleCount', '最大径线': 'noduleMaxSize', '结节位置': 'noduleLocation',
-          'TIRADS分级': 'tiradsLevel', '结节特征': 'noduleFeatures', '淋巴结': 'lymphNode',
-          '超声所见': 'ultrasoundNote', '超声提示': 'conclusion'
-      };
-
-      for (let [cnKey, value] of Object.entries(indicators)) {
-          // 特殊逻辑：单位处理
-          if (cnKey.endsWith('单位')) {
-              const baseKey = cnKey.replace('单位', '');
-              const engKey = toEnglishMap[baseKey];
-              if (engKey) {
-                  form.units[engKey] = value;
-                  console.log(`[OCR] 记录了 ${engKey} 的原始单位: ${value}`);
-              }
-              continue;
-          }
-
-          const key = toEnglishMap[cnKey] || cnKey; // 如果有映射则用英文，反之保持原样
-          
-          // 特殊逻辑：日期处理 (支持将识别到的化验日期或 B超日期同步到主日期)
-          if (key === 'recordDate' || key === 'ultrasoundDate') {
-            const defaultDate = uni.$u.timeFormat(new Date(), 'yyyy-mm-dd');
-            const currentDate = form.recordDate;
-            
-            // 总是设置识别到的具体字段
-            form[key] = value;
-            
-            // 同步逻辑：如果当前主日期还是默认的今天，直接覆盖为识别到的新日期
-            if (currentDate === defaultDate) {
-               form.recordDate = value;
-               uni.$u.toast(`已自动同步报告日期: ${value}`);
-            } 
-            // 进阶逻辑：如果已存在非今天的日期，且新识别出的日期与其不同，则进行风险提示或备注记录
-            else if (currentDate !== value) {
-               const d1 = new Date(currentDate).getTime();
-               const d2 = new Date(value).getTime();
-               const diffDays = Math.abs(d1 - d2) / (1000 * 3600 * 24);
-               
-               if (diffDays > 7) {
-                  uni.$u.toast(`注意：新识别日期(${value})与当前相差较大，请核对`);
-               } else {
-                  const note = `[含 ${value.substring(5)} 报告]`;
-                  if (!form.feeling.includes(note)) {
-                      form.feeling = form.feeling ? `${form.feeling} ${note}` : note;
-                  }
-               }
-            }
-            continue;
-          }
-          
-          // 通用逻辑：已有数据不覆盖 (Prevent overwriting existing data)
-          if (form.hasOwnProperty(key) && value && !form[key]) {
-            // 判定是否为纯数字类型的字段（需截取单位或注释）
-            const isNumericField = [
-                'TSH', 'FT3', 'FT4', 'TPOAb', 'TGAb', 'TRAb', 'Tg', 
-                'Calcitonin', 'Calcium', 'Magnesium', 'Phosphorus', 'PTH',
-                'T3', 'T4', 'weight', 'heartRate'
-            ].includes(key);
-
-            if (isNumericField) {
-                // 对 "0.04 (已切除)" 或 "<0.01" 这种内容进行处理
-                // 如果是 < 或 > 开头，尝试捕获整个前缀+数值
-                const specialMatch = String(value).match(/^([<>][\s]*[0-9.]+)/);
-                if (specialMatch) {
-                    form[key] = specialMatch[1].replace(/\s+/g, '');
-                } else {
-                    // 常规数值处理
-                    const numericPrefix = String(value).match(/^[0-9.]+/)?.[0];
-                    form[key] = numericPrefix !== undefined ? numericPrefix : value;
-                }
-            } else {
-                // 日期、尺寸(40x14)、分类(4a)等字段保持原样
-                form[key] = value;
-            }
-            newCount++;
-          }
-      }
-      
-      // 自动展开
-      if (indicators.Calcitonin || indicators.Tg || indicators.TRAb || indicators.T3) showMore.value = true;
-      if (indicators.Calcium || indicators.PTH) showCalcium.value = true;
-      if (isUltrasound) activeTab.value = 'ultrasound';
-
-      if (newCount > 0) {
-        uni.$u.toast(`智能补全了 ${newCount} 项缺失数据`);
+      const review = ocrReview[type];
+      if (review) {
+        if (!review.images) review.images = [];
+        review.images.push(uploadResult.path);
       }
     }
   } catch (err) {
-    console.error('OCR提取失败:', err);
+    console.error('OCR 处理失败:', err);
   } finally {
     if (isUltrasound) ultrasoundLoading.value = false;
     else ocrLoading.value = false;
   }
+};
+
+const uploadReportFile = (filePath, type) => {
+  return new Promise((resolve, reject) => {
+    const baseURL = getBaseURL();
+    const token = userStore.token;
+    const url = `${baseURL}/api/upload/report`;
+
+    uni.uploadFile({
+      url,
+      filePath,
+      name: 'file',
+      formData: { type },
+      header: token ? { Authorization: `Bearer ${token}` } : {},
+      success: (res) => {
+        try {
+          const payload = JSON.parse(res.data);
+          if (payload && payload.code === 200) {
+            resolve(payload.data);
+          } else {
+            reject(payload?.message || '上传失败');
+          }
+        } catch (e) {
+          reject('上传返回解析失败');
+        }
+      },
+      fail: (err) => reject(err)
+    });
+  });
 };
 
 const fileToBase64 = (filePath) => {
@@ -572,7 +921,8 @@ const submit = async () => {
       ...form,
       reportImage: JSON.stringify(reportImages.value),
       ultrasoundImage: JSON.stringify(ultrasoundImages.value),
-      indicatorUnits: JSON.stringify(form.units)
+      indicatorUnits: JSON.stringify(form.units),
+      ocrReview: JSON.stringify(ocrReview)
     };
     
     if (isEdit.value) {
@@ -735,6 +1085,32 @@ page { overflow: auto !important; height: auto !important; }
   }
   
   .purple-text {
+    color: #722ED1;
+  }
+}
+
+.ocr-review-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 20rpx;
+  padding: 12rpx 20rpx;
+  background: #F7FBFF;
+  border-radius: 12rpx;
+  border: 1px dashed #A9C8FF;
+
+  .review-text {
+    font-size: 22rpx;
+    color: #3E7BFF;
+    font-weight: 700;
+  }
+}
+
+.ocr-review-banner.us-review {
+  background: #FAF5FF;
+  border-color: #D3ADF7;
+
+  .review-text {
     color: #722ED1;
   }
 }
@@ -927,6 +1303,99 @@ page { overflow: auto !important; height: auto !important; }
 
 .us-tip text {
   color: #722ED1;
+}
+
+.ocr-review-popup {
+  background: #FFFFFF;
+  border-radius: 24rpx 24rpx 0 0;
+  padding: 24rpx 24rpx 32rpx;
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 30rpx;
+  font-weight: 800;
+  color: #1D2129;
+  margin-bottom: 8rpx;
+}
+
+.popup-sub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 22rpx;
+  color: #86909C;
+  margin-bottom: 16rpx;
+}
+
+.overwrite-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  font-size: 22rpx;
+  color: #4E5969;
+  font-weight: 700;
+}
+
+.popup-body {
+  flex: 1;
+  padding: 0 8rpx;
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+
+.review-item {
+  padding: 16rpx 0;
+  border-bottom: 1px dashed #F2F3F5;
+}
+
+.review-label {
+  font-size: 24rpx;
+  color: #4E5969;
+  font-weight: 700;
+  margin-bottom: 8rpx;
+  display: block;
+}
+
+.review-input {
+  position: relative;
+  padding-right: 80rpx;
+}
+
+.review-unit {
+  position: absolute;
+  right: 8rpx;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20rpx;
+  color: #86909C;
+  font-weight: 700;
+}
+
+.review-raw {
+  margin-top: 20rpx;
+  padding: 16rpx;
+  background: #F8FAFF;
+  border-radius: 16rpx;
+}
+
+.raw-title {
+  font-size: 22rpx;
+  color: #4E5969;
+  font-weight: 700;
+  margin-bottom: 8rpx;
+  display: block;
+}
+
+.popup-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 20rpx;
 }
 
 

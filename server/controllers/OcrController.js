@@ -205,7 +205,7 @@ class OcrController {
         return {
             indicators: result,
             count: recognizedCount,
-            rawText: allText.substring(0, 500) // 返回部分原文用于调试
+            rawText: allText.substring(0, 1000) // 返回部分原文用于复核
         };
     }
 
@@ -302,7 +302,7 @@ class OcrController {
         if (tiradsLevels) {
             const sortedLevels = tiradsLevels.map(l => l.match(/([\d]+[abc]?)/i)?.[1].toUpperCase()).filter(Boolean)
                 .sort((a, b) => b.localeCompare(a));
-            result['TIRADS分级'] = sortedLevels[0];
+            result['TIRADS分类'] = sortedLevels[0];
         }
 
         // 结节位置 (优先最大者所在位置)
@@ -350,7 +350,7 @@ class OcrController {
         return {
             indicators: result,
             count: Object.keys(result).length - 1,
-            rawText: allText.substring(0, 500)
+            rawText: allText.substring(0, 1000)
         };
     }
 }
