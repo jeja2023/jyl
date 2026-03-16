@@ -1,3 +1,4 @@
+const { Op } = require('sequelize');
 const HealthRecord = require('../models/HealthRecord');
 const FamilyMember = require('../models/FamilyMember');
 const Response = require('../utils/response');
@@ -353,9 +354,19 @@ class RecordController {
     // 获取趋势图数据 (最近12条记录)
     static async trend(ctx) {
         const userId = ctx.state.user.id;
+        const { Op } = require('sequelize');
 
         const list = await HealthRecord.findAll({
-            where: { UserId: userId },
+            where: {
+                UserId: userId,
+                [Op.or]: [
+                    { TSH: { [Op.ne]: null } },
+                    { FT4: { [Op.ne]: null } },
+                    { FT3: { [Op.ne]: null } },
+                    { T3: { [Op.ne]: null } },
+                    { T4: { [Op.ne]: null } }
+                ]
+            },
             attributes: ['recordDate', 'TSH', 'FT3', 'FT4', 'T3', 'T4'],
             order: [['recordDate', 'DESC']], // 改为倒序获取最新的
             limit: 12

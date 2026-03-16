@@ -28,7 +28,7 @@ const MedicationLog = sequelize.define('MedicationLog', {
 
 User.hasMany(MedicationLog);
 MedicationLog.belongsTo(User);
-MedicationPlan.hasMany(MedicationLog);
-MedicationLog.belongsTo(MedicationPlan);
+MedicationPlan.hasMany(MedicationLog, { onDelete: 'CASCADE' });
+MedicationLog.belongsTo(MedicationPlan, { onDelete: 'CASCADE' });
 
 module.exports = MedicationLog;

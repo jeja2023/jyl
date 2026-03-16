@@ -18,18 +18,18 @@
     </view>
 
     <!-- 统计信息看板 -->
-    <view class="stats-board" @click="handleUserClick">
-      <view class="stats-item">
+    <view class="stats-board">
+      <view class="stats-item" @click="uni.reLaunch({ url: '/pages/record/list' })">
         <text class="num">{{ stats.checkupDays }}</text>
         <text class="label">记录天数</text>
       </view>
       <view class="divider"></view>
-      <view class="stats-item">
+      <view class="stats-item" @click="uni.reLaunch({ url: '/pages/record/list' })">
         <text class="num">{{ stats.labReports }}</text>
         <text class="label">化验份数</text>
       </view>
       <view class="divider"></view>
-      <view class="stats-item">
+      <view class="stats-item" @click="handleMenuClick('/pages/my/family')">
         <text class="num">{{ stats.familyCount }}</text>
         <text class="label">家庭成员</text>
       </view>

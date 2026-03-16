@@ -351,7 +351,7 @@ const deletePlan = (id) => {
     success: async (res) => {
       if (res.confirm) {
         try {
-          await http.delete('/api/medication/delete', { params: { id } });
+          await http.delete(`/api/medication/delete?id=${id}`);
           uni.$u.toast('已删除');
           fetchPlans();
         } catch (err) {

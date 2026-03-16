@@ -47,7 +47,7 @@
              <u-icon v-if="valueStatusInfo.icon" :name="valueStatusInfo.icon" size="18" :color="valueStatusInfo.color === 'error' ? '#F53F3F' : '#FF7D00'"></u-icon>
              <text class="value" :class="'color-' + valueStatusInfo.color">{{ latestValue }}</text>
           </view>
-          <text class="unit" :class="{'detected': list[0]?.units?.[currentTab]}">{{ latestUnit }}</text>
+          <text class="unit" :class="{'detected': latestRecordWithTab?.units?.[currentTab]}">{{ latestUnit }}</text>
         </view>
       </view>
       
@@ -143,26 +143,34 @@ const userStore = useUserStore();
 const list = ref([]);
 const currentTab = ref('TSH');
 const canvasWidth = ref(300);
+const displayCount = ref(6);
 
-const displayCount = ref(6); // 默认显示近6次
+// 核心过滤逻辑：仅保留含有当前选定指标的记录用于趋势展示
+const filteredList = computed(() => {
+  return list.value.filter(item => {
+    const val = item[currentTab.value];
+    return val !== null && val !== undefined && val !== '' && val !== 'null';
+  });
+});
 
 const changeCount = (type) => {
-  // 当首次点击且默认展示次数大于实际数据量时，先吸附到实际数量
-  if (displayCount.value > list.value.length) {
-    displayCount.value = list.value.length || 2;
+  const maxAvailable = filteredList.value.length;
+  // 当切换指标时，如果当前显示点数超过了该指标的总记录数，先进行修正
+  if (displayCount.value > maxAvailable && maxAvailable >= 2) {
+    displayCount.value = maxAvailable;
   }
 
-  if (type === 'zoomOut') { // 减号：表示想看更少的细节/更近的时间
+  if (type === 'zoomOut') {
     if (displayCount.value > 2) {
       displayCount.value -= 1;
     } else {
       uni.$u.toast('最少要求显示2次数据以构成趋势');
     }
-  } else { // 加号：表示想看更多的数据点/更长的时间
-    if (displayCount.value < 20 && displayCount.value < list.value.length) {
+  } else {
+    if (displayCount.value < 20 && displayCount.value < maxAvailable) {
       displayCount.value += 1;
-    } else if (displayCount.value >= list.value.length) {
-      uni.$u.toast('已无法加载更多，当前已是全部记录');
+    } else if (displayCount.value >= maxAvailable) {
+      uni.$u.toast('已是该指标的全部记录');
     } else {
       uni.$u.toast('最多支持查看近20次的数据');
     }
@@ -170,13 +178,10 @@ const changeCount = (type) => {
 };
 
 const handleExport = (id) => {
-  const userStore = useUserStore();
   const token = userStore.token;
   const baseUrl = getBaseURL();
   let url = `${baseUrl}/api/record/export?token=${token}`;
-  if (id) {
-    url += `&id=${id}`;
-  }
+  if (id) url += `&id=${id}`;
   
   // #ifdef H5
   window.location.href = url;
@@ -215,11 +220,9 @@ const handleImport = () => {
   input.onchange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    
     const reader = new FileReader();
     reader.onload = async (event) => {
-      const base64 = event.target.result;
-      await uploadImportData(base64);
+      await uploadImportData(event.target.result);
     };
     reader.readAsDataURL(file);
   };
@@ -231,13 +234,8 @@ const handleImport = () => {
     count: 1,
     extension: ['.xlsx', '.xls'],
     success: (res) => {
-      const path = res.tempFilePaths[0];
-      // 将文件转为 base64
-      // Uni-app 环境下需要根据平台处理文件转 base64
-      // 这里简化处理，如果是微信小程序可以使用 fs.readFileSync(path, 'base64')
-      // 为了广泛兼容，我们使用 uni.getFileSystemManager
       const fs = uni.getFileSystemManager();
-      const base64 = fs.readFileSync(path, 'base64');
+      const base64 = fs.readFileSync(res.tempFilePaths[0], 'base64');
       uploadImportData('data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + base64);
     }
   });
@@ -253,9 +251,7 @@ const uploadImportData = async (base64) => {
       title: '导入成功',
       content: res.message || `成功导入 ${res.successCount} 条数据`,
       showCancel: false,
-      success: () => {
-        fetchList(); // 刷新列表
-      }
+      success: () => fetchList()
     });
   } catch (err) {
     uni.hideLoading();
@@ -283,37 +279,26 @@ const currentFullName = computed(() => currentTabItem.value?.fullName || '');
 const currentUnit = computed(() => currentTabItem.value?.unit || '');
 const currentRefRange = computed(() => currentTabItem.value?.ref || '');
 const currentThemeColor = computed(() => currentTabItem.value?.color || '#3E7BFF');
+
 const refMidValue = computed(() => {
   const ref = currentRefRange.value;
-  if (!ref) return '';
+  if (!ref || typeof ref !== 'string') return '';
   if (ref.includes('-')) {
     const parts = ref.split('-');
     const min = parseFloat(parts[0]);
     const max = parseFloat(parts[1]);
-    if (isNaN(min) || isNaN(max)) return '';
-    return ((min + max) / 2).toFixed(2);
+    return (isNaN(min) || isNaN(max)) ? '' : ((min + max) / 2).toFixed(2);
   }
   if (ref.includes('<')) {
     const max = parseFloat(ref.replace('<', ''));
-    if (isNaN(max)) return '';
-    return (max / 2).toFixed(2);
-  }
-  if (ref.includes('>')) {
-    const min = parseFloat(ref.replace('>', ''));
-    if (isNaN(min)) return '';
-    return min.toFixed(2);
+    return isNaN(max) ? '' : (max / 2).toFixed(2);
   }
   return '';
 });
 
-const latestUnit = computed(() => {
-  if (!latestRecordWithTab.value) return currentUnit.value;
-  return latestRecordWithTab.value.units?.[currentTab.value] || currentUnit.value;
-});
-
-// 图表数据
+// 图表数据计算
 const chartData = computed(() => {
-  const reversed = [...list.value].reverse().slice(-displayCount.value); // 按当前显示数量切片
+  const reversed = [...filteredList.value].reverse().slice(-displayCount.value);
   const labels = reversed.map(item => {
     const d = new Date(item.recordDate);
     return `${d.getMonth() + 1}/${d.getDate()}`;
@@ -327,18 +312,10 @@ const chartData = computed(() => {
   return { labels, values };
 });
 
-// 最新值寻找最近有该指标的记录
-const latestRecordWithTab = computed(() => {
-  return list.value.find(item => item[currentTab.value] !== null && item[currentTab.value] !== undefined && item[currentTab.value] !== '') || null;
-});
+const latestRecordWithTab = computed(() => filteredList.value[0] || null);
+const latestValue = computed(() => latestRecordWithTab.value ? latestRecordWithTab.value[currentTab.value] : null);
+const latestUnit = computed(() => latestRecordWithTab.value?.units?.[currentTab.value] || currentUnit.value);
 
-const latestValue = computed(() => {
-  return latestRecordWithTab.value ? latestRecordWithTab.value[currentTab.value] : null;
-});
-
-// getIndicatorInfo 和 getIndicatorInfoFromRef 已从 @/utils/indicator.js 导入
-
-// 值状态提示
 const valueStatusInfo = computed(() => {
   if (latestValue.value === null) return {};
   return getIndicatorInfoFromRef(latestValue.value, currentRefRange.value);
@@ -362,14 +339,12 @@ const hasBloodData = (item) => {
     return visibleListMetrics.value.some(k => item[k] !== undefined && item[k] !== null && item[k] !== '');
 };
 
-// 格式化日期
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
 };
 
-// 安全检查是否有B超图片
 const hasUltrasoundImages = (imgData) => {
   if (!imgData) return false;
   if (Array.isArray(imgData)) return imgData.length > 0;
@@ -377,15 +352,13 @@ const hasUltrasoundImages = (imgData) => {
     const arr = JSON.parse(imgData);
     return Array.isArray(arr) && arr.length > 0;
   } catch (e) {
-    return !!imgData; // 如果是单字符串路径也认为有图片
+    return !!imgData;
   }
 };
 
-// 绘制图表
 const drawChart = () => {
   const ctx = uni.createCanvasContext('trendChart');
   const { labels, values } = chartData.value;
-  
   if (labels.length === 0) return;
   
   const width = canvasWidth.value;
@@ -394,13 +367,10 @@ const drawChart = () => {
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
   
-  // 计算数据范围
   const validValues = values.filter(v => v !== null && v !== undefined && v !== '');
   if (validValues.length === 0) return;
 
-  // 尝试解析参考范围
-  let refMin = null;
-  let refMax = null;
+  let refMin = null, refMax = null;
   if (currentRefRange.value) {
     if (currentRefRange.value.includes('-')) {
       const parts = currentRefRange.value.split('-');
@@ -409,64 +379,43 @@ const drawChart = () => {
     } else if (currentRefRange.value.includes('<')) {
       refMin = 0;
       refMax = parseFloat(currentRefRange.value.replace('<', ''));
-    } else if (currentRefRange.value.includes('>')) {
-      refMin = parseFloat(currentRefRange.value.replace('>', ''));
-      refMax = refMin * 1.5;
     }
   }
   
-  let dataMin = Math.min(...validValues);
-  let dataMax = Math.max(...validValues);
-  
-  let minVal = dataMin;
-  let maxVal = dataMax;
-
-  if (refMin !== null && refMax !== null) {
-      if (minVal > refMin) minVal = refMin;
-      if (maxVal < refMax) maxVal = refMax;
-  }
+  let minVal = Math.min(...validValues);
+  let maxVal = Math.max(...validValues);
+  if (refMin !== null && minVal > refMin) minVal = refMin;
+  if (refMax !== null && maxVal < refMax) maxVal = refMax;
   
   const paddingY = (maxVal - minVal) * 0.1 || 1;
   minVal -= paddingY;
   maxVal += paddingY;
-  
-  if (minVal < 0 && dataMin >= 0) minVal = 0;
-  
+  if (minVal < 0 && Math.min(...validValues) >= 0) minVal = 0;
   const range = maxVal - minVal || 1;
   
-  // 清空画布
   ctx.clearRect(0, 0, width, height);
 
-  // 1. 绘制正常参考带
+  // 绘制正常参考带
   if (refMin !== null && refMax !== null) {
       const yTop = Math.max(padding.top, padding.top + chartHeight - ((refMax - minVal) / range) * chartHeight);
       const yBottom = Math.min(padding.top + chartHeight, padding.top + chartHeight - ((refMin - minVal) / range) * chartHeight);
-      
       if (yBottom > yTop) {
           ctx.setFillStyle('rgba(0, 180, 42, 0.05)');
           ctx.fillRect(padding.left, yTop, chartWidth, yBottom - yTop);
-          
           ctx.setStrokeStyle('rgba(0, 180, 42, 0.2)');
           ctx.setLineWidth(1);
           if (ctx.setLineDash) ctx.setLineDash([4, 4]);
-          
-          if (yTop >= padding.top) {
-              ctx.beginPath();
-              ctx.moveTo(padding.left, yTop);
-              ctx.lineTo(width - padding.right, yTop);
-              ctx.stroke();
-          }
-          if (yBottom <= padding.top + chartHeight) {
-              ctx.beginPath();
-              ctx.moveTo(padding.left, yBottom);
-              ctx.lineTo(width - padding.right, yBottom);
-              ctx.stroke();
-          }
+          ctx.beginPath();
+          ctx.moveTo(padding.left, yTop); ctx.lineTo(width - padding.right, yTop);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(padding.left, yBottom); ctx.lineTo(width - padding.right, yBottom);
+          ctx.stroke();
           if (ctx.setLineDash) ctx.setLineDash([]);
       }
   }
 
-  // 1.1 参考中值线
+  // 计算中值线
   if (refMin !== null && refMax !== null) {
       const mid = (refMin + refMax) / 2;
       const yMid = padding.top + chartHeight - ((mid - minVal) / range) * chartHeight;
@@ -474,122 +423,75 @@ const drawChart = () => {
       ctx.setLineWidth(1);
       if (ctx.setLineDash) ctx.setLineDash([6, 4]);
       ctx.beginPath();
-      ctx.moveTo(padding.left, yMid);
-      ctx.lineTo(width - padding.right, yMid);
+      ctx.moveTo(padding.left, yMid); ctx.lineTo(width - padding.right, yMid);
       ctx.stroke();
       if (ctx.setLineDash) ctx.setLineDash([]);
   }
   
-  // 2. 绘制网格线和 Y 轴标签
+  // 网格线
   ctx.setStrokeStyle('#F2F3F5');
   ctx.setLineWidth(1);
   ctx.setFillStyle('#86909C');
   ctx.setFontSize(10);
   ctx.setTextAlign('right');
-  
   for (let i = 0; i <= 4; i++) {
     const y = padding.top + (chartHeight / 4) * i;
     const val = maxVal - (range / 4) * i;
-
     ctx.beginPath();
-    ctx.moveTo(padding.left, y);
-    ctx.lineTo(width - padding.right, y);
+    ctx.moveTo(padding.left, y); ctx.lineTo(width - padding.right, y);
     ctx.stroke();
-
-    ctx.fillText(Number.isInteger(val) ? val.toString() : val.toFixed(1), padding.left - 10, y + 4);
+    ctx.fillText(val.toFixed(1), padding.left - 10, y + 4);
   }
   
-  // 绘制折线
+  // 折线
   ctx.setStrokeStyle(currentThemeColor.value);
   ctx.setLineWidth(2);
   ctx.beginPath();
-  
   let firstPoint = true;
   const points = [];
-  
   for (let i = 0; i < values.length; i++) {
     if (values[i] === null) continue;
-    
     const x = padding.left + (chartWidth / (labels.length - 1 || 1)) * i;
     const y = padding.top + chartHeight - ((values[i] - minVal) / range) * chartHeight;
-    
-    // 判定异常颜色
     const status = getIndicatorInfoFromRef(values[i], currentRefRange.value);
-    
     points.push({ x, y, value: values[i], label: labels[i], status });
-    
-    if (firstPoint) {
-      ctx.moveTo(x, y);
-      firstPoint = false;
-    } else {
-      ctx.lineTo(x, y);
-    }
+    if (firstPoint) { ctx.moveTo(x, y); firstPoint = false; } else { ctx.lineTo(x, y); }
   }
   ctx.stroke();
   
-  // 绘制数据点
+  // 数据点
   points.forEach((p, idx) => {
     ctx.setFillStyle('#FFFFFF');
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // 设置点的主色：如果是最后一个点且没有异常，用主题色；如果有异常，用异常色
+    ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI * 2); ctx.fill();
     let dotColor = currentThemeColor.value;
     if (p.status.color === 'error') dotColor = '#F53F3F';
     else if (p.status.color === 'warning') dotColor = '#FF7D00';
-
     ctx.setStrokeStyle(dotColor);
     ctx.setLineWidth(2);
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
-    ctx.stroke();
-    
-    // 高亮核心点
+    ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI * 2); ctx.stroke();
     if (p.status.color !== 'success' || idx === points.length - 1) {
       ctx.setFillStyle(dotColor);
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill();
     }
-
-    // 绘制异常箭头
     if (p.status.icon) {
-      ctx.setFillStyle(dotColor);
-      ctx.setFontSize(10);
-      const arrow = p.status.icon === 'arrow-up-fill' ? '↑' : '↓';
-      ctx.fillText(arrow, p.x, p.y - 10);
+      ctx.setFillStyle(dotColor); ctx.setFontSize(10); ctx.setTextAlign('center');
+      ctx.fillText(p.status.icon === 'arrow-up-fill' ? '↑' : '↓', p.x, p.y - 10);
     }
-
-    // 绘制具体数值
     ctx.setFillStyle(p.status.color !== 'success' ? dotColor : '#86909C');
     ctx.setFontSize(10);
-    // 动态调整对齐方式，防止首尾数值与坐标轴或边界重叠
-    if (idx === 0) {
-      ctx.setTextAlign('left');
-    } else if (idx === points.length - 1) {
-      ctx.setTextAlign('right');
-    } else {
-      ctx.setTextAlign('center');
-    }
-    // 如果有箭头，数值放在箭头上方
-    const textOffset = p.status.icon ? 22 : 12;
-    ctx.fillText(p.value, p.x, p.y - textOffset);
+    ctx.setTextAlign(idx === 0 ? 'left' : (idx === points.length - 1 ? 'right' : 'center'));
+    ctx.fillText(p.value, p.x, p.y - (p.status.icon ? 22 : 12));
   });
   
-  // 绘制X轴标签
-  ctx.setFillStyle('#86909C');
-  ctx.setFontSize(10);
-  ctx.setTextAlign('center');
+  // X 轴标签
+  ctx.setFillStyle('#86909C'); ctx.setFontSize(10); ctx.setTextAlign('center');
   labels.forEach((label, i) => {
     const x = padding.left + (chartWidth / (labels.length - 1 || 1)) * i;
     ctx.fillText(label, x, height - 15);
   });
-  
   ctx.draw();
 };
 
-// 获取数据
 const fetchList = async () => {
   if (!userStore.isLogin) return;
   try {
@@ -597,15 +499,9 @@ const fetchList = async () => {
     list.value = res.list.map(item => {
       item.units = {};
       if (item.indicatorUnits) {
-        if (typeof item.indicatorUnits === 'object') {
-          item.units = item.indicatorUnits;
-        } else {
-          try {
-            item.units = JSON.parse(item.indicatorUnits);
-          } catch (e) {
-            item.units = {};
-          }
-        }
+        try {
+          item.units = typeof item.indicatorUnits === 'object' ? item.indicatorUnits : JSON.parse(item.indicatorUnits);
+        } catch (e) { item.units = {}; }
       }
       return item;
     });
@@ -614,51 +510,30 @@ const fetchList = async () => {
     drawChart();
   } catch (err) {
     const cached = getCache('record_list');
-    if (cached) {
-      list.value = cached;
-      await nextTick();
-      drawChart();
-      uni.$u.toast('当前为离线数据');
-    } else {
-      console.error(err);
-    }
+    if (cached) { list.value = cached; await nextTick(); drawChart(); }
   }
 };
 
-// 监听 tab 切换重绘图表
-watch(currentTab, () => {
-  nextTick(() => drawChart());
+watch(currentTab, () => { nextTick(() => drawChart()); });
+watch(displayCount, () => { nextTick(() => drawChart()); });
+watch(filteredList, (newVal) => {
+  if (displayCount.value > newVal.length && newVal.length >= 2) {
+    displayCount.value = newVal.length;
+  }
 });
 
-watch(displayCount, () => {
-  nextTick(() => drawChart());
-});
-
-const navigateToAdd = () => {
-  uni.navigateTo({ url: '/pages/record/add' });
-};
-
-  const navigateToDetail = (id) => {
-    uni.navigateTo({ url: `/pages/record/detail?id=${id}` });
-  };
-
-  const formatMember = (m) => {
-    if (!m) return '';
-    return `${m.name}${m.relation ? ' · ' + m.relation : ''}`;
-  };
+const navigateToAdd = () => uni.navigateTo({ url: '/pages/record/add' });
+const navigateToDetail = (id) => uni.navigateTo({ url: `/pages/record/detail?id=${id}` });
+const formatMember = (m) => m ? `${m.name}${m.relation ? ' · ' + m.relation : ''}` : '';
 
 onMounted(() => {
-  // 获取屏幕宽度
   const sysInfo = uni.getSystemInfoSync();
   canvasWidth.value = sysInfo.windowWidth - 64;
   fetchList();
 });
 
 onShow(() => {
-  if (!userStore.isLogin) {
-    uni.reLaunch({ url: '/pages/login' });
-    return;
-  }
+  if (!userStore.isLogin) { uni.reLaunch({ url: '/pages/login' }); return; }
   fetchList();
 });
 </script>
@@ -670,7 +545,6 @@ onShow(() => {
   padding-bottom: calc(env(safe-area-inset-bottom) + 140rpx);
 }
 
-// 顶部头部升级
 .trend-header {
   background: linear-gradient(135deg, #3E7BFF 0%, #2A5DDF 100%);
   padding: 40rpx 32rpx 80rpx;
@@ -708,7 +582,6 @@ onShow(() => {
   }
 }
 
-// 图表区域升级 - 浮动效果
 .chart-section {
   padding: 0 32rpx;
   margin-top: -50rpx;
@@ -819,12 +692,12 @@ onShow(() => {
     .value {
       font-size: 56rpx;
       font-weight: 900;
-      color: #4AE68A;
+      color: #00B42A;
       font-family: 'DIN Condensed', -apple-system, sans-serif;
       line-height: 1;
       
-      &.high { color: #F53F3F; }
-      &.low { color: #FF7D00; }
+      &.color-error { color: #F53F3F !important; }
+      &.color-warning { color: #FF7D00 !important; }
     }
     
     .unit {
@@ -879,7 +752,6 @@ onShow(() => {
   gap: 8rpx;
 }
 
-// 历史记录列表升级
 .history-section {
   padding: 40rpx 32rpx;
   
@@ -888,7 +760,6 @@ onShow(() => {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 24rpx;
-    padding: 0 8rpx;
     
     .title-info {
       display: flex;
@@ -901,16 +772,6 @@ onShow(() => {
       font-weight: 900;
       color: #1D2129;
       position: relative;
-      &::after {
-        content: '';
-        position: absolute;
-        bottom: 4rpx;
-        left: 0;
-        width: 100%;
-        height: 12rpx;
-        background: rgba(62, 123, 255, 0.1);
-        z-index: -1;
-      }
     }
     
     .count {
@@ -931,7 +792,6 @@ onShow(() => {
       padding: 10rpx 24rpx;
       background: #EEF4FF;
       border-radius: 40rpx;
-      box-shadow: 0 4rpx 12rpx rgba(62, 123, 255, 0.1);
       
       text {
         font-size: 24rpx;
@@ -941,15 +801,7 @@ onShow(() => {
 
       &.import-btn {
         background: #F5F1FF;
-        box-shadow: 0 4rpx 12rpx rgba(114, 46, 209, 0.08);
-        text {
-          color: #722ED1;
-        }
-      }
-      
-      &:active {
-        transform: scale(0.92);
-        opacity: 0.8;
+        text { color: #722ED1; }
       }
     }
   }
@@ -959,7 +811,6 @@ onShow(() => {
   background: #FFFFFF;
   border-radius: 36rpx;
   overflow: hidden;
-  box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.02);
 }
 
 .record-item {
@@ -968,28 +819,7 @@ onShow(() => {
   position: relative;
   
   &:last-child { border-bottom: none; }
-  &:active { background: #F8FAFF; }
   
-  // 左侧指示条
-  &::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 6rpx;
-    height: 40%;
-    background: #3E7BFF;
-    border-radius: 0 4rpx 4rpx 0;
-    opacity: 0;
-    transition: all 0.3s;
-  }
-  
-  &:active::before {
-    opacity: 1;
-    height: 60%;
-  }
-
   .item-inner {
     display: flex;
     align-items: center;
@@ -1000,7 +830,6 @@ onShow(() => {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
     width: 100rpx;
     
     .record-date {
@@ -1008,14 +837,11 @@ onShow(() => {
       font-weight: 900;
       color: #1D2129;
       font-family: 'DIN Condensed', sans-serif;
-      line-height: 1;
     }
     
     .record-year {
       font-size: 20rpx;
       color: #C9CDD4;
-      font-weight: 700;
-      margin-top: 4rpx;
     }
   }
   
@@ -1023,6 +849,7 @@ onShow(() => {
     flex: 1;
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
     gap: 16rpx;
   }
 
@@ -1033,16 +860,14 @@ onShow(() => {
     background: #EEF4FF;
     color: #3E7BFF;
     font-size: 20rpx;
-    padding: 4rpx 10rpx;
-    border-radius: 10rpx;
-    font-weight: 700;
+    padding: 2rpx 10rpx;
+    border-radius: 8rpx;
     width: fit-content;
   }
 
   .blood-metrics {
     display: flex;
-    justify-content: flex-start;
-    gap: 40rpx;
+    gap: 30rpx;
     
     .val-item {
       display: flex;
@@ -1050,95 +875,47 @@ onShow(() => {
       position: relative;
       
       .val {
-        font-size: 32rpx;
+        font-size: 30rpx;
         font-weight: 900;
         font-family: 'DIN Condensed', sans-serif;
-        line-height: 1.2;
       }
       
       .label-row {
         display: flex;
         flex-direction: column;
-        align-items: flex-start;
-        margin-top: -2rpx;
-        
         .label {
           font-size: 18rpx;
           color: #C9CDD4;
-          font-weight: 700;
-        }
-        
-        .mini-unit {
-          font-size: 14rpx;
-          color: #3E7BFF;
-          font-weight: 500;
-          transform: scale(0.85);
-          transform-origin: left;
-          margin-top: -4rpx;
         }
       }
       
       .mini-arrow {
         position: absolute;
         top: -4rpx;
-        right: -12rpx;
+        right: -10rpx;
       }
     }
   }
 
   .us-entry {
-    display: flex;
-    
     .us-tag {
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 8rpx;
+      gap: 6rpx;
       background: #F2F7FF;
-      padding: 8rpx 20rpx;
-      border-radius: 12rpx;
-      
-      text {
-        font-size: 24rpx;
-        color: #3E7BFF;
-        font-weight: 800;
-      }
-      
-      .level {
-        margin-left: 12rpx;
-        font-size: 20rpx;
-        color: #F53F3F;
-        font-weight: 900;
-        background: #FFF2F0;
-        padding: 2rpx 10rpx;
-        border-radius: 4rpx;
-      }
-      
-      &.mini {
-        background: #F8FAFF;
-        padding: 4rpx 12rpx;
-        border-radius: 8rpx;
-        
-        text {
-          font-size: 22rpx;
-          color: #86909C;
-          font-weight: 700;
-        }
-        
-        .level {
-          font-weight: 700;
-        }
-      }
+      padding: 6rpx 16rpx;
+      border-radius: 10rpx;
+      width: fit-content;
+      text { font-size: 22rpx; color: #3E7BFF; font-weight: 700; }
+      &.mini { background: #F8FAFF; text { color: #86909C; } }
     }
   }
 }
 
-/* 颜色工具 */
 .color-success { color: #00B42A !important; }
 .color-warning { color: #FF7D00 !important; }
 .color-error { color: #F53F3F !important; }
-.color-gray { color: #C9CDD4 !important; }
 
-// 悬浮按钮美化
 .fab-btn {
   position: fixed;
   bottom: calc(env(safe-area-inset-bottom) + 160rpx);
@@ -1151,20 +928,13 @@ onShow(() => {
   align-items: center;
   justify-content: center;
   box-shadow: 0 15rpx 35rpx rgba(62, 123, 255, 0.4);
-  border: 4rpx solid rgba(255, 255, 255, 0.2);
-  transition: all 0.3s;
-  
-  &:active {
-    transform: scale(0.9) rotate(90deg);
-  }
 }
 
 .active-tab-text {
   color: #3E7BFF !important;
   font-weight: 800 !important;
   background: #EEF4FF;
-  padding: 2rpx 8rpx;
-  border-radius: 6rpx;
-  margin-left: -8rpx;
+  padding: 0 4rpx;
+  border-radius: 4rpx;
 }
 </style>

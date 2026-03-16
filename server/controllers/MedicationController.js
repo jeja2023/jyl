@@ -99,21 +99,41 @@ class MedicationController {
         Response.success(ctx, plan, '计划已更新');
         logAction(ctx, '修改用药计划', '用药管理', `用户修改了药品 ${plan.medicineName} 的详情`);
     }
-
     // 删除计划
     static async delete(ctx) {
-        const { id } = ctx.query;
+        // 增强参数获取逻辑
+        const id = ctx.query.id || ctx.params.id || (ctx.request.body && ctx.request.body.id);
         const userId = ctx.state.user.id;
 
-        const result = await MedicationPlan.destroy({
-            where: { id, UserId: userId }
-        });
+        if (!id) {
+            console.warn('[删除计划警告] 收到删除请求但缺少 ID 参数:', {
+                query: ctx.query,
+                params: ctx.params,
+                body: ctx.request.body,
+                method: ctx.method,
+                url: ctx.url
+            });
+            return Response.error(ctx, `缺少必要的参数 id (收到的参数: ${JSON.stringify({ query: ctx.query, body: ctx.request.body })})`, 400);
+        }
 
-        if (result) {
+        // 先校验该计划是否属于当前用户
+        const plan = await MedicationPlan.findOne({ where: { id, UserId: userId } });
+        if (!plan) {
+            return Response.error(ctx, '计划不存在或无权操作', 404);
+        }
+
+        try {
+            // 1. 先删除关联的打卡记录
+            await MedicationLog.destroy({ where: { MedicationPlanId: id } });
+
+            // 2. 再删除计划记录
+            await plan.destroy();
+
             Response.success(ctx, null, '计划已删除');
-            logAction(ctx, '删除用药计划', '用药管理', `用户删除了一个服药计划`);
-        } else {
-            Response.error(ctx, '删除失败或计划不存在', 404);
+            logAction(ctx, '删除用药计划', '用药管理', `用户删除了服药计划: ${plan.medicineName}`);
+        } catch (err) {
+            console.error('[删除计划错误]', err);
+            Response.error(ctx, '服务器内部错误，删除失败');
         }
     }
 }

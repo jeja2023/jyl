@@ -11,7 +11,6 @@ const computeAdherence = (activeCount, logs, days, today = new Date()) => {
 
     let streak = 0;
     const base = new Date(today);
-    base.setHours(0, 0, 0, 0);
     for (let i = 0; i < days; i++) {
         const d = new Date(base.getTime() - i * 24 * 3600 * 1000);
         const ds = dateToStr(d);
@@ -36,7 +35,6 @@ const calculateStats = async (userId, days = 7) => {
     const activeCount = activePlans.length;
 
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const start = new Date(today.getTime() - (days - 1) * 24 * 3600 * 1000);
 
     const logs = await MedicationLog.findAll({
