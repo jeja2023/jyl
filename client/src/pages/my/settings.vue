@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <view class="settings-page">
     <u-navbar title="账号设置" autoBack placeholder :titleStyle="{fontWeight: '700'}"></u-navbar>
     
@@ -104,7 +104,7 @@ const userInfo = computed(() => userStore.userInfo);
 const showPasswordModal = ref(false);
 const saving = ref(false);
 const cacheSize = ref('0 KB');
-const hasPassword = ref(true); // 假设已设置密码
+const hasPassword = computed(() => !!userInfo.value?.hasPassword);
 const passwordForm = ref({
   oldPassword: '',
   newPassword: '',
@@ -163,6 +163,8 @@ const handleChangePassword = async () => {
       newPassword: passwordForm.value.newPassword
     });
     uni.$u.toast('密码修改成功');
+    // 修改成功后更新用户信息中的密码标志
+    if (userStore.userInfo) userStore.userInfo.hasPassword = true;
     showPasswordModal.value = false;
     passwordForm.value = { oldPassword: '', newPassword: '', confirmPassword: '' };
   } catch (e) {

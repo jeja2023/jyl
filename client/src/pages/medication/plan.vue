@@ -364,7 +364,8 @@ const deletePlan = (id) => {
 
 const takeMedicine = async (item) => {
     const prevDate = item.lastTakenDate;
-    item.lastTakenDate = new Date().toISOString().split('T')[0];
+    const date = new Date();
+    item.lastTakenDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     try {
     await http.post('/api/medication/take', { id: item.id });
     uni.$u.toast('已确认服药');
@@ -377,7 +378,8 @@ const takeMedicine = async (item) => {
 
 const isTakenToday = (item) => {
     if (!item.lastTakenDate) return false;
-    const today = new Date().toISOString().split('T')[0];
+    const date = new Date();
+    const today = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     return item.lastTakenDate === today;
 };
 

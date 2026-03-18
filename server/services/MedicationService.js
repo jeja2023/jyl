@@ -2,7 +2,7 @@ const MedicationLog = require('../models/MedicationLog');
 const MedicationPlan = require('../models/MedicationPlan');
 const { Op } = require('sequelize');
 
-const dateToStr = (d) => d.toISOString().split('T')[0];
+const dateToStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 const computeAdherence = (activeCount, logs, days, today = new Date()) => {
     const expected = activeCount * days;

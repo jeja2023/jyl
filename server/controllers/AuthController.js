@@ -589,10 +589,10 @@ class AuthController {
      */
     static async setPassword(ctx) {
         const { id } = ctx.state.user;
-        const { password, oldPassword } = ctx.request.body;
+        const { newPassword, oldPassword } = ctx.request.body;
 
-        if (!password || password.length < 6) {
-            return Response.error(ctx, '密码长度至少6位');
+        if (!newPassword || newPassword.length < 6) {
+            return Response.error(ctx, '新密码长度至少6位');
         }
 
         const user = await User.findByPk(id);
@@ -600,7 +600,7 @@ class AuthController {
             return Response.error(ctx, '用户不存在', 404);
         }
 
-        // 如果已有密码，需要验证旧密码
+        // 如果已有密码（非第三方登录直接进入的情况），需要验证旧密码
         if (user.password) {
             if (!oldPassword) {
                 return Response.error(ctx, '请输入原密码');
@@ -610,10 +610,12 @@ class AuthController {
             }
         }
 
-        await user.update({ password });
+        await user.update({ password: newPassword });
 
-        Response.success(ctx, null, '密码设置成功');
+        Response.success(ctx, null, '密码修改成功');
+        logAction(ctx, '修改密码', '认证', `用户 ${user.username || user.phone || 'ID:'+id} 修改了登录密码`);
     }
+
 
     /**
      * 获取公开系统配置
