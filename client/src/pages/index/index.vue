@@ -4,6 +4,7 @@ import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 import { getIndicatorInfo } from '@/utils/indicator.js';
+import { checkDueReminders } from '@/utils/reminder.js';
 
 const userStore = useUserStore();
 const lastRecord = ref(null);
@@ -56,7 +57,9 @@ onShow(() => {
   
   // 用户数据每次显示时刷新（可能从其他页面返回后有变化）
   if (userStore.isLogin) {
-    Promise.all([fetchLastRecord(), checkReminders()]);
+    Promise.all([fetchLastRecord(), checkReminders()]).finally(() => {
+      checkDueReminders();
+    });
   }
 });
 

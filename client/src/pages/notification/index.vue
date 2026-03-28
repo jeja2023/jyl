@@ -3,19 +3,17 @@
     <u-navbar title="消息中心" autoBack placeholder :titleStyle="{fontWeight: '700'}" @clickLeft="uni.navigateBack()"></u-navbar>
     
     <view class="msg-list">
-      <view class="msg-item" v-for="(item, index) in list" :key="item.id || index" :class="{unread: !item.isRead}" @click="markRead(item)">
+      <view class="msg-item" v-for="(item, index) in list" :key="item.id || index" :class="{unread: !item.isRead}" @click="handleItemClick(item)">
         <view class="icon-box" :class="item.type">
-          <!-- 系统通知图标 -->
           <u-icon v-if="item.type === 'system'" name="volume-fill" color="#fff" size="24"></u-icon>
-          <!-- 复查提醒图标 -->
           <u-icon v-else-if="item.type === 'checkup'" name="calendar-fill" color="#fff" size="24"></u-icon>
-          <!-- 默认图标 -->
+          <u-icon v-else-if="item.type === 'medication'" name="clock" color="#fff" size="24"></u-icon>
           <u-icon v-else name="bell-fill" color="#fff" size="24"></u-icon>
         </view>
         <view class="content">
           <view class="header">
             <text class="title">{{ item.title }}</text>
-            <text class="time">{{ formatTime(item.createdAt) }}</text>
+            <text class="time">{{ formatTime(item) }}</text>
           </view>
           <text class="desc">{{ item.content }}</text>
         </view>
@@ -55,6 +53,17 @@ const markRead = async (item) => {
   } catch (e) { /* 静默失败 */ }
 };
 
+const handleItemClick = async (item) => {
+  if (item.type === 'system') {
+    await markRead(item);
+    return;
+  }
+
+  if (item.actionUrl) {
+    uni.navigateTo({ url: item.actionUrl });
+  }
+};
+
 const deleteMsg = async (item, index) => {
   try {
     await http.delete('/api/notification/delete', { data: { id: item.id } });
@@ -64,25 +73,28 @@ const deleteMsg = async (item, index) => {
   }
 };
 
-const formatTime = (timeStr) => {
+const formatTime = (item) => {
+  const timeStr = item.remindAt || item.targetDate || item.createdAt;
   if (!timeStr) return '';
+
   const date = new Date(timeStr);
   const now = new Date();
-  const diff = now - date;
+  const diff = now.getTime() - date.getTime();
+  const futureDiff = date.getTime() - now.getTime();
+
+  if (item.type === 'medication' && futureDiff > 0 && futureDiff <= 3600000) {
+    return `${Math.ceil(futureDiff / 60000)}分钟后`;
+  }
   
-  // 1小时内
   if (diff < 3600000) {
     return '刚刚';
   }
-  // 24小时内
   if (diff < 86400000) {
     return `${Math.floor(diff / 3600000)}小时前`;
   }
-  // 昨天
   if (diff < 172800000) {
     return '昨天';
   }
-  // 日期
   return `${date.getMonth() + 1}-${date.getDate()}`;
 };
 
@@ -127,6 +139,11 @@ onShow(() => {
     &.checkup {
       background: linear-gradient(135deg, #FFC069 0%, #FF9500 100%);
       box-shadow: 0 8rpx 20rpx rgba(255, 149, 0, 0.3);
+    }
+
+    &.medication {
+      background: linear-gradient(135deg, #73D13D 0%, #2ED477 100%);
+      box-shadow: 0 8rpx 20rpx rgba(46, 212, 119, 0.3);
     }
   }
   

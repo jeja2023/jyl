@@ -2,6 +2,7 @@
 import config from '@/config/index.js';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
+import { startReminderPolling, stopReminderPolling } from '@/utils/reminder.js';
 
 export default {
   onLaunch: function () {
@@ -20,10 +21,12 @@ export default {
     }
   },
   onShow: function () {
-    // 应用进入前台
+    // 应用进入前台后检查到点提醒
+    startReminderPolling();
   },
   onHide: function () {
-    // 应用进入后台
+    // 应用进入后台时暂停轮询
+    stopReminderPolling();
   },
 }
 </script>
