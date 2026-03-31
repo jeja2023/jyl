@@ -74,11 +74,12 @@ class MedicationController {
         logAction(ctx, '服药打卡', '用药管理', `用户确认服用了药品: ${plan.medicineName}`);
     }
 
-    // 服药依从性统计
+    // 服药统计 (有一天算一天)
     static async stats(ctx) {
         const userId = ctx.state.user.id;
-        const days = parseInt(ctx.query.days || '7', 10);
-        const result = await calculateStats(userId, Math.max(1, Math.min(days, 60)));
+        // 如果客户端未传 days，默认为 0，表示从头开始算
+        const days = parseInt(ctx.query.days || '0', 10);
+        const result = await calculateStats(userId, days);
         Response.success(ctx, result);
     }
 

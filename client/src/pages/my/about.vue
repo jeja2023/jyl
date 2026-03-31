@@ -5,7 +5,7 @@
     <view class="logo-section">
       <image src="/static/logo.ico" mode="aspectFit" class="logo-img"></image>
       <view class="brand-name">甲友乐</view>
-      <view class="version">Version 1.6.6</view>
+      <view class="version">Version 1.6.7</view>
     </view>
 
     <view class="content-section">

@@ -28,19 +28,19 @@
         <view class="tip-decoration"></view>
       </view>
 
-      <!-- 依从性统计 -->
+      <!-- 累计数据统计 -->
       <view class="stats-card" v-if="stats">
-        <view class="stats-item">
-          <text class="label">近{{ stats.days }}天依从率</text>
-          <text class="value">{{ stats.adherenceRate }}%</text>
+        <view class="stats-item clickable" @click="showMissedPopup = true">
+          <text class="label">未打卡</text>
+          <text class="value danger">{{ stats.missedDates?.length || 0 }}天</text>
         </view>
         <view class="stats-item">
           <text class="label">连续打卡</text>
           <text class="value">{{ stats.streak }}天</text>
         </view>
         <view class="stats-item">
-          <text class="label">已服/应服</text>
-          <text class="value">{{ stats.takenDoses }}/{{ stats.expectedDoses }}</text>
+          <text class="label">累计服用</text>
+          <text class="value">{{ stats.takenDoses }}次</text>
         </view>
       </view>
 
@@ -195,6 +195,45 @@
       @confirm="confirmTime"
       @cancel="showTime = false"
     ></u-datetime-picker>
+
+    <!-- 漏服日历弹窗 -->
+    <u-popup :show="showMissedPopup" @close="showMissedPopup = false" mode="bottom" round="32" :lockScroll="true">
+      <view class="calendar-popup" @touchmove.stop.prevent>
+        <view class="calendar-header">
+          <view class="header-left" @click="prevMonth">
+            <u-icon name="arrow-left" size="18" color="#999"></u-icon>
+          </view>
+          <text class="month-title">{{ viewYear }}年{{ viewMonth + 1 }}月</text>
+          <view class="header-right" @click="nextMonth">
+            <u-icon name="arrow-right" size="18" color="#999"></u-icon>
+          </view>
+        </view>
+        
+        <view class="calendar-weekdays">
+          <text v-for="d in ['日', '一', '二', '三', '四', '五', '六']" :key="d">{{ d }}</text>
+        </view>
+        
+        <view class="calendar-body">
+          <view 
+            class="day-cell" 
+            v-for="(day, idx) in calendarDays" 
+            :key="idx"
+            :class="{ 'other-month': !day.isCurrent, 'is-missed': day.isMissed, 'is-today': day.isToday }"
+          >
+            <text class="day-num">{{ day.num }}</text>
+            <view class="missed-tag" v-if="day.isMissed">漏服</view>
+          </view>
+        </view>
+        
+        <view class="calendar-footer">
+          <view class="legend">
+            <view class="legend-item"><view class="dot missed"></view><text>漏服日期</text></view>
+            <view class="legend-item"><view class="dot today"></view><text>今日</text></view>
+          </view>
+          <u-button type="primary" text="我知道了" shape="circle" @click="showMissedPopup = false" customStyle="height: 80rpx;"></u-button>
+        </view>
+      </view>
+    </u-popup>
   </view>
 </template>
 
@@ -208,6 +247,9 @@ const userStore = useUserStore();
 const plans = ref([]);
 const showAdd = ref(false);
 const showTime = ref(false);
+const showMissedPopup = ref(false);
+const viewYear = ref(new Date().getFullYear());
+const viewMonth = ref(new Date().getMonth());
 const timeValue = ref('06:30');
 const editingId = ref(null);
 const tipContent = ref('加载中...');
@@ -251,13 +293,81 @@ const fetchPlans = async () => {
 const fetchStats = async () => {
   try {
     if (userStore.isLogin) {
-      stats.value = await http.get('/api/medication/stats?days=7');
+      // 默认为 0，表示从头开始算的“有一天算一天”
+      stats.value = await http.get('/api/medication/stats?days=0');
       setCache('medication_stats', stats.value, 900);
     }
   } catch (e) {
     const cached = getCache('medication_stats');
     stats.value = cached || null;
   }
+};
+
+const formatDateLabel = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return `${date.getMonth() + 1}月${date.getDate()}日`;
+};
+
+const formatDateWithYear = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+};
+
+// 日历逻辑
+const calendarDays = computed(() => {
+    const year = viewYear.value;
+    const month = viewMonth.value;
+    const firstDay = new Date(year, month, 1).getDay();
+    const lastDate = new Date(year, month + 1, 0).getDate();
+    const prevLastDate = new Date(year, month, 0).getDate();
+    
+    const days = [];
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    
+    // 上月补充
+    for (let i = firstDay - 1; i >= 0; i--) {
+        days.push({ num: prevLastDate - i, isCurrent: false });
+    }
+    
+    // 本月日期
+    for (let i = 1; i <= lastDate; i++) {
+        const ds = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+        days.push({
+            num: i,
+            isCurrent: true,
+            isMissed: stats.value?.missedDates?.includes(ds),
+            isToday: ds === todayStr
+        });
+    }
+    
+    // 下月补充
+    const remaining = 42 - days.length;
+    for (let i = 1; i <= remaining; i++) {
+        days.push({ num: i, isCurrent: false });
+    }
+    
+    return days;
+});
+
+const prevMonth = () => {
+    if (viewMonth.value === 0) {
+        viewYear.value--;
+        viewMonth.value = 11;
+    } else {
+        viewMonth.value--;
+    }
+};
+
+const nextMonth = () => {
+    if (viewMonth.value === 11) {
+        viewYear.value++;
+        viewMonth.value = 0;
+    } else {
+        viewMonth.value++;
+    }
 };
 
 const fetchTip = async () => {
@@ -504,12 +614,127 @@ onMounted(() => {
     }
 
     .value {
-      font-size: 30rpx;
+      font-size: 32rpx;
       font-weight: 900;
       color: #3E7BFF;
       font-family: 'DIN Condensed', sans-serif;
+      
+      &.danger {
+          color: #FF4D4F;
+      }
+    }
+    
+    &.clickable:active {
+        opacity: 0.7;
     }
   }
+}
+
+.calendar-popup {
+    background: #fff;
+    padding: 40rpx;
+    
+    .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 40rpx;
+        
+        .month-title {
+            font-size: 34rpx;
+            font-weight: 900;
+            color: #1D2129;
+        }
+        
+        .header-left, .header-right {
+            padding: 10rpx 20rpx;
+        }
+    }
+    
+    .calendar-weekdays {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        margin-bottom: 20rpx;
+        
+        text {
+            text-align: center;
+            font-size: 24rpx;
+            color: #86909C;
+            font-weight: 600;
+        }
+    }
+    
+    .calendar-body {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 12rpx;
+        margin-bottom: 40rpx;
+        
+        .day-cell {
+            height: 90rpx;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            border-radius: 16rpx;
+            
+            .day-num {
+                font-size: 28rpx;
+                color: #1D2129;
+                font-weight: 700;
+            }
+            
+            &.other-month {
+                opacity: 0.3;
+            }
+            
+            &.is-today {
+                background: #F2F3F5;
+                .day-num { color: #3E7BFF; }
+            }
+            
+            &.is-missed {
+                background: #FFF1F0;
+                border: 1px solid #FFA39E;
+                
+                .day-num { color: #CF1322; }
+                
+                .missed-tag {
+                    font-size: 16rpx;
+                    color: #F5222D;
+                    font-weight: 900;
+                    margin-top: 4rpx;
+                }
+            }
+        }
+    }
+    
+    .calendar-footer {
+        .legend {
+            display: flex;
+            gap: 30rpx;
+            margin-bottom: 40rpx;
+            justify-content: center;
+            
+            .legend-item {
+                display: flex;
+                align-items: center;
+                font-size: 22rpx;
+                color: #86909C;
+                
+                .dot {
+                    width: 12rpx;
+                    height: 12rpx;
+                    border-radius: 50%;
+                    margin-right: 8rpx;
+                    
+                    &.missed { background: #F5222D; }
+                    &.today { background: #3E7BFF; }
+                }
+            }
+        }
+    }
 }
 
 /* 列表头部 */
