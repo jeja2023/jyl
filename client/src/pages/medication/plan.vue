@@ -239,12 +239,12 @@
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue';
+import { onShow, onPullDownRefresh } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 import { setCache, getCache } from '@/utils/cache.js';
 
 const userStore = useUserStore();
-const plans = ref([]);
 const showAdd = ref(false);
 const showTime = ref(false);
 const showMissedPopup = ref(false);
@@ -253,7 +253,9 @@ const viewMonth = ref(new Date().getMonth());
 const timeValue = ref('06:30');
 const editingId = ref(null);
 const tipContent = ref('加载中...');
-const stats = ref(null);
+// 立即尝试从缓存恢复，实现“秒开”体验
+const stats = ref(getCache('medication_stats'));
+const plans = ref(getCache('medication_plans') || []);
 
 const newPlan = reactive({
   medicineName: '',
@@ -275,8 +277,10 @@ const fetchPlans = async () => {
   try {
     if (userStore.isLogin) {
        const res = await http.get('/api/medication/list');
-       if(res) plans.value = res;
-       setCache('medication_plans', plans.value, 1800);
+       if(res) {
+           plans.value = res;
+           setCache('medication_plans', plans.value, 1800);
+       }
     }
   } catch (err) {
     const cached = getCache('medication_plans');
@@ -293,13 +297,15 @@ const fetchPlans = async () => {
 const fetchStats = async () => {
   try {
     if (userStore.isLogin) {
-      // 默认为 0，表示从头开始算的“有一天算一天”
-      stats.value = await http.get('/api/medication/stats?days=0');
-      setCache('medication_stats', stats.value, 900);
+      const res = await http.get('/api/medication/stats?days=0');
+      if (res) {
+          stats.value = res;
+          setCache('medication_stats', stats.value, 900);
+      }
     }
   } catch (e) {
     const cached = getCache('medication_stats');
-    stats.value = cached || null;
+    if (cached) stats.value = cached;
   }
 };
 
@@ -384,6 +390,17 @@ const fetchTip = async () => {
     }
 };
 
+onShow(() => {
+    fetchPlans();
+    fetchStats();
+    fetchTip();
+});
+
+onPullDownRefresh(async () => {
+    await Promise.all([fetchPlans(), fetchStats(), fetchTip()]);
+    uni.stopPullDownRefresh();
+});
+
 const openAdd = () => {
     editingId.value = null;
     newPlan.medicineName = '';
@@ -425,8 +442,7 @@ const savePlan = async () => {
     }
     
     closePopup();
-    fetchPlans();
-    fetchStats();
+    await Promise.all([fetchPlans(), fetchStats()]);
   } catch (err) {
     console.error(err);
   }
@@ -463,7 +479,7 @@ const deletePlan = (id) => {
         try {
           await http.delete(`/api/medication/delete?id=${id}`);
           uni.$u.toast('已删除');
-          fetchPlans();
+          await Promise.all([fetchPlans(), fetchStats()]);
         } catch (err) {
           console.error(err);
         }
@@ -479,7 +495,7 @@ const takeMedicine = async (item) => {
     try {
     await http.post('/api/medication/take', { id: item.id });
     uni.$u.toast('已确认服药');
-    fetchStats();
+    await fetchStats();
   } catch (err) {
     item.lastTakenDate = prevDate;
     uni.$u.toast('操作失败');
@@ -502,6 +518,7 @@ const togglePlan = async (item) => {
       id: item.id,
       isActive: item.isActive // 此时已经是切换后的状态
     });
+    await fetchStats();
   } catch (err) {
       // 失败回滚
       item.isActive = !item.isActive;
@@ -509,10 +526,9 @@ const togglePlan = async (item) => {
   }
 };
 
+
 onMounted(() => {
-  fetchPlans();
-  fetchTip();
-  fetchStats();
+    // 基础初始化可放此处，数据加载已移至 onShow
 });
 </script>
 

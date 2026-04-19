@@ -52,7 +52,8 @@
 		{
 			"path": "pages/medication/plan",
 			"style": {
-				"navigationBarTitleText": "用药提醒"
+				"navigationBarTitleText": "用药提醒",
+				"enablePullDownRefresh": true
 			}
 		},
 		{

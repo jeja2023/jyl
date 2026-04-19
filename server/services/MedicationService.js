@@ -7,7 +7,6 @@ const dateToStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
 const computeAdherence = (activeCount, logs, days, today = new Date()) => {
     const expected = activeCount * days;
     const taken = logs.length;
-    // 不再计算百分比，保留原始数据
     
     let streak = 0;
     const missedDates = [];
@@ -27,8 +26,14 @@ const computeAdherence = (activeCount, logs, days, today = new Date()) => {
                     streak += 1;
                 }
             } else {
-                streakBroken = true;
-                missedDates.push(ds);
+                // 如果是今天，且还没打完卡，先不打断连续打卡，也不计入漏服
+                if (i === 0) {
+                    // 今天还没打完卡，不增加 streak，但也不设置 streakBroken = true
+                    // 这样 streak 就等于截至昨天的值
+                } else {
+                    streakBroken = true;
+                    missedDates.push(ds);
+                }
             }
         }
     }
@@ -82,13 +87,18 @@ const calculateStats = async (userId, daysInput = 0) => {
         }
     });
 
-    const { taken, streak, missedDates } = computeAdherence(activeCount, logs, totalDays, today);
+    // 累计服用次数：查询该用户所有的打卡记录（包含已删除计划的记录）
+    const totalTakenCount = await MedicationLog.count({
+        where: { UserId: userId }
+    });
+
+    const { streak, missedDates } = computeAdherence(activeCount, logs, totalDays, today);
 
     return {
         days: totalDays,
         totalPlans: allPlans.length,
         activePlans: activeCount,
-        takenDoses: taken,
+        takenDoses: totalTakenCount,
         streak,
         missedDates: missedDates.reverse() // 按日期顺序排列
     };
