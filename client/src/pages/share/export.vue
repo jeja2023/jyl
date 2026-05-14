@@ -1,19 +1,25 @@
 <template>
   <view class="export-page">
-    <u-navbar title="报告导出与分享" autoBack placeholder :titleStyle="{fontWeight: '700'}"></u-navbar>
+    <u-navbar title="报告导出与分享" autoBack placeholder :titleStyle="{ fontWeight: '700' }"></u-navbar>
 
     <view class="header-card">
       <view class="header-top">
         <view class="header-title">
           <u-icon name="edit-pen" size="18" color="#3E7BFF"></u-icon>
-          <text>一键导出</text>
+          <text>数据导出</text>
         </view>
-        <view class="quick-export-btn" @click="exportAll">
-          <u-icon name="download" size="14" color="#FFF"></u-icon>
-          <text>导出全部数据</text>
+        <view class="header-actions">
+          <view class="quick-btn ghost" @click="openShareManage">
+            <u-icon name="order" size="14" color="#3E7BFF"></u-icon>
+            <text>分享管理</text>
+          </view>
+          <view class="quick-btn" @click="exportAll">
+            <u-icon name="download" size="14" color="#FFF"></u-icon>
+            <text>导出全部</text>
+          </view>
         </view>
       </view>
-      <view class="header-tip">导出为 Excel 或生成分享链接，便于发送给医生/家人查看。</view>
+      <view class="header-tip">导出 Excel 或生成分享链接，便于发送给医生、家人查看。</view>
     </view>
 
     <view class="record-list" v-if="records.length">
@@ -53,7 +59,6 @@ import { getBaseURL } from '@/utils/config.js';
 const userStore = useUserStore();
 const records = ref([]);
 
-// 获取记录列表
 const fetchRecords = async () => {
   if (!userStore.isLogin) {
     uni.reLaunch({ url: '/pages/login' });
@@ -67,23 +72,21 @@ const fetchRecords = async () => {
   }
 };
 
-// 家庭成员格式化
 const formatMember = (member) => {
   if (!member) return '本人';
-  return `${member.name}${member.relation ? '·' + member.relation : ''}`;
+  return `${member.name}${member.relation ? ' · ' + member.relation : ''}`;
 };
 
-// 生成摘要文本
 const getSummary = (item) => {
   const parts = [];
   const memberText = item.FamilyMember ? formatMember(item.FamilyMember) : '本人';
   parts.push(`对象: ${memberText}`);
 
-  const metrics = ['TSH','FT3','FT4','T3','T4','TPOAb','TGAb','TRAb','Tg','Calcitonin','Calcium','PTH'];
+  const metrics = ['TSH', 'FT3', 'FT4', 'T3', 'T4', 'TPOAb', 'TGAb', 'TRAb', 'Tg', 'Calcitonin', 'Calcium', 'PTH'];
   const metricText = metrics
     .filter(k => item[k] !== undefined && item[k] !== null && item[k] !== '')
     .map(k => `${k} ${item[k]}`)
-    .join('；');
+    .join('，');
   if (metricText) parts.push(`化验: ${metricText}`);
   if (item.tiradsLevel) parts.push(`TI-RADS ${item.tiradsLevel}`);
   if (item.ultrasoundNote) parts.push(`超声所见: ${item.ultrasoundNote}`);
@@ -93,18 +96,15 @@ const getSummary = (item) => {
   return parts.join(' | ');
 };
 
-// 导出全部记录
 const exportAll = () => {
   doExport();
 };
 
-// 导出单条记录
 const exportOne = (item) => {
   if (!item?.id) return;
   doExport(item.id);
 };
 
-// 执行导出
 const doExport = (id) => {
   const token = userStore.token;
   const baseUrl = getBaseURL();
@@ -139,48 +139,55 @@ const doExport = (id) => {
   // #endif
 };
 
-// 复制摘要
 const copySummary = (item) => {
-  const text = `报告摘要｜${item.recordDate || '-'}\n${getSummary(item)}`;
+  const text = `报告摘要 - ${item.recordDate || '-'}\n${getSummary(item)}`;
   uni.setClipboardData({
     data: text,
     success: () => uni.$u.toast('摘要已复制')
   });
 };
 
-// 复制分享链接
 const copyShareLink = async (item) => {
-  if (!item?.id) return;
-  try {
-    const res = await http.post('/api/share/record', { id: item.id });
-    const token = res?.token;
-    if (!token) return uni.$u.toast('生成分享链接失败');
-    const url = `${getBaseURL()}/#/pages/share/record?token=${token}`;
-    uni.setClipboardData({
-      data: url,
-      success: () => uni.$u.toast('分享链接已复制')
-    });
-  } catch (e) {
-    uni.$u.toast('生成分享链接失败');
-  }
+  const url = await createShareUrl(item);
+  if (!url) return;
+  uni.setClipboardData({
+    data: url,
+    success: () => uni.$u.toast('分享链接已复制')
+  });
 };
 
-// 预览分享页面
 const openPreview = async (item) => {
-  if (!item?.id) return;
+  const token = await createShareToken(item);
+  if (!token) return;
+  uni.navigateTo({ url: `/pages/share/record?token=${token}` });
+};
+
+const createShareToken = async (item) => {
+  if (!item?.id) return '';
   try {
     const res = await http.post('/api/share/record', { id: item.id });
-    const token = res?.token;
-    if (!token) return uni.$u.toast('生成分享链接失败');
-    uni.navigateTo({ url: `/pages/share/record?token=${token}` });
+    if (!res?.token) {
+      uni.$u.toast('生成分享链接失败');
+      return '';
+    }
+    return res.token;
   } catch (e) {
     uni.$u.toast('生成分享链接失败');
+    return '';
   }
 };
 
-onShow(() => {
-  fetchRecords();
-});
+const createShareUrl = async (item) => {
+  const token = await createShareToken(item);
+  if (!token) return '';
+  return `${getBaseURL()}/#/pages/share/record?token=${token}`;
+};
+
+const openShareManage = () => {
+  uni.navigateTo({ url: '/pages/share/manage' });
+};
+
+onShow(fetchRecords);
 </script>
 
 <style lang="scss" scoped>
@@ -193,52 +200,58 @@ onShow(() => {
   margin: 32rpx;
   padding: 32rpx;
   background: #FFFFFF;
-  border-radius: 28rpx;
+  border-radius: 20rpx;
   box-shadow: 0 10rpx 30rpx rgba(62, 123, 255, 0.08);
   border: 1px solid rgba(62, 123, 255, 0.05);
+}
 
-  .header-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20rpx;
-  }
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-bottom: 20rpx;
+}
 
-  .header-title {
-    display: flex;
-    align-items: center;
-    gap: 8rpx;
-    font-size: 32rpx;
-    font-weight: 900;
-    color: #1D2129;
-    white-space: nowrap;
-  }
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  font-size: 32rpx;
+  font-weight: 900;
+  color: #1D2129;
+  white-space: nowrap;
+}
 
-  .quick-export-btn {
-    display: flex;
-    align-items: center;
-    gap: 8rpx;
-    padding: 12rpx 28rpx;
-    background: linear-gradient(135deg, #3E7BFF 0%, #2A5DDF 100%);
-    border-radius: 40rpx;
-    color: #FFFFFF;
-    font-size: 24rpx;
-    font-weight: 700;
-    box-shadow: 0 8rpx 16rpx rgba(62, 123, 255, 0.2);
-    transition: all 0.2s;
-    white-space: nowrap;
-    
-    &:active {
-      transform: scale(0.96);
-      opacity: 0.9;
-    }
-  }
+.header-actions {
+  display: flex;
+  gap: 12rpx;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
 
-  .header-tip {
-    font-size: 22rpx;
-    color: #86909C;
-    line-height: 1.4;
+.quick-btn {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 12rpx 22rpx;
+  background: linear-gradient(135deg, #3E7BFF 0%, #2A5DDF 100%);
+  border-radius: 999rpx;
+  color: #FFFFFF;
+  font-size: 24rpx;
+  font-weight: 700;
+  white-space: nowrap;
+
+  &.ghost {
+    background: #EEF4FF;
+    color: #3E7BFF;
   }
+}
+
+.header-tip {
+  font-size: 22rpx;
+  color: #86909C;
+  line-height: 1.4;
 }
 
 .record-list {
@@ -252,31 +265,32 @@ onShow(() => {
   background: #FFFFFF;
   border-radius: 20rpx;
   padding: 24rpx 28rpx;
-  box-shadow: 0 8rpx 20rpx rgba(0,0,0,0.04);
+  box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.04);
 }
 
 .record-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 20rpx;
   margin-bottom: 12rpx;
+}
 
-  .record-date {
-    font-size: 28rpx;
-    font-weight: 700;
-    color: #1D2129;
-  }
+.record-date {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #1D2129;
+}
 
-  .member-tag {
-    display: flex;
-    align-items: center;
-    gap: 6rpx;
-    padding: 6rpx 12rpx;
-    border-radius: 16rpx;
-    background: #F2F7FF;
-    color: #3E7BFF;
-    font-size: 22rpx;
-  }
+.member-tag {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 6rpx 12rpx;
+  border-radius: 16rpx;
+  background: #F2F7FF;
+  color: #3E7BFF;
+  font-size: 22rpx;
 }
 
 .record-summary {
@@ -294,18 +308,18 @@ onShow(() => {
   display: flex;
   gap: 16rpx;
   flex-wrap: wrap;
+}
 
-  .action-btn {
-    padding: 12rpx 20rpx;
-    background: #3E7BFF;
-    color: #FFFFFF;
-    border-radius: 20rpx;
-    font-size: 24rpx;
+.action-btn {
+  padding: 12rpx 20rpx;
+  background: #3E7BFF;
+  color: #FFFFFF;
+  border-radius: 20rpx;
+  font-size: 24rpx;
 
-    &.ghost {
-      background: #EEF4FF;
-      color: #3E7BFF;
-    }
+  &.ghost {
+    background: #EEF4FF;
+    color: #3E7BFF;
   }
 }
 

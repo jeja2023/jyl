@@ -7,6 +7,7 @@ const dateToStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
 const computeAdherence = (activeCount, logs, days, today = new Date()) => {
     const expected = activeCount * days;
     const taken = logs.length;
+    const adherence = expected > 0 ? Math.round((taken / expected) * 100) : 0;
     
     let streak = 0;
     const missedDates = [];
@@ -38,7 +39,7 @@ const computeAdherence = (activeCount, logs, days, today = new Date()) => {
         }
     }
 
-    return { expected, taken, streak, missedDates };
+    return { expected, taken, adherence, streak, missedDates };
 };
 
 const calculateStats = async (userId, daysInput = 0) => {
@@ -92,13 +93,14 @@ const calculateStats = async (userId, daysInput = 0) => {
         where: { UserId: userId }
     });
 
-    const { streak, missedDates } = computeAdherence(activeCount, logs, totalDays, today);
+    const { adherence, streak, missedDates } = computeAdherence(activeCount, logs, totalDays, today);
 
     return {
         days: totalDays,
         totalPlans: allPlans.length,
         activePlans: activeCount,
         takenDoses: totalTakenCount,
+        adherence,
         streak,
         missedDates: missedDates.reverse() // 按日期顺序排列
     };

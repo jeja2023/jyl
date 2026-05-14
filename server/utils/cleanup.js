@@ -3,6 +3,7 @@ const path = require('path');
 const { Op } = require('sequelize');
 const VerifyCode = require('../models/VerifyCode');
 const HealthRecord = require('../models/HealthRecord');
+const ShareLink = require('../models/ShareLink');
 const logger = require('./logger');
 
 const STORAGE_DIR = path.join(__dirname, '../../storage/reports');
@@ -84,6 +85,22 @@ const cleanupOrphanFiles = async (ttlDays) => {
     }
 };
 
+const cleanupExpiredShareLinks = async (days) => {
+    const cutoff = new Date(Date.now() - days * 24 * 3600 * 1000);
+    const deleted = await ShareLink.destroy({
+        where: {
+            [Op.or]: [
+                { expiresAt: { [Op.lt]: cutoff } },
+                { revokedAt: { [Op.lt]: cutoff } }
+            ]
+        }
+    });
+
+    if (deleted > 0) {
+        logger.info(`清理分享链接：已删除 ${deleted} 条过期/撤销记录`);
+    }
+};
+
 const startCleanupJobs = () => {
     const enabled = process.env.CLEANUP_ENABLE === 'true';
     if (!enabled) {
@@ -94,9 +111,11 @@ const startCleanupJobs = () => {
     const intervalHours = parseInt(process.env.CLEANUP_INTERVAL_HOURS || '6', 10);
     const verifyCodeDays = parseInt(process.env.VERIFY_CODE_CLEANUP_DAYS || '1', 10);
     const orphanDays = parseInt(process.env.ORPHAN_FILE_TTL_DAYS || '7', 10);
+    const shareDays = parseInt(process.env.SHARE_LINK_CLEANUP_DAYS || '30', 10);
 
     const run = async () => {
         await cleanupVerifyCodes(verifyCodeDays);
+        await cleanupExpiredShareLinks(shareDays);
         await cleanupOrphanFiles(orphanDays);
     };
 

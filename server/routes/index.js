@@ -12,11 +12,16 @@ const AdminController = require('../controllers/AdminController');
 const FamilyController = require('../controllers/FamilyController');
 const ShareController = require('../controllers/ShareController');
 const AssessController = require('../controllers/AssessController');
+const NotificationController = require('../controllers/NotificationController');
+const WikiController = require('../controllers/WikiController');
+const InsightController = require('../controllers/InsightController');
+const OcrReviewController = require('../controllers/OcrReviewController');
 const auth = require('../middlewares/auth');
+const admin = require('../middlewares/auth').admin;
+const optional = require('../middlewares/auth').optional;
 
 const router = new Router({ prefix: '/api' });
 
-// 全局 API 限流（可通过环境变量调整）
 const apiLimiter = ratelimit({
     driver: 'memory',
     db: new Map(),
@@ -28,14 +33,13 @@ const apiLimiter = ratelimit({
 });
 router.use(apiLimiter);
 
-// 速率限制器
 const authLimiter = ratelimit({
     driver: 'memory',
     db: new Map(),
     duration: 60000,
     errorMessage: '请求太频繁，请稍后再试',
     id: (ctx) => ctx.ip,
-    max: 10, // 1分钟内最多10次尝试
+    max: 10,
     disableHeader: false
 });
 
@@ -45,76 +49,64 @@ const smsLimiter = ratelimit({
     duration: 60000,
     errorMessage: '验证码请求太频繁，请稍后再试',
     id: (ctx) => ctx.ip,
-    max: 3 // 1分钟内最多3次验证码请求
+    max: 3
 });
 
-// --- 公开路由（无需登录）---
-// 传统用户名密码
 router.post('/auth/register', authLimiter, AuthController.register);
 router.post('/auth/login', authLimiter, AuthController.login);
 router.get('/auth/check-username', AuthController.checkUsername);
-
-// 邮箱验证码与注册
 router.post('/auth/email/send', smsLimiter, AuthController.sendEmailCode);
 router.post('/auth/email/register', authLimiter, AuthController.emailRegister);
-
-// 手机号验证码登录 (保留备份，但由前端控制开关)
 router.post('/auth/sms/send', smsLimiter, AuthController.sendSmsCode);
 router.post('/auth/sms/register', authLimiter, AuthController.smsRegister);
 router.post('/auth/sms/login', authLimiter, AuthController.smsLogin);
-
-
-// 公共配置
 router.get('/common/config', AuthController.getPublicConfig);
 
-// --- 需登录路由 ---
-// 用户信息
 router.get('/auth/stats', auth, AuthController.stats);
 router.get('/auth/profile', auth, AuthController.profile);
 router.post('/auth/profile/update', auth, AuthController.updateProfile);
 router.post('/auth/setPassword', auth, AuthController.setPassword);
 router.post('/auth/bindPhone', auth, AuthController.bindPhone);
 
-// 健康记录相关
 router.post('/record/add', auth, RecordController.create);
 router.get('/record/list', auth, RecordController.list);
 router.get('/record/trend', auth, RecordController.trend);
-router.get('/record/export', auth, RecordController.export); // 数据导出
-router.post('/record/import', auth, RecordController.import); // 数据导入
+router.get('/record/export', auth, RecordController.export);
+router.post('/record/import', auth, RecordController.import);
 router.get('/record/:id', auth, RecordController.detail);
 router.put('/record/:id', auth, RecordController.update);
 router.delete('/record/:id', auth, RecordController.delete);
 
-// 服药计划相关
 router.post('/medication/add', auth, MedicationController.create);
 router.get('/medication/list', auth, MedicationController.list);
 router.post('/medication/update', auth, MedicationController.update);
 router.post('/medication/toggle', auth, MedicationController.toggle);
-router.post('/medication/take', auth, MedicationController.take); // 服药打卡
+router.post('/medication/take', auth, MedicationController.take);
 router.get('/medication/stats', auth, MedicationController.stats);
 router.delete('/medication/delete', auth, MedicationController.delete);
 
-// 复查提醒相关
 router.post('/checkup/add', auth, CheckupController.create);
 router.get('/checkup/list', auth, CheckupController.list);
 router.get('/checkup/suggest', auth, CheckupController.suggest);
+router.post('/checkup/generate', auth, CheckupController.generate);
 router.post('/checkup/complete', auth, CheckupController.complete);
 router.delete('/checkup/delete', auth, CheckupController.delete);
 
-// 健康贴士
 router.get('/tip/random', auth, HealthTipController.random);
-router.post('/tip/seed', auth, HealthTipController.seed); // 方便初始化
+router.post('/tip/seed', auth, admin, HealthTipController.seed);
 
-// OCR识别（化验单/B超报告自动识别）
 router.post('/ocr/recognize', auth, OcrController.recognize);
+router.get('/ocr/review/list', auth, OcrReviewController.list);
+router.post('/ocr/review/confirm', auth, OcrReviewController.confirm);
 
-// 消息中心
-const NotificationController = require('../controllers/NotificationController');
+router.get('/insight/dashboard', auth, InsightController.dashboard);
+router.get('/insight/monthly', auth, InsightController.monthly);
+router.get('/insight/record/:id', auth, InsightController.analyzeRecord);
+
 router.get('/notification/list', auth, NotificationController.list);
 router.post('/notification/read', auth, NotificationController.markRead);
 router.delete('/notification/delete', auth, NotificationController.delete);
 
-// 文件上传（保存报告原件）
 const uploadBody = koaBody({
     multipart: true,
     json: true,
@@ -125,57 +117,44 @@ const uploadBody = koaBody({
 });
 router.post('/upload/report', auth, uploadBody, UploadController.uploadReport);
 
-// 分享
 router.post('/share/record', auth, ShareController.createRecordShare);
+router.get('/share/record/list', auth, ShareController.listRecordShares);
+router.post('/share/record/revoke', auth, ShareController.revokeRecordShare);
 
-// 家庭成员管理
 router.get('/family/list', auth, FamilyController.list);
+router.get('/family/ranges', auth, FamilyController.ranges);
 router.post('/family/add', auth, FamilyController.create);
 router.post('/family/update', auth, FamilyController.update);
 router.post('/family/delete', auth, FamilyController.delete);
 
-// 症状自测相关
 router.get('/assess/history', auth, AssessController.getHistory);
 router.post('/assess/save', auth, AssessController.saveAssessment);
 router.get('/assess/:id', auth, AssessController.getDetail);
 router.delete('/assess/:id', auth, AssessController.deleteAssessment);
 
-// 百科文章
-const WikiController = require('../controllers/WikiController');
-const admin = require('../middlewares/auth').admin;
-
-// 公开接口 (非通配符)
-router.get('/wiki/list', WikiController.list); // 公开：列表
+router.get('/wiki/list', WikiController.list);
 if (process.env.NODE_ENV === 'development') {
-    router.post('/wiki/init', WikiController.initData); // 初始化数据（开发环境）
+    router.post('/wiki/init', WikiController.initData);
 } else {
-    router.post('/wiki/init', auth, admin, WikiController.initData); // 初始化数据（生产需管理员）
+    router.post('/wiki/init', auth, admin, WikiController.initData);
 }
+router.post('/wiki/submit', auth, WikiController.submit);
+router.get('/wiki/mine', auth, WikiController.myArticles);
+router.post('/wiki/edit', auth, WikiController.editMyArticle);
+router.post('/wiki/remove', auth, WikiController.removeMyArticle);
+router.get('/wiki/pending', auth, admin, WikiController.pendingList);
+router.post('/wiki/approve', auth, admin, WikiController.approve);
+router.post('/wiki/reject', auth, admin, WikiController.reject);
+router.post('/wiki/create', auth, admin, WikiController.create);
+router.post('/wiki/update', auth, admin, WikiController.update);
+router.post('/wiki/delete', auth, admin, WikiController.delete);
 
-// 用户投稿接口（需登录）
-router.post('/wiki/submit', auth, WikiController.submit); // 用户投稿
-router.get('/wiki/mine', auth, WikiController.myArticles); // 我的投稿
-router.post('/wiki/edit', auth, WikiController.editMyArticle); // 编辑投稿
-router.post('/wiki/remove', auth, WikiController.removeMyArticle); // 删除投稿
-
-// 管理员审核接口
-router.get('/wiki/pending', auth, admin, WikiController.pendingList); // 待审核列表
-router.post('/wiki/approve', auth, admin, WikiController.approve); // 审核通过
-router.post('/wiki/reject', auth, admin, WikiController.reject); // 审核拒绝
-router.post('/wiki/create', auth, admin, WikiController.create); // 直接发布
-router.post('/wiki/update', auth, admin, WikiController.update); // 更新文章
-router.post('/wiki/delete', auth, admin, WikiController.delete); // 删除文章
-
-// --- 系统管理接口 ---
 router.get('/admin/users', auth, admin, AdminController.listUsers);
 router.post('/admin/users/:id/update', auth, admin, AdminController.updateUser);
 router.delete('/admin/users/:id', auth, admin, AdminController.deleteUser);
 router.get('/admin/logs', auth, admin, AdminController.listLogs);
 
-// 公开接口 (通配符 - 必须放最后)
-const optional = require('../middlewares/auth').optional;
-router.get('/wiki/:id', optional, WikiController.detail); // 公开：详情 (带可选认证)
+router.get('/wiki/:id', optional, WikiController.detail);
 router.get('/share/record/:token', ShareController.getRecordShare);
 
 module.exports = router;
-

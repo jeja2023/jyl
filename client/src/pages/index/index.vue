@@ -97,6 +97,16 @@ const goToFamily = () => {
   uni.navigateTo({ url: '/pages/my/family' });
 };
 
+const goToInsight = () => {
+  if (!userStore.isLogin) return goToLogin();
+  uni.navigateTo({ url: '/pages/insight/dashboard' });
+};
+
+const goToOcrReview = () => {
+  if (!userStore.isLogin) return goToLogin();
+  uni.navigateTo({ url: '/pages/ocr/review' });
+};
+
 const goToDetail = (id) => {
   if (!id) return;
   uni.navigateTo({ url: `/pages/record/detail?id=${id}` });
@@ -294,6 +304,26 @@ onMounted(() => {
             <view class="tool-text">
               <text class="tool-title">症状自测</text>
               <text class="tool-desc">快速评估当前状态</text>
+            </view>
+          </view>
+          <u-icon name="arrow-right" size="14" color="#C9CDD4"></u-icon>
+        </view>
+        <view class="tool-card" @click="goToInsight">
+          <view class="tool-left">
+            <view class="tool-icon blue-gradient"><u-icon name="level" color="#fff" size="20"></u-icon></view>
+            <view class="tool-text">
+              <text class="tool-title">智能洞察</text>
+              <text class="tool-desc">月度趋势、异常指标与复查建议</text>
+            </view>
+          </view>
+          <u-icon name="arrow-right" size="14" color="#C9CDD4"></u-icon>
+        </view>
+        <view class="tool-card" @click="goToOcrReview">
+          <view class="tool-left">
+            <view class="tool-icon orange-gradient"><u-icon name="scan" color="#fff" size="20"></u-icon></view>
+            <view class="tool-text">
+              <text class="tool-title">OCR复核台</text>
+              <text class="tool-desc">确认识别结果后再纳入趋势</text>
             </view>
           </view>
           <u-icon name="arrow-right" size="14" color="#C9CDD4"></u-icon>

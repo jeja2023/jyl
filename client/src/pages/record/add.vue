@@ -282,6 +282,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 import { getBaseURL } from '@/utils/config.js';
+import { saveDraft, loadDraft, clearDraft, enqueueSync } from '@/utils/offlineDraft.js';
 import { onLoad } from '@dcloudio/uni-app';
 
 const userStore = useUserStore();
@@ -435,6 +436,8 @@ const form = reactive({
   units: {} // 存放各指标对应的真实单位
 });
 
+const draftKey = computed(() => `record_${recordId.value || 'new'}`);
+
 const memberActions = computed(() => {
   const actions = [{ name: '本人', value: null }];
   familyMembers.value.forEach(m => {
@@ -455,8 +458,24 @@ onLoad(async (options) => {
     recordId.value = options.id;
     uni.setNavigationBarTitle({ title: '编辑档案' });
     await fetchRecordDetail(options.id);
+  } else {
+    const draft = loadDraft(draftKey.value);
+    if (draft?.data?.form) {
+      Object.assign(form, draft.data.form);
+      reportImages.value = draft.data.reportImages || [];
+      ultrasoundImages.value = draft.data.ultrasoundImages || [];
+      uni.$u.toast('已恢复离线草稿');
+    }
   }
 });
+
+watch(form, () => {
+  saveDraft(draftKey.value, {
+    form: { ...form, units: { ...form.units } },
+    reportImages: reportImages.value,
+    ultrasoundImages: ultrasoundImages.value
+  });
+}, { deep: true });
 
 const loadFamilyMembers = async () => {
   try {
@@ -932,8 +951,21 @@ const submit = async () => {
     }
     
     uni.$u.toast(isEdit.value ? '档案已更新' : '健康档案已添加');
+    clearDraft(draftKey.value);
     setTimeout(() => { uni.navigateBack(); }, 1500);
   } catch (err) {
+    enqueueSync({
+      method: isEdit.value ? 'PUT' : 'POST',
+      url: isEdit.value ? `/api/record/${recordId.value}` : '/api/record/add',
+      data: {
+        ...form,
+        reportImage: JSON.stringify(reportImages.value),
+        ultrasoundImage: JSON.stringify(ultrasoundImages.value),
+        indicatorUnits: JSON.stringify(form.units),
+        ocrReview: JSON.stringify(ocrReview)
+      }
+    });
+    uni.$u.toast('网络异常，已保存为待同步草稿');
     console.error(err);
   } finally {
     loading.value = false;

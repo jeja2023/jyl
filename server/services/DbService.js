@@ -10,6 +10,7 @@ const ActionLog = require('../models/ActionLog');
 const FamilyMember = require('../models/FamilyMember');
 const MedicationLog = require('../models/MedicationLog');
 const SymptomAssessment = require('../models/SymptomAssessment');
+const ShareLink = require('../models/ShareLink');
 const logger = require('../utils/logger');
 
 class DbService {

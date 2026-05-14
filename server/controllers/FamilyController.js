@@ -2,6 +2,7 @@ const FamilyMember = require('../models/FamilyMember');
 const HealthRecord = require('../models/HealthRecord');
 const Response = require('../utils/response');
 const { logAction } = require('../utils/actionLog');
+const { DEFAULT_RANGES } = require('../utils/indicatorAnalysis');
 
 class FamilyController {
     static async list(ctx) {
@@ -11,6 +12,10 @@ class FamilyController {
             order: [['createdAt', 'ASC']]
         });
         Response.success(ctx, list);
+    }
+
+    static async ranges(ctx) {
+        Response.success(ctx, DEFAULT_RANGES);
     }
 
     static async create(ctx) {

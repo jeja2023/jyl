@@ -34,6 +34,14 @@ const FamilyMember = sequelize.define('FamilyMember', {
     note: {
         type: DataTypes.STRING,
         comment: '备注'
+    },
+    referenceRanges: {
+        type: DataTypes.TEXT,
+        comment: '自定义指标参考范围(JSON)'
+    },
+    checkupIntervalDays: {
+        type: DataTypes.INTEGER,
+        comment: '个性化复查周期(天)'
     }
 }, {
     timestamps: true,

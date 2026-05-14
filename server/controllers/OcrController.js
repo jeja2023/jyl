@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const https = require('https');
 const Response = require('../utils/response');
 const { logAction } = require('../utils/actionLog');
+const { parseBase64Image } = require('../utils/imageValidation');
 
 /**
  * OCR控制器 - 用于化验单图片识别
@@ -15,12 +16,18 @@ class OcrController {
      */
     static async recognize(ctx) {
         const { image, type = 'lab' } = ctx.request.body;
+        const allowedTypes = new Set(['lab', 'ultrasound']);
 
         if (!image) {
             throw new Error('请上传报告图片');
         }
 
         // 调用腾讯云OCR
+        if (!allowedTypes.has(type)) {
+            return Response.error(ctx, '无效的报告类型', 400);
+        }
+        parseBase64Image(image);
+
         const ocrResult = await OcrController.callTencentOCR(image);
 
         // 根据类型解析OCR结果
