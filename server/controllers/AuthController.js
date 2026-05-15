@@ -8,6 +8,21 @@ const SmsService = require('../utils/sms');
 const MailService = require('../utils/mail');
 const { Op } = require('sequelize');
 const { logAction } = require('../utils/actionLog');
+const { TREND_KEYS, getDiseaseIndicatorProfile, getDefaultTrendKeys } = require('../utils/indicatorAnalysis');
+
+const parseTrendIndicators = (raw, patientType = '其他') => {
+    if (!raw) return getDefaultTrendKeys(patientType);
+    let value = raw;
+    if (typeof raw === 'string') {
+        try {
+            value = JSON.parse(raw);
+        } catch (e) {
+            value = [];
+        }
+    }
+    const valid = Array.isArray(value) ? value.filter(key => TREND_KEYS.includes(key)) : [];
+    return valid.length ? [...new Set(valid)] : getDefaultTrendKeys(patientType);
+};
 
 class AuthController {
 
@@ -69,6 +84,7 @@ class AuthController {
      * 格式化用户信息返回
      */
     static formatUserInfo(user) {
+        const patientType = user.patientType || '其他';
         return {
             id: user.id,
             username: user.username,
@@ -76,7 +92,10 @@ class AuthController {
             email: user.email,
             nickname: user.nickname,
             avatar: user.avatar,
-            patientType: user.patientType,
+            patientType,
+            treatmentStage: user.treatmentStage || '日常随访',
+            trendIndicators: parseTrendIndicators(user.trendIndicators, patientType),
+            diseaseIndicatorProfile: getDiseaseIndicatorProfile(patientType),
             role: user.role,
             hasPassword: !!user.password
         };
@@ -520,21 +539,29 @@ class AuthController {
      */
     static async updateProfile(ctx) {
         const { id } = ctx.state.user;
-        const { nickname, avatar, patientType, diagnosisDate, birthDate, gender } = ctx.request.body;
+        const { nickname, avatar, patientType, treatmentStage, diagnosisDate, birthDate, gender, trendIndicators } = ctx.request.body;
 
         const user = await User.findByPk(id);
         if (!user) {
             return Response.error(ctx, '用户不存在', 404);
         }
 
-        await user.update({
+        const nextPatientType = patientType || user.patientType || '其他';
+        const updateData = {
             nickname: nickname || user.nickname,
             avatar: avatar || user.avatar,
-            patientType: patientType || user.patientType,
+            patientType: nextPatientType,
+            treatmentStage: treatmentStage || user.treatmentStage || '日常随访',
             diagnosisDate: diagnosisDate || user.diagnosisDate,
             birthDate: birthDate || user.birthDate,
             gender: gender || user.gender
-        });
+        };
+
+        if (Object.prototype.hasOwnProperty.call(ctx.request.body, 'trendIndicators')) {
+            updateData.trendIndicators = JSON.stringify(parseTrendIndicators(trendIndicators, nextPatientType));
+        }
+
+        await user.update(updateData);
 
         Response.success(ctx, AuthController.formatUserInfo(user), '更新成功');
     }

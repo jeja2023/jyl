@@ -68,7 +68,26 @@ export const INDICATOR_REFS = {
     Calcium:   { min: 2.11,  max: 2.52,  unit: 'mmol/L', name: '血钙' },
     Magnesium: { min: 0.75,  max: 1.02,  unit: 'mmol/L', name: '血镁' },
     Phosphorus:{ min: 0.85,  max: 1.51,  unit: 'mmol/L', name: '血磷' },
-    PTH:       { min: 15,    max: 65,    unit: 'pg/mL',  name: '甲状旁腺激素' }
+    PTH:       { min: 15,    max: 65,    unit: 'pg/mL',  name: '甲状旁腺激素' },
+    TSI:       { min: 0,     max: 0.55,  unit: 'IU/L',   name: '甲状腺刺激免疫球蛋白' },
+    TBAb:      { min: 0,     max: 1.75,  unit: 'IU/L',   name: '促甲状腺素受体阻断抗体' },
+    CEA:       { min: 0,     max: 5,     unit: 'ng/mL',  name: '癌胚抗原' },
+    VitaminD:  { min: 30,    max: 100,   unit: 'ng/mL',  name: '25羟维生素D' },
+    Albumin:   { min: 35,    max: 55,    unit: 'g/L',    name: '血清白蛋白' },
+    ALP:       { min: 45,    max: 125,   unit: 'U/L',    name: '碱性磷酸酶' },
+    ALT:       { min: 0,     max: 40,    unit: 'U/L',    name: '丙氨酸氨基转移酶' },
+    AST:       { min: 0,     max: 40,    unit: 'U/L',    name: '天门冬氨酸氨基转移酶' },
+    GGT:       { min: 0,     max: 50,    unit: 'U/L',    name: '谷氨酰转肽酶' },
+    Bilirubin: { min: 3.4,   max: 20.5,  unit: 'umol/L', name: '总胆红素' },
+    WBC:       { min: 3.5,   max: 9.5,   unit: '10^9/L', name: '白细胞计数' },
+    Neutrophils: { min: 1.8, max: 6.3,   unit: '10^9/L', name: '中性粒细胞计数' },
+    TC:        { min: 0,     max: 5.2,   unit: 'mmol/L', name: '总胆固醇' },
+    LDL:       { min: 0,     max: 3.4,   unit: 'mmol/L', name: '低密度脂蛋白胆固醇' },
+    HDL:       { min: 1.0,   max: Infinity, unit: 'mmol/L', name: '高密度脂蛋白胆固醇' },
+    Triglyceride: { min: 0,  max: 1.7,   unit: 'mmol/L', name: '甘油三酯' },
+    CK:        { min: 40,    max: 200,   unit: 'U/L',    name: '肌酸激酶' },
+    ESR:       { min: 0,     max: 20,    unit: 'mm/h',   name: '红细胞沉降率' },
+    CRP:       { min: 0,     max: 10,    unit: 'mg/L',   name: 'C反应蛋白' }
 };
 
 export const checkIndicator = (key, val) => {
@@ -149,6 +168,82 @@ const INDICATOR_ADVICE = {
     PTH: {
         high: { default: 'PTH偏高，建议结合钙磷代谢评估。' },
         low: { default: 'PTH偏低，注意钙磷代谢。' }
+    },
+    TSI: {
+        high: { default: 'TSI偏高，提示Graves活动度相关风险。' },
+        low: { default: 'TSI偏低。' }
+    },
+    TBAb: {
+        high: { default: 'TBAb偏高，建议结合TRAb和甲功综合判断。' },
+        low: { default: 'TBAb偏低。' }
+    },
+    CEA: {
+        high: { default: 'CEA偏高，髓样癌随访人群建议及时咨询医生。' },
+        low: { default: 'CEA偏低。' }
+    },
+    VitaminD: {
+        high: { default: '维生素D偏高，建议结合补充剂剂量评估。' },
+        low: { default: '维生素D偏低，术后低钙或补钙人群建议关注。' }
+    },
+    Albumin: {
+        high: { default: '白蛋白偏高，建议结合脱水等情况判断。' },
+        low: { default: '白蛋白偏低，解读血钙时需考虑校正血钙。' }
+    },
+    ALP: {
+        high: { default: 'ALP偏高，建议结合肝胆和骨代谢指标评估。' },
+        low: { default: 'ALP偏低，建议结合营养和代谢状态评估。' }
+    },
+    ALT: {
+        high: { default: 'ALT偏高，使用抗甲状腺药物时需重点关注肝功能。' },
+        low: { default: 'ALT偏低。' }
+    },
+    AST: {
+        high: { default: 'AST偏高，建议结合ALT、GGT和用药情况评估。' },
+        low: { default: 'AST偏低。' }
+    },
+    GGT: {
+        high: { default: 'GGT偏高，建议关注肝胆功能和近期用药。' },
+        low: { default: 'GGT偏低。' }
+    },
+    Bilirubin: {
+        high: { default: '胆红素偏高，建议结合肝功能和医生意见复核。' },
+        low: { default: '胆红素偏低。' }
+    },
+    WBC: {
+        high: { default: '白细胞偏高，建议结合感染或炎症情况判断。' },
+        low: { default: '白细胞偏低，使用抗甲状腺药物时需尽快复核。' }
+    },
+    Neutrophils: {
+        high: { default: '中性粒偏高，建议结合感染或炎症情况判断。' },
+        low: { default: '中性粒偏低，使用抗甲状腺药物时需尽快咨询医生。' }
+    },
+    TC: {
+        high: { default: '总胆固醇偏高，甲减控制不佳时可能伴随升高。' },
+        low: { default: '总胆固醇偏低。' }
+    },
+    LDL: {
+        high: { default: 'LDL-C偏高，建议结合甲功和心血管风险管理。' },
+        low: { default: 'LDL-C偏低。' }
+    },
+    HDL: {
+        high: { default: 'HDL-C偏高。' },
+        low: { default: 'HDL-C偏低，建议关注代谢风险。' }
+    },
+    Triglyceride: {
+        high: { default: '甘油三酯偏高，建议结合饮食、体重和甲功状态管理。' },
+        low: { default: '甘油三酯偏低。' }
+    },
+    CK: {
+        high: { default: 'CK偏高，甲减或肌肉损伤时可能升高，建议结合症状复核。' },
+        low: { default: 'CK偏低。' }
+    },
+    ESR: {
+        high: { default: 'ESR偏高，亚急性甲状腺炎等炎症状态需关注。' },
+        low: { default: 'ESR偏低。' }
+    },
+    CRP: {
+        high: { default: 'CRP偏高，提示炎症活动，建议结合症状和医生评估。' },
+        low: { default: 'CRP偏低。' }
     }
 };
 

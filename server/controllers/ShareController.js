@@ -6,6 +6,9 @@ const ShareLink = require('../models/ShareLink');
 const Response = require('../utils/response');
 const { buildExpiresAt, generateToken, hashToken } = require('../utils/shareToken');
 const { logAction } = require('../utils/actionLog');
+const { DEFAULT_RANGES } = require('../utils/indicatorAnalysis');
+
+const LAB_KEYS = Object.keys(DEFAULT_RANGES);
 
 class ShareController {
     static async createRecordShare(ctx) {
@@ -129,8 +132,7 @@ class ShareController {
     static publicRecord(record, options = {}) {
         const row = record.toJSON();
         const defaultKeys = [
-            'id', 'recordDate', 'TSH', 'FT3', 'FT4', 'T3', 'T4',
-            'TPOAb', 'TGAb', 'TRAb', 'Tg', 'Calcitonin', 'Calcium', 'PTH',
+            'id', 'recordDate', ...LAB_KEYS,
             'thyroidLeft', 'thyroidRight', 'isthmus', 'noduleCount', 'noduleMaxSize',
             'noduleLocation', 'tiradsLevel', 'noduleFeatures', 'lymphNode',
             'ultrasoundNote', 'conclusion', 'ultrasoundDate', 'reportImage', 'ultrasoundImage',

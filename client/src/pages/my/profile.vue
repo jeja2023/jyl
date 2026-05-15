@@ -50,6 +50,13 @@
             <u-icon name="arrow-right" size="14" color="#C9CDD4"></u-icon>
           </view>
         </view>
+        <view class="info-item">
+          <text class="label">治疗阶段</text>
+          <view class="value-area" @click="editField('treatmentStage')">
+            <text class="value highlight">{{ userInfo?.treatmentStage || '日常随访' }}</text>
+            <u-icon name="arrow-right" size="14" color="#C9CDD4"></u-icon>
+          </view>
+        </view>
         
         <view class="info-item">
           <text class="label">确诊时间</text>
@@ -81,6 +88,7 @@
 
     <!-- 选择疾病类型弹窗 -->
     <u-action-sheet :show="showTypePicker" :actions="typeActions" @select="onTypeSelect" @close="showTypePicker = false"></u-action-sheet>
+    <u-action-sheet :show="showStagePicker" :actions="stageActions" @select="onStageSelect" @close="showStagePicker = false"></u-action-sheet>
 
     <!-- 日期选择器 -->
     <u-datetime-picker :show="showDatePicker" v-model="datePickerValue" mode="date" @confirm="onDateConfirm" @cancel="showDatePicker = false"></u-datetime-picker>
@@ -91,6 +99,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
+import { PATIENT_TYPES, TREATMENT_STAGES } from '@/utils/thyroidIndicators.js';
 
 const userStore = useUserStore();
 const userInfo = computed(() => userStore.userInfo);
@@ -99,6 +108,7 @@ const saving = ref(false);
 const showNicknameEdit = ref(false);
 const showGenderPicker = ref(false);
 const showTypePicker = ref(false);
+const showStagePicker = ref(false);
 const showDatePicker = ref(false);
 const currentDateField = ref('');
 const datePickerValue = ref(Date.now());
@@ -129,14 +139,8 @@ const genderActions = [
   { name: '女', value: 'female' }
 ];
 
-const typeActions = [
-  { name: '甲减' },
-  { name: '甲亢' },
-  { name: '甲状腺结节' },
-  { name: '甲癌术后' },
-  { name: '桥本氏甲状腺炎' },
-  { name: '其他' }
-];
+const typeActions = PATIENT_TYPES.map(name => ({ name }));
+const stageActions = TREATMENT_STAGES.map(name => ({ name }));
 
 const editField = (field) => {
   if (field === 'nickname') {
@@ -146,6 +150,8 @@ const editField = (field) => {
     showGenderPicker.value = true;
   } else if (field === 'patientType') {
     showTypePicker.value = true;
+  } else if (field === 'treatmentStage') {
+    showStagePicker.value = true;
   } else if (field === 'birthday' || field === 'diagnosisDate') {
     currentDateField.value = field;
     showDatePicker.value = true;
@@ -189,6 +195,17 @@ const onTypeSelect = async (item) => {
     // failed
   }
   showTypePicker.value = false;
+};
+
+const onStageSelect = async (item) => {
+  try {
+    await http.post('/api/auth/profile/update', { treatmentStage: item.name });
+    await refreshUserInfo();
+    uni.$u.toast('修改成功');
+  } catch (e) {
+    // failed
+  }
+  showStagePicker.value = false;
 };
 
 const onDateConfirm = async (e) => {

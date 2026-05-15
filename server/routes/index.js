@@ -82,7 +82,10 @@ router.get('/medication/list', auth, MedicationController.list);
 router.post('/medication/update', auth, MedicationController.update);
 router.post('/medication/toggle', auth, MedicationController.toggle);
 router.post('/medication/take', auth, MedicationController.take);
+router.post('/medication/makeup', auth, MedicationController.makeup);
 router.get('/medication/stats', auth, MedicationController.stats);
+router.get('/medication/adjustments', auth, MedicationController.adjustments);
+router.get('/medication/logs', auth, MedicationController.logs);
 router.delete('/medication/delete', auth, MedicationController.delete);
 
 router.post('/checkup/add', auth, CheckupController.create);

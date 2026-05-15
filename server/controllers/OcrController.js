@@ -172,8 +172,8 @@ class OcrController {
             { key: 'TSH', regex: new RegExp(`(?:TSH|${k('促甲状腺激素')}|${k('促甲状腺素')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
             { key: 'FT3', regex: new RegExp(`(?:FT3|${k('游离T3')}|${k('游离三碘')}|${k('游离三碘甲状腺原氨酸')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
             { key: 'FT4', regex: new RegExp(`(?:FT4|${k('游离T4')}|${k('游离甲状腺素')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'T3', regex: new RegExp(`(?:(?<!游离|Free\\s*)${k('T3')}|(?<!游离|Free\\s*)${k('三碘甲状腺原氨酸')}|${k('总T3')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'T4', regex: new RegExp(`(?:(?<!游离|Free\\s*)${k('T4')}|(?<!游离|Free\\s*)${k('甲状腺素')}|${k('总T4')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
+            { key: 'T3', regex: new RegExp(`(?:(?<!F)(?<!游离|Free\\s*)${k('T3')}|(?<!游离|Free\\s*)${k('三碘甲状腺原氨酸')}|${k('总T3')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
+            { key: 'T4', regex: new RegExp(`(?:(?<!F)(?<!游离|Free\\s*)${k('T4')}|(?<!游离|Free\\s*)${k('甲状腺素')}|${k('总T4')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
             { key: 'TPOAb', regex: new RegExp(`(?:TPO-?Ab|${k('TPO抗体')}|${k('抗甲状腺过氧化物酶抗体')}|${k('甲状腺过氧化物酶')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
             { key: 'TGAb', regex: new RegExp(`(?:TGAb|A-TG|${k('TG抗体')}|${k('抗甲状腺球蛋白抗体')}|${k('甲状腺球蛋白抗体')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
             { key: 'TRAb', regex: new RegExp(`(?:TRAb|${k('TR抗体')}|${k('促甲状腺激素受体')}|${k('促甲状腺素受体')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
@@ -182,7 +182,26 @@ class OcrController {
             { key: 'Calcium', regex: new RegExp(`(?:${k('血钙')}|(?<!降)钙|Ca)[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
             { key: 'Magnesium', regex: new RegExp(`(?:${k('血镁')}|镁|Mg)[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
             { key: 'Phosphorus', regex: new RegExp(`(?:${k('血磷')}|磷|P)[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'PTH', regex: new RegExp(`(?:PTH|${k('甲状旁腺激素')}|${k('甲状旁腺素')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') }
+            { key: 'PTH', regex: new RegExp(`(?:PTH|${k('甲状旁腺激素')}|${k('甲状旁腺素')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
+            { key: 'TSI', regex: new RegExp(`(?:TSI|${k('甲状腺刺激免疫球蛋白')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
+            { key: 'TBAb', regex: new RegExp(`(?:TBAb|${k('促甲状腺素受体阻断抗体')}|${k('阻断抗体')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
+            { key: 'CEA', regex: new RegExp(`(?:CEA|${k('癌胚抗原')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
+            { key: 'VitaminD', regex: new RegExp(`(?:25-?OH-?D|${k('25羟维生素D')}|${k('维生素D')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
+            { key: 'Albumin', regex: new RegExp(`(?:Albumin|Alb|${k('白蛋白')}|${k('血清白蛋白')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
+            { key: 'ALP', regex: new RegExp(`(?:ALP|${k('碱性磷酸酶')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
+            { key: 'ALT', regex: new RegExp(`(?:ALT|${k('丙氨酸氨基转移酶')}|${k('谷丙转氨酶')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
+            { key: 'AST', regex: new RegExp(`(?:AST|${k('天门冬氨酸氨基转移酶')}|${k('谷草转氨酶')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
+            { key: 'GGT', regex: new RegExp(`(?:GGT|γ-?GT|${k('谷氨酰转肽酶')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
+            { key: 'Bilirubin', regex: new RegExp(`(?:TBil|Bilirubin|${k('总胆红素')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
+            { key: 'WBC', regex: new RegExp(`(?:WBC|${k('白细胞')}|${k('白细胞计数')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/^]+)?`, 'i') },
+            { key: 'Neutrophils', regex: new RegExp(`(?:NEUT|${k('中性粒细胞')}|${k('中性粒')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/^]+)?`, 'i') },
+            { key: 'TC', regex: new RegExp(`(?:TC|${k('总胆固醇')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
+            { key: 'LDL', regex: new RegExp(`(?:LDL-?C|LDL|${k('低密度脂蛋白')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
+            { key: 'HDL', regex: new RegExp(`(?:HDL-?C|HDL|${k('高密度脂蛋白')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
+            { key: 'Triglyceride', regex: new RegExp(`(?:Triglyceride|${k('甘油三酯')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
+            { key: 'CK', regex: new RegExp(`(?:CK|${k('肌酸激酶')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
+            { key: 'ESR', regex: new RegExp(`(?:ESR|${k('红细胞沉降率')}|${k('血沉')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
+            { key: 'CRP', regex: new RegExp(`(?:CRP|${k('C反应蛋白')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') }
         ];
 
         for (const { key, regex } of patterns) {
@@ -191,7 +210,12 @@ class OcrController {
                 const keyMap = {
                     'TSH': '促甲状腺激素', 'FT3': '游离T3', 'FT4': '游离T4', 'T3': '总T3', 'T4': '总T4',
                     'TPOAb': 'TPO抗体', 'TGAb': 'TG抗体', 'TRAb': 'TR抗体', 'Tg': '甲状腺球蛋白',
-                    'Calcitonin': '降钙素', 'Calcium': '血钙', 'Magnesium': '血镁', 'Phosphorus': '血磷', 'PTH': '甲状旁腺激素'
+                    'Calcitonin': '降钙素', 'Calcium': '血钙', 'Magnesium': '血镁', 'Phosphorus': '血磷', 'PTH': '甲状旁腺激素',
+                    'TSI': 'TSI', 'TBAb': 'TBAb', 'CEA': '癌胚抗原', 'VitaminD': '25羟维生素D', 'Albumin': '白蛋白',
+                    'ALP': '碱性磷酸酶', 'ALT': '丙氨酸氨基转移酶', 'AST': '天门冬氨酸氨基转移酶',
+                    'GGT': '谷氨酰转肽酶', 'Bilirubin': '总胆红素', 'WBC': '白细胞', 'Neutrophils': '中性粒细胞',
+                    'TC': '总胆固醇', 'LDL': '低密度脂蛋白', 'HDL': '高密度脂蛋白', 'Triglyceride': '甘油三酯',
+                    'CK': '肌酸激酶', 'ESR': '红细胞沉降率', 'CRP': 'C反应蛋白'
                 };
                 const cnKey = keyMap[key] || key;
                 const value = match[1];

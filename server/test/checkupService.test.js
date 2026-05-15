@@ -16,3 +16,9 @@ test('suggestNextDate falls back to base interval with no history', () => {
   assert.equal(result.baseDays, 180);
   assert.ok(result.intervalDays >= 30);
 });
+
+test('suggestNextDate supports expanded disease profiles', () => {
+  const result = suggestNextDate(['2026-04-01'], '抗甲状腺药物治疗');
+  assert.equal(result.baseDays, 30);
+  assert.equal(result.intervalDays, 30);
+});

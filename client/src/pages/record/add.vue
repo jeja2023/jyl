@@ -76,10 +76,23 @@
           </view>
 
           <view class="form-card">
-            <view class="card-title">甲状腺功能</view>
+            <view class="card-title header-with-tag">
+              <text>{{ currentPatientType }}重点监测</text>
+              <text class="essential-tag">病种推荐</text>
+            </view>
+            <view class="disease-monitor-note">
+              <text>{{ diseaseProfile.note }}</text>
+            </view>
+            <view class="metric-hint-row">
+              <text>核心必填建议</text>
+              <text>{{ diseaseProfile.core.join(' / ') }}</text>
+            </view>
             <view class="grid-inputs">
-              <view class="grid-cell" v-for="item in coreFields" :key="item.key">
-                <text class="tiny-label">{{ item.label }}</text>
+              <view class="grid-cell" v-for="item in primaryFields" :key="item.key">
+                <text class="tiny-label">
+                  {{ item.label }}
+                  <text class="field-mark core">核心</text>
+                </text>
                 <view class="input-container">
                   <u--input v-model="form[item.key]" type="text" :placeholder="item.unit" border="bottom" class="tiny-input"></u--input>
                   <text class="unit-label" :class="{'detected-unit': form.units[item.key]}" v-if="form[item.key]">
@@ -90,15 +103,36 @@
             </view>
           </view>
 
-          <view class="premium-collapse" :class="{expanded: showMore}">
+          <view class="form-card" v-if="recommendedFields.length">
+            <view class="card-title header-with-tag">
+              <text>建议同步上传</text>
+              <text class="essential-tag soft">推荐</text>
+            </view>
+            <view class="grid-inputs">
+              <view class="grid-cell" v-for="item in recommendedFields" :key="item.key">
+                <text class="tiny-label">
+                  {{ item.label }}
+                  <text class="field-mark">建议</text>
+                </text>
+                <view class="input-container">
+                  <u--input v-model="form[item.key]" type="text" :placeholder="item.unit" border="bottom" class="tiny-input"></u--input>
+                  <text class="unit-label" :class="{'detected-unit': form.units[item.key]}" v-if="form[item.key]">
+                    {{ form.units[item.key] || item.unit }}
+                  </text>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <view class="premium-collapse" :class="{expanded: showMore}" v-if="optionalFields.length">
             <view class="collapse-header" @click="showMore = !showMore">
               <u-icon name="plus-circle" size="20" color="#3E7BFF"></u-icon>
-              <text>肿瘤标志物 (Tg / TRAb / 降钙素)</text>
+              <text>其他甲状腺相关指标</text>
               <u-icon :name="showMore ? 'arrow-up' : 'arrow-down'" size="16" color="#C9CDD4" class="arrow"></u-icon>
             </view>
             <view class="collapse-body" v-if="showMore">
               <view class="grid-inputs">
-                <view class="grid-cell" v-for="item in moreFields" :key="item.key">
+                <view class="grid-cell" v-for="item in optionalFields" :key="item.key">
                   <text class="tiny-label">{{ item.label }}</text>
                   <view class="input-container">
                     <u--input v-model="form[item.key]" type="text" :placeholder="item.unit" border="bottom" class="tiny-input"></u--input>
@@ -111,7 +145,7 @@
             </view>
           </view>
 
-          <view class="premium-collapse" :class="{expanded: showCalcium}">
+          <view class="premium-collapse" :class="{expanded: showCalcium}" v-if="calciumOptionalFields.length">
             <view class="collapse-header" @click="showCalcium = !showCalcium">
               <u-icon name="heart" size="20" color="#F05050"></u-icon>
               <text>甲状旁腺功能 (钙磷代谢)</text>
@@ -119,7 +153,7 @@
             </view>
             <view class="collapse-body" v-if="showCalcium">
               <view class="grid-inputs">
-                <view class="grid-cell" v-for="item in calciumFields" :key="item.key">
+                <view class="grid-cell" v-for="item in calciumOptionalFields" :key="item.key">
                   <text class="tiny-label">{{ item.label }}</text>
                   <view class="input-container">
                     <u--input v-model="form[item.key]" type="text" :placeholder="item.unit" border="bottom" class="tiny-input"></u--input>
@@ -283,6 +317,7 @@ import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 import { getBaseURL } from '@/utils/config.js';
 import { saveDraft, loadDraft, clearDraft, enqueueSync } from '@/utils/offlineDraft.js';
+import { ALL_INDICATORS, getDiseaseIndicatorProfile } from '@/utils/thyroidIndicators.js';
 import { onLoad } from '@dcloudio/uni-app';
 
 const userStore = useUserStore();
@@ -334,28 +369,48 @@ const reportImages = ref([]);
 const ultrasoundImages = ref([]);
 const familyMembers = ref([]);
 
-const coreFields = [
-  { key: 'TSH', label: '促甲状腺激素 (TSH)', unit: 'mIU/L' },
-  { key: 'FT4', label: '游离甲状腺素 (FT4)', unit: 'pmol/L' },
-  { key: 'FT3', label: '游离三碘甲状腺原氨酸 (FT3)', unit: 'pmol/L' },
-  { key: 'TPOAb', label: '抗甲状腺过氧化物酶抗体 (TPO-Ab)', unit: 'IU/mL' },
-  { key: 'TGAb', label: '抗甲状腺球蛋白抗体 (TG-Ab)', unit: 'IU/mL' },
-  { key: 'T3', label: '三碘甲状腺原氨酸 (T3)', unit: 'nmol/L' },
-  { key: 'T4', label: '总甲状腺素 (T4)', unit: 'nmol/L' }
-];
+const FIELD_LABELS = {
+  TSH: '促甲状腺激素 (TSH)',
+  FT4: '游离甲状腺素 (FT4)',
+  FT3: '游离三碘甲状腺原氨酸 (FT3)',
+  TPOAb: '抗甲状腺过氧化物酶抗体 (TPO-Ab)',
+  TGAb: '抗甲状腺球蛋白抗体 (TG-Ab)',
+  TRAb: '促甲状腺激素受体抗体 (TRAb)',
+  Tg: '甲状腺球蛋白 (Tg)',
+  Calcitonin: '降钙素 (CT)',
+  Calcium: '血清钙 (Ca)',
+  Magnesium: '血清镁 (Mg)',
+  Phosphorus: '血清磷 (P)',
+  PTH: '甲状旁腺激素 (PTH)',
+  T3: '三碘甲状腺原氨酸 (T3)',
+  T4: '总甲状腺素 (T4)',
+  TSI: '甲状腺刺激免疫球蛋白 (TSI)',
+  TBAb: '促甲状腺素受体阻断抗体 (TBAb)',
+  CEA: '癌胚抗原 (CEA)',
+  VitaminD: '25羟维生素D (25-OH-D)',
+  Albumin: '血清白蛋白 (Alb)',
+  ALP: '碱性磷酸酶 (ALP)',
+  ALT: '丙氨酸氨基转移酶 (ALT)',
+  AST: '天门冬氨酸氨基转移酶 (AST)',
+  GGT: '谷氨酰转肽酶 (GGT)',
+  Bilirubin: '总胆红素 (TBil)',
+  WBC: '白细胞计数 (WBC)',
+  Neutrophils: '中性粒细胞计数 (NEUT)',
+  TC: '总胆固醇 (TC)',
+  LDL: '低密度脂蛋白 (LDL-C)',
+  HDL: '高密度脂蛋白 (HDL-C)',
+  Triglyceride: '甘油三酯 (TG)',
+  CK: '肌酸激酶 (CK)',
+  ESR: '红细胞沉降率 (ESR)',
+  CRP: 'C反应蛋白 (CRP)'
+};
 
-const moreFields = [
-  { key: 'Calcitonin', label: '降钙素 (CT)', unit: 'pg/mL' },
-  { key: 'Tg', label: '甲状腺球蛋白 (Tg)', unit: 'ng/mL' },
-  { key: 'TRAb', label: '促甲状腺激素受体抗体 (TRAb)', unit: 'IU/L' }
-];
-
-const calciumFields = [
-  { key: 'Calcium', label: '血清钙 (Ca)', unit: 'mmol/L' },
-  { key: 'Magnesium', label: '血清镁 (Mg)', unit: 'mmol/L' },
-  { key: 'Phosphorus', label: '血清磷 (P)', unit: 'mmol/L' },
-  { key: 'PTH', label: '甲状旁腺激素 (PTH)', unit: 'pg/mL' }
-];
+const allLabFields = ALL_INDICATORS.map(item => ({
+  key: item.key,
+  label: FIELD_LABELS[item.key] || `${item.fullName} (${item.name})`,
+  unit: item.unit,
+  group: ['Calcium', 'Magnesium', 'Phosphorus', 'PTH', 'VitaminD', 'Albumin', 'ALP'].includes(item.key) ? 'calcium' : 'thyroid'
+}));
 
 const OCR_CN_TO_KEY = {
   '报告日期': 'recordDate',
@@ -374,6 +429,25 @@ const OCR_CN_TO_KEY = {
   '血镁': 'Magnesium',
   '血磷': 'Phosphorus',
   '甲状旁腺激素': 'PTH',
+  'TSI': 'TSI',
+  'TBAb': 'TBAb',
+  '癌胚抗原': 'CEA',
+  '25羟维生素D': 'VitaminD',
+  '白蛋白': 'Albumin',
+  '碱性磷酸酶': 'ALP',
+  '丙氨酸氨基转移酶': 'ALT',
+  '天门冬氨酸氨基转移酶': 'AST',
+  '谷氨酰转肽酶': 'GGT',
+  '总胆红素': 'Bilirubin',
+  '白细胞': 'WBC',
+  '中性粒细胞': 'Neutrophils',
+  '总胆固醇': 'TC',
+  '低密度脂蛋白': 'LDL',
+  '高密度脂蛋白': 'HDL',
+  '甘油三酯': 'Triglyceride',
+  '肌酸激酶': 'CK',
+  '红细胞沉降率': 'ESR',
+  'C反应蛋白': 'CRP',
   '左叶': 'thyroidLeft',
   '右叶': 'thyroidRight',
   '峡部': 'isthmus',
@@ -389,22 +463,21 @@ const OCR_CN_TO_KEY = {
 };
 
 const OCR_NUMERIC_FIELDS = new Set([
-  'TSH', 'FT3', 'FT4', 'TPOAb', 'TGAb', 'TRAb', 'Tg',
-  'Calcitonin', 'Calcium', 'Magnesium', 'Phosphorus', 'PTH',
-  'T3', 'T4', 'weight', 'heartRate'
+  ...ALL_INDICATORS.map(item => item.key),
+  'weight', 'heartRate'
 ]);
 
 const OCR_TEXT_FIELDS = new Set(['ultrasoundNote', 'conclusion']);
 
-const LAB_ORDER = ['recordDate', 'TSH', 'FT4', 'FT3', 'TPOAb', 'TGAb', 'T3', 'T4', 'Calcitonin', 'Tg', 'TRAb', 'Calcium', 'Magnesium', 'Phosphorus', 'PTH'];
+const LAB_ORDER = ['recordDate', ...ALL_INDICATORS.map(item => item.key)];
 const US_ORDER = ['ultrasoundDate', 'thyroidLeft', 'thyroidRight', 'isthmus', 'noduleCount', 'noduleMaxSize', 'noduleLocation', 'tiradsLevel', 'noduleFeatures', 'lymphNode', 'ultrasoundNote', 'conclusion'];
 
-const UNIT_MAP = [...coreFields, ...moreFields, ...calciumFields].reduce((acc, item) => {
+const UNIT_MAP = allLabFields.reduce((acc, item) => {
   acc[item.key] = item.unit;
   return acc;
 }, {});
 
-const LABEL_MAP = [...coreFields, ...moreFields, ...calciumFields].reduce((acc, item) => {
+const LABEL_MAP = allLabFields.reduce((acc, item) => {
   acc[item.key] = item.label;
   return acc;
 }, {
@@ -427,9 +500,8 @@ const form = reactive({
   memberId: null,
   recordDate: uni.$u.timeFormat(new Date(), 'yyyy-mm-dd'),
   ultrasoundDate: '', // 默认为空，提交时如为空则取 recordDate
-  TSH: '', FT3: '', FT4: '', TPOAb: '', TGAb: '', TRAb: '', Tg: '', 
-  Calcitonin: '', Calcium: '', Magnesium: '', Phosphorus: '', PTH: '',
-  T3: '', T4: '', weight: '', heartRate: '', feeling: '',
+  ...ALL_INDICATORS.reduce((acc, item) => ({ ...acc, [item.key]: '' }), {}),
+  weight: '', heartRate: '', feeling: '',
   thyroidLeft: '', thyroidRight: '', isthmus: '',
   noduleCount: '', noduleMaxSize: '', noduleLocation: '',
   tiradsLevel: '', noduleFeatures: '', lymphNode: '', ultrasoundNote: '', conclusion: '',
@@ -450,6 +522,32 @@ const currentMemberName = computed(() => {
   if (!form.memberId) return '本人';
   const m = familyMembers.value.find(i => i.id === form.memberId);
   return m ? `${m.name}${m.relation ? ' · ' + m.relation : ''}` : '本人';
+});
+
+const currentPatientType = computed(() => {
+  if (form.memberId) {
+    const member = familyMembers.value.find(i => i.id === form.memberId);
+    return member?.patientType || '其他';
+  }
+  return userStore.userInfo?.patientType || '其他';
+});
+
+const diseaseProfile = computed(() => getDiseaseIndicatorProfile(currentPatientType.value));
+const primaryFields = computed(() => {
+  const keys = diseaseProfile.value.core || [];
+  return allLabFields.filter(item => keys.includes(item.key));
+});
+const recommendedFields = computed(() => {
+  const keys = diseaseProfile.value.recommended || [];
+  return allLabFields.filter(item => keys.includes(item.key));
+});
+const optionalFields = computed(() => {
+  const used = new Set([...diseaseProfile.value.core, ...diseaseProfile.value.recommended]);
+  return allLabFields.filter(item => item.group !== 'calcium' && !used.has(item.key));
+});
+const calciumOptionalFields = computed(() => {
+  const used = new Set([...diseaseProfile.value.core, ...diseaseProfile.value.recommended]);
+  return allLabFields.filter(item => item.group === 'calcium' && !used.has(item.key));
 });
 
 onLoad(async (options) => {
@@ -551,8 +649,8 @@ const fetchRecordDetail = async (id) => {
     }
 
     // 自动展开有数据的区域
-    if (form.Calcitonin || form.Tg || form.TRAb || form.T3) showMore.value = true;
-    if (form.Calcium || form.Magnesium || form.PTH) showCalcium.value = true;
+    if (optionalFields.value.some(item => form[item.key])) showMore.value = true;
+    if (calciumOptionalFields.value.some(item => form[item.key])) showCalcium.value = true;
     if (form.thyroidLeft || form.noduleCount || form.tiradsLevel || form.ultrasoundNote || ultrasoundImages.value.length) {
       activeTab.value = 'ultrasound';
     }
@@ -565,7 +663,7 @@ const progress = computed(() => {
     // 基础进度计算：日期、任一图片、任一血检、任一B超
     let filled = 1; // 日期默认有值
     if (reportImages.value.length || ultrasoundImages.value.length) filled++;
-    if (form.TSH || form.FT3 || form.FT4) filled++;
+    if (allLabFields.some(item => form[item.key])) filled++;
     if (form.thyroidLeft || form.noduleCount || form.tiradsLevel || form.ultrasoundNote) filled++;
     return (filled / 4) * 100;
 });
@@ -763,8 +861,8 @@ const applyOcrToForm = (data, units, type, overwrite) => {
     }
   }
 
-  if (data.Calcitonin || data.Tg || data.TRAb || data.T3) showMore.value = true;
-  if (data.Calcium || data.PTH || data.Magnesium) showCalcium.value = true;
+  if (optionalFields.value.some(item => data[item.key])) showMore.value = true;
+  if (calciumOptionalFields.value.some(item => data[item.key])) showCalcium.value = true;
   if (type === 'ultrasound') activeTab.value = 'ultrasound';
 
   return newCount;
@@ -831,8 +929,8 @@ const processImageData = async (filePath, type) => {
       const review = mergeOcrReview(type, normalized, units, ocrResult.rawText);
       openOcrReview(type);
 
-      if (normalized.Calcitonin || normalized.Tg || normalized.TRAb || normalized.T3) showMore.value = true;
-      if (normalized.Calcium || normalized.PTH || normalized.Magnesium) showCalcium.value = true;
+      if (optionalFields.value.some(item => normalized[item.key])) showMore.value = true;
+      if (calciumOptionalFields.value.some(item => normalized[item.key])) showCalcium.value = true;
       if (isUltrasound) activeTab.value = 'ultrasound';
 
       if (review && review.pendingCount > 0) {
@@ -925,7 +1023,7 @@ const fileToBase64 = (filePath) => {
 };
 
 const submit = async () => {
-  const hasLabData = form.TSH || form.FT3 || form.FT4 || form.TPOAb || form.TGAb || form.Tg || form.TRAb || form.T3 || form.T4 || form.Calcitonin || form.Calcium || form.PTH || form.Magnesium || form.Phosphorus;
+  const hasLabData = allLabFields.some(item => form[item.key]);
   const hasUltrasoundData = form.thyroidLeft || form.thyroidRight || form.isthmus || form.noduleCount || form.noduleMaxSize || form.tiradsLevel || form.ultrasoundNote || ultrasoundImages.value.length > 0;
   const hasOtherData = form.weight || form.heartRate || form.feeling;
   const hasImages = reportImages.value.length > 0 || ultrasoundImages.value.length > 0;
@@ -1034,6 +1132,55 @@ page { overflow: auto !important; height: auto !important; }
   padding: 4rpx 16rpx;
   border-radius: 40rpx;
   font-weight: 700;
+
+  &.soft {
+    background: #F2F7FF;
+    color: #3E7BFF;
+  }
+}
+
+.disease-monitor-note {
+  margin: -12rpx 0 20rpx;
+  padding: 18rpx 22rpx;
+  border-radius: 18rpx;
+  background: #F7FBFF;
+  border: 1px solid #E5EFFF;
+
+  text {
+    font-size: 24rpx;
+    line-height: 1.45;
+    color: #4E5969;
+  }
+}
+
+.metric-hint-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-bottom: 22rpx;
+  font-size: 22rpx;
+  color: #86909C;
+
+  text:last-child {
+    color: #3E7BFF;
+    font-weight: 800;
+    text-align: right;
+  }
+}
+
+.field-mark {
+  margin-left: 8rpx;
+  padding: 2rpx 8rpx;
+  border-radius: 10rpx;
+  background: #EEF4FF;
+  color: #3E7BFF;
+  font-size: 18rpx;
+  font-weight: 800;
+
+  &.core {
+    background: #FFF2F0;
+    color: #F53F3F;
+  }
 }
 
 .image-uploader-grid {

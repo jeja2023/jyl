@@ -21,6 +21,52 @@
       </view>
     </view>
 
+    <view class="section" v-if="monitoringPlan">
+      <view class="section-head">
+        <text class="section-title">个性化监测方案</text>
+        <text class="muted">建议 {{ monitoringPlan.intervalDays || '-' }} 天</text>
+      </view>
+      <view class="plan-card">
+        <text class="plan-summary">{{ monitoringPlan.summary }}</text>
+        <view class="quality-row" v-if="monitoringPlan.dataQuality">
+          <text>数据完整度 {{ monitoringPlan.dataQuality.score }}%</text>
+          <text>{{ monitoringPlan.dataQuality.message }}</text>
+        </view>
+        <view class="plan-tags">
+          <view
+            v-for="item in monitoringItems"
+            :key="item.key"
+            class="plan-tag"
+            :class="item.role"
+          >
+            <text>{{ item.label || item.key }}</text>
+            <text v-if="item.role === 'core'" class="tag-role">核心</text>
+          </view>
+        </view>
+      </view>
+      <view class="plan-group" v-for="group in monitoringGroups" :key="group.id">
+        <view class="group-top">
+          <text class="group-title">{{ group.title }}</text>
+          <text class="group-count">{{ group.keys.length }} 项</text>
+        </view>
+        <text class="group-reason">{{ group.reason }}</text>
+      </view>
+    </view>
+
+    <view class="section" v-if="recentAdjustments.length">
+      <view class="section-head">
+        <text class="section-title">药量变化时间线</text>
+        <text class="muted">最近 {{ recentAdjustments.length }} 次</text>
+      </view>
+      <view class="adjust-card" v-for="item in recentAdjustments" :key="item.id">
+        <view>
+          <text class="adjust-name">{{ item.medicineName }}</text>
+          <text class="adjust-meta">{{ item.adjustmentDate }} · {{ item.reason || '剂量调整' }}</text>
+        </view>
+        <text class="adjust-dose">{{ item.fromDosage || '新增' }} → {{ item.toDosage }}</text>
+      </view>
+    </view>
+
     <view class="section" v-if="analysis">
       <view class="section-head">
         <text class="section-title">指标解释与异常标记</text>
@@ -32,8 +78,9 @@
           <text class="metric-advice">{{ item.advice }}</text>
         </view>
         <view class="metric-status" :class="item.status">
-          {{ statusText(item.status) }} · {{ trendText(item.trend) }}
+          {{ item.riskLabel || statusText(item.status) }} · {{ trendText(item.trend) }}
         </view>
+        <text class="metric-action" v-if="item.action">{{ item.action }}</text>
       </view>
     </view>
 
@@ -79,6 +126,10 @@ const dashboard = ref(null);
 const analysis = computed(() => dashboard.value?.analysis || null);
 const months = computed(() => dashboard.value?.monthly?.months || []);
 const totals = computed(() => dashboard.value?.monthly?.totals || {});
+const monitoringPlan = computed(() => dashboard.value?.monitoringPlan || null);
+const monitoringItems = computed(() => monitoringPlan.value?.items || []);
+const monitoringGroups = computed(() => monitoringPlan.value?.groups || []);
+const recentAdjustments = computed(() => dashboard.value?.recentMedicationAdjustments || []);
 
 const fetchDashboard = async () => {
   dashboard.value = await http.get('/api/insight/dashboard');
@@ -128,7 +179,7 @@ onShow(fetchDashboard);
 .section-title { color: #1D2129; font-size: 30rpx; font-weight: 800; }
 .muted { color: #86909C; font-size: 22rpx; text-align: right; }
 .link-btn { color: #3E7BFF; background: #EEF4FF; padding: 10rpx 18rpx; border-radius: 999rpx; font-size: 24rpx; font-weight: 700; }
-.suggest-card, .metric-row, .month-card, .stat {
+.suggest-card, .metric-row, .month-card, .stat, .plan-card, .plan-group, .adjust-card {
   background: #FFFFFF;
   border-radius: 18rpx;
   padding: 24rpx;
@@ -136,12 +187,49 @@ onShow(fetchDashboard);
 }
 .suggest-date { display: block; font-size: 34rpx; font-weight: 900; color: #3E7BFF; margin-bottom: 10rpx; }
 .suggest-note { display: block; color: #4E5969; font-size: 24rpx; line-height: 1.5; }
+.plan-summary { display: block; color: #1D2129; font-size: 26rpx; font-weight: 800; line-height: 1.45; }
+.quality-row {
+  margin-top: 16rpx;
+  padding: 16rpx;
+  border-radius: 14rpx;
+  background: #F7FAFF;
+  display: flex;
+  justify-content: space-between;
+  gap: 18rpx;
+  color: #4E5969;
+  font-size: 22rpx;
+}
+.plan-tags { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 20rpx; }
+.plan-tag {
+  min-height: 48rpx;
+  padding: 0 16rpx;
+  border-radius: 24rpx;
+  background: #F2F7FF;
+  color: #3E7BFF;
+  font-size: 22rpx;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+}
+.plan-tag.core { background: #E8FFF5; color: #00A870; }
+.tag-role { font-size: 18rpx; }
+.plan-group { margin-top: 14rpx; }
+.group-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8rpx; }
+.group-title { color: #1D2129; font-size: 26rpx; font-weight: 900; }
+.group-count { color: #3E7BFF; font-size: 22rpx; font-weight: 800; }
+.group-reason { display: block; color: #4E5969; font-size: 22rpx; line-height: 1.5; }
 .metric-row { margin-bottom: 14rpx; display: flex; justify-content: space-between; gap: 20rpx; }
 .metric-name { display: block; font-size: 28rpx; font-weight: 800; color: #1D2129; }
 .metric-advice { display: block; margin-top: 6rpx; color: #4E5969; font-size: 22rpx; line-height: 1.45; }
+.metric-action { display: block; width: 100%; color: #86909C; font-size: 22rpx; margin-top: 8rpx; }
 .metric-status { flex-shrink: 0; align-self: flex-start; padding: 8rpx 14rpx; border-radius: 999rpx; font-size: 22rpx; }
 .metric-status.normal { color: #00A870; background: #E8FFF5; }
 .metric-status.high, .metric-status.low { color: #F53F3F; background: #FFF1F0; }
+.adjust-card { margin-bottom: 14rpx; display: flex; justify-content: space-between; align-items: center; gap: 16rpx; }
+.adjust-name { display: block; color: #1D2129; font-size: 26rpx; font-weight: 900; }
+.adjust-meta { display: block; color: #86909C; font-size: 22rpx; margin-top: 6rpx; }
+.adjust-dose { flex-shrink: 0; color: #3E7BFF; background: #EEF4FF; border-radius: 999rpx; padding: 8rpx 14rpx; font-size: 22rpx; font-weight: 800; }
 .month-card { margin-bottom: 14rpx; }
 .month-top { display: flex; justify-content: space-between; margin-bottom: 14rpx; }
 .month-name { font-weight: 800; color: #1D2129; font-size: 26rpx; }

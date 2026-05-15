@@ -4,6 +4,9 @@ const FamilyMember = require('../models/FamilyMember');
 const Response = require('../utils/response');
 const { logAction } = require('../utils/actionLog');
 const ExcelJS = require('exceljs');
+const { DEFAULT_RANGES, TREND_KEYS } = require('../utils/indicatorAnalysis');
+
+const LAB_KEYS = Object.keys(DEFAULT_RANGES);
 
 class RecordController {
     // 辅助方法：清洗数据，将空字符串转换为 null
@@ -45,18 +48,10 @@ class RecordController {
         // 定义表头
         const columns = [
             { header: '日期', key: 'recordDate', width: 15 },
-            { header: 'TSH (mIU/L)', key: 'TSH', width: 12 },
-            { header: 'FT3 (pmol/L)', key: 'FT3', width: 12 },
-            { header: 'FT4 (pmol/L)', key: 'FT4', width: 12 },
-            { header: 'T3 (nmol/L)', key: 'T3', width: 12 },
-            { header: 'T4 (nmol/L)', key: 'T4', width: 12 },
-            { header: 'TPOAb (IU/mL)', key: 'TPOAb', width: 12 },
-            { header: 'TGAb (IU/mL)', key: 'TGAb', width: 12 },
-            { header: 'TRAb (IU/L)', key: 'TRAb', width: 12 },
-            { header: 'Tg (ng/mL)', key: 'Tg', width: 12 },
-            { header: '降钙素 (pg/mL)', key: 'Calcitonin', width: 12 },
-            { header: '血钙 (mmol/L)', key: 'Calcium', width: 10 },
-            { header: 'PTH (pg/mL)', key: 'PTH', width: 10 },
+            ...LAB_KEYS.map(key => {
+                const range = DEFAULT_RANGES[key] || {};
+                return { header: `${key}${range.unit ? ` (${range.unit})` : ''}`, key, width: 14 };
+            }),
             { header: '体重 (kg)', key: 'weight', width: 10 },
             { header: '心率 (bpm)', key: 'heartRate', width: 10 },
             { header: '超声提示/备注', key: 'feeling', width: 30 }
@@ -77,18 +72,10 @@ class RecordController {
         records.forEach(item => {
             const rowData = {
                 recordDate: item.recordDate,
-                TSH: item.TSH,
-                FT3: item.FT3,
-                FT4: item.FT4,
-                T3: item.T3,
-                T4: item.T4,
-                TPOAb: item.TPOAb,
-                TGAb: item.TGAb,
-                TRAb: item.TRAb,
-                Tg: item.Tg,
-                Calcitonin: item.Calcitonin,
-                Calcium: item.Calcium,
-                PTH: item.PTH,
+                ...LAB_KEYS.reduce((acc, key) => {
+                    acc[key] = item[key];
+                    return acc;
+                }, {}),
                 weight: item.weight,
                 heartRate: item.heartRate,
                 feeling: [item.ultrasoundNote, item.conclusion, item.feeling].filter(Boolean).join(' ')
@@ -159,7 +146,28 @@ class RecordController {
                 Tg: ['Tg', '甲状腺球蛋白'],
                 Calcitonin: ['降钙素', 'CT'],
                 Calcium: ['血钙', 'Calcium', '钙'],
+                Magnesium: ['血镁', 'Magnesium', 'Mg', '镁'],
+                Phosphorus: ['血磷', 'Phosphorus', 'P', '磷'],
                 PTH: ['PTH', '甲状旁腺激素'],
+                TSI: ['TSI', '甲状腺刺激免疫球蛋白'],
+                TBAb: ['TBAb', '促甲状腺素受体阻断抗体'],
+                CEA: ['CEA', '癌胚抗原'],
+                VitaminD: ['VitaminD', '25-OH-D', '25羟维生素D', '维生素D'],
+                Albumin: ['Albumin', 'Alb', '白蛋白'],
+                ALP: ['ALP', '碱性磷酸酶'],
+                ALT: ['ALT', '丙氨酸氨基转移酶'],
+                AST: ['AST', '天门冬氨酸氨基转移酶'],
+                GGT: ['GGT', '谷氨酰转肽酶'],
+                Bilirubin: ['Bilirubin', '总胆红素', 'TBil'],
+                WBC: ['WBC', '白细胞'],
+                Neutrophils: ['Neutrophils', 'NEUT', '中性粒细胞', '中性粒'],
+                TC: ['TC', '总胆固醇'],
+                LDL: ['LDL', 'LDL-C', '低密度脂蛋白'],
+                HDL: ['HDL', 'HDL-C', '高密度脂蛋白'],
+                Triglyceride: ['Triglyceride', 'TG', '甘油三酯'],
+                CK: ['CK', '肌酸激酶'],
+                ESR: ['ESR', '红细胞沉降率', '血沉'],
+                CRP: ['CRP', 'C反应蛋白'],
                 weight: ['体重', 'weight'],
                 heartRate: ['心率', 'heartRate', '心跳'],
                 feeling: ['备注', 'feeling', '说明', '超声提示/备注']
@@ -290,19 +298,13 @@ class RecordController {
 
         // 如果需要过滤含血检的记录
         if (hasLab == 1) {
-            where[Op.or] = [
-                { TSH: { [Op.ne]: null } },
-                { FT4: { [Op.ne]: null } },
-                { FT3: { [Op.ne]: null } },
-                { T3: { [Op.ne]: null } },
-                { T4: { [Op.ne]: null } }
-            ];
+            where[Op.or] = LAB_KEYS.map(key => ({ [key]: { [Op.ne]: null } }));
         }
 
         const { count, rows } = await HealthRecord.findAndCountAll({
             where,
             include: [
-                { model: FamilyMember, attributes: ['id', 'name', 'relation'] }
+                { model: FamilyMember, attributes: ['id', 'name', 'relation', 'patientType'] }
             ],
             order: [['recordDate', 'DESC']],
             limit: parseInt(limit),
@@ -333,7 +335,7 @@ class RecordController {
         const record = await HealthRecord.findOne({
             where: { id, UserId: userId },
             include: [
-                { model: FamilyMember, attributes: ['id', 'name', 'relation'] }
+                { model: FamilyMember, attributes: ['id', 'name', 'relation', 'patientType'] }
             ]
         });
 
@@ -359,15 +361,9 @@ class RecordController {
         const list = await HealthRecord.findAll({
             where: {
                 UserId: userId,
-                [Op.or]: [
-                    { TSH: { [Op.ne]: null } },
-                    { FT4: { [Op.ne]: null } },
-                    { FT3: { [Op.ne]: null } },
-                    { T3: { [Op.ne]: null } },
-                    { T4: { [Op.ne]: null } }
-                ]
+                [Op.or]: TREND_KEYS.map(key => ({ [key]: { [Op.ne]: null } }))
             },
-            attributes: ['recordDate', 'TSH', 'FT3', 'FT4', 'T3', 'T4'],
+            attributes: ['recordDate', ...TREND_KEYS],
             order: [['recordDate', 'DESC']], // 改为倒序获取最新的
             limit: 12
         });

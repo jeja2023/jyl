@@ -125,6 +125,7 @@
 import { ref, reactive, computed } from 'vue';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
+import { PATIENT_TYPES } from '@/utils/thyroidIndicators.js';
 
 const userStore = useUserStore();
 const loading = ref(false);
@@ -133,7 +134,7 @@ const agreementChecked = ref([]); // 勾选状态
 
 const isAgree = computed(() => agreementChecked.value.length > 0);
 
-const patientTypes = ['甲减', '甲亢', '甲状腺结节', '甲癌术后', '桥本氏甲状腺炎', '其他'];
+const patientTypes = PATIENT_TYPES;
 
 const loginForm = reactive({ username: '', password: '' });
 const emailForm = reactive({ username: '', email: '', code: '', password: '', confirmPassword: '' });

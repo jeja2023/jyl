@@ -76,6 +76,82 @@ const HealthRecord = sequelize.define('HealthRecord', {
         type: DataTypes.STRING(20),
         comment: '甲状旁腺激素 (pg/mL) - 调节钙磷代谢'
     },
+    TSI: {
+        type: DataTypes.STRING(20),
+        comment: '甲状腺刺激免疫球蛋白 (IU/L) - Graves 活动度'
+    },
+    TBAb: {
+        type: DataTypes.STRING(20),
+        comment: '促甲状腺素受体阻断抗体 (IU/L)'
+    },
+    CEA: {
+        type: DataTypes.STRING(20),
+        comment: '癌胚抗原 (ng/mL) - 髓样癌随访'
+    },
+    VitaminD: {
+        type: DataTypes.STRING(20),
+        comment: '25羟维生素D (ng/mL)'
+    },
+    Albumin: {
+        type: DataTypes.STRING(20),
+        comment: '血清白蛋白 (g/L) - 校正血钙参考'
+    },
+    ALP: {
+        type: DataTypes.STRING(20),
+        comment: '碱性磷酸酶 (U/L)'
+    },
+    ALT: {
+        type: DataTypes.STRING(20),
+        comment: '丙氨酸氨基转移酶 (U/L)'
+    },
+    AST: {
+        type: DataTypes.STRING(20),
+        comment: '天门冬氨酸氨基转移酶 (U/L)'
+    },
+    GGT: {
+        type: DataTypes.STRING(20),
+        comment: '谷氨酰转肽酶 (U/L)'
+    },
+    Bilirubin: {
+        type: DataTypes.STRING(20),
+        comment: '总胆红素 (umol/L)'
+    },
+    WBC: {
+        type: DataTypes.STRING(20),
+        comment: '白细胞计数 (10^9/L)'
+    },
+    Neutrophils: {
+        type: DataTypes.STRING(20),
+        comment: '中性粒细胞计数 (10^9/L)'
+    },
+    TC: {
+        type: DataTypes.STRING(20),
+        comment: '总胆固醇 (mmol/L)'
+    },
+    LDL: {
+        type: DataTypes.STRING(20),
+        comment: '低密度脂蛋白胆固醇 (mmol/L)'
+    },
+    HDL: {
+        type: DataTypes.STRING(20),
+        comment: '高密度脂蛋白胆固醇 (mmol/L)'
+    },
+    Triglyceride: {
+        type: DataTypes.STRING(20),
+        comment: '甘油三酯 (mmol/L)'
+    },
+    CK: {
+        type: DataTypes.STRING(20),
+        comment: '肌酸激酶 (U/L)'
+    },
+    ESR: {
+        type: DataTypes.STRING(20),
+        comment: '红细胞沉降率 (mm/h)'
+    },
+    CRP: {
+        type: DataTypes.STRING(20),
+        comment: 'C反应蛋白 (mg/L)'
+    },
     // --- 身体状态 ---
     weight: {
         type: DataTypes.FLOAT,

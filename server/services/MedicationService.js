@@ -7,6 +7,7 @@ const dateToStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
 const computeAdherence = (activeCount, logs, days, today = new Date()) => {
     const expected = activeCount * days;
     const taken = logs.length;
+    const makeupTaken = logs.filter(l => l.source === 'makeup').length;
     const adherence = expected > 0 ? Math.round((taken / expected) * 100) : 0;
     
     let streak = 0;
@@ -39,7 +40,7 @@ const computeAdherence = (activeCount, logs, days, today = new Date()) => {
         }
     }
 
-    return { expected, taken, adherence, streak, missedDates };
+    return { expected, taken, makeupTaken, adherence, streak, missedDates };
 };
 
 const calculateStats = async (userId, daysInput = 0) => {
@@ -54,6 +55,7 @@ const calculateStats = async (userId, daysInput = 0) => {
             days: 0,
             activePlans: 0,
             takenDoses: 0,
+            makeupDoses: 0,
             streak: 0,
             missedDates: []
         };
@@ -93,6 +95,10 @@ const calculateStats = async (userId, daysInput = 0) => {
         where: { UserId: userId }
     });
 
+    const makeupTakenCount = await MedicationLog.count({
+        where: { UserId: userId, source: 'makeup' }
+    });
+
     const { adherence, streak, missedDates } = computeAdherence(activeCount, logs, totalDays, today);
 
     return {
@@ -100,6 +106,7 @@ const calculateStats = async (userId, daysInput = 0) => {
         totalPlans: allPlans.length,
         activePlans: activeCount,
         takenDoses: totalTakenCount,
+        makeupDoses: makeupTakenCount,
         adherence,
         streak,
         missedDates: missedDates.reverse() // 按日期顺序排列

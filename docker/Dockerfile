@@ -1,5 +1,5 @@
 # 1. 构建阶段 (Build Stage)
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -22,7 +22,7 @@ ENV VITE_API_BASE=$VITE_API_BASE
 RUN cd client && npm run build:h5
 
 # 2. 运行阶段 (Run Stage)
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 

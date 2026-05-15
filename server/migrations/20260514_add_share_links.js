@@ -12,6 +12,7 @@ module.exports = {
       accessCount: { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 },
       lastAccessAt: { type: Sequelize.DATE, allowNull: true },
       lastAccessIp: { type: Sequelize.STRING(64), allowNull: true },
+      options: { type: Sequelize.TEXT, allowNull: true },
       UserId: { type: Sequelize.INTEGER },
       createdAt: { type: Sequelize.DATE, allowNull: false },
       updatedAt: { type: Sequelize.DATE, allowNull: false }

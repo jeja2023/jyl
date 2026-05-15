@@ -44,5 +44,15 @@ npm run migrate
 本次新增迁移文件：
 - `20260514_add_share_links.js`：新增 `ShareLinks` 表，用于医生/家属分享链接治理，包含 token 哈希、分享类型、有效期、撤销状态、访问次数、最后访问时间、最后访问 IP 和字段脱敏选项。
 - `20260514_add_expansion_fields.js`：新增或补充扩展字段，包括家庭成员独立参考范围、复查周期、OCR/洞察/分享相关配置字段。
+- `20260514_add_user_trend_indicators.js`：新增 `Users.trendIndicators`，保存用户自定义趋势指标。
+- `20260514_expand_patient_types_and_lab_fields.js`：将用户/家庭成员病种字段扩展为字符串，并为 `HealthRecords` 增加 TSI、TBAb、CEA、25-OH-D、白蛋白、ALP、肝功能、血常规、血脂、炎症等扩展指标字段。
+- `20260515_add_treatment_stage_and_medication_adjustments.js`：新增个人/家庭成员治疗阶段字段，并新增 `MedicationAdjustments` 用药剂量调整历史表。
+- `20260515_expand_medication_logs_for_makeup.js`：扩展 `MedicationLogs`，新增补签来源、备注、药名快照和剂量快照，支持服药补签与历史记录追踪。
+
+迁移后可执行结构自检：
+
+```bash
+npm run migrate:check
+```
 
 生产环境建议设置 `DB_SYNC_ALTER=false`，不要依赖自动同步改表；结构变更统一通过迁移完成。迁移完成后再重启后端服务。

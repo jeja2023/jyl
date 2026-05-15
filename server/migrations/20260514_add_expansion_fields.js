@@ -23,6 +23,14 @@ module.exports = {
         allowNull: true
       });
     }
+
+    const userTable = await queryInterface.describeTable('Users');
+    if (!userTable.trendIndicators) {
+      await queryInterface.addColumn('Users', 'trendIndicators', {
+        type: Sequelize.TEXT,
+        allowNull: true
+      });
+    }
   },
 
   async down(queryInterface) {
@@ -32,5 +40,8 @@ module.exports = {
 
     const shareTable = await queryInterface.describeTable('ShareLinks').catch(() => null);
     if (shareTable && shareTable.options) await queryInterface.removeColumn('ShareLinks', 'options');
+
+    const userTable = await queryInterface.describeTable('Users');
+    if (userTable.trendIndicators) await queryInterface.removeColumn('Users', 'trendIndicators');
   }
 };

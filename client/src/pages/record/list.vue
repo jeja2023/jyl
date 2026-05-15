@@ -15,7 +15,55 @@
           </view>
         </view>
       </scroll-view>
+      <view class="header-meta">
+        <view class="disease-line">
+          <text>{{ patientType }}重点指标</text>
+          <text>{{ diseaseProfile.note }}</text>
+        </view>
+        <button class="header-manage-btn" @click.stop="openTrendPicker">
+          <u-icon name="list" size="14" color="#3E7BFF"></u-icon>
+          <text>管理</text>
+          <text class="manage-count">{{ selectedTrendKeys.length }}</text>
+        </button>
+      </view>
     </view>
+
+    <u-popup :show="showTrendPicker" mode="bottom" round="28" :lockScroll="true" @close="closeTrendPicker">
+      <view class="trend-picker-popup">
+        <view class="picker-head">
+          <view>
+            <text class="picker-title">选择趋势指标</text>
+            <text class="picker-sub">{{ patientType }} · 已选 {{ draftTrendKeys.length }} 项</text>
+          </view>
+          <view class="picker-close" @click="closeTrendPicker">
+            <u-icon name="close" size="18" color="#4E5969"></u-icon>
+          </view>
+        </view>
+        <view class="picker-tools">
+          <button class="tool-btn primary" @click.stop="applyDiseasePresetToDraft">按病种推荐</button>
+          <button class="tool-btn" @click.stop="selectAllIndicatorsToDraft">全选</button>
+        </view>
+        <scroll-view scroll-y class="picker-body">
+          <view class="picker-note">{{ diseaseProfile.note }}</view>
+          <view class="chip-grid picker-grid">
+            <view
+              v-for="item in allIndicators"
+              :key="item.key"
+              class="metric-chip"
+              :class="{ selected: draftTrendKeys.includes(item.key), core: diseaseProfile.core.includes(item.key) }"
+              @click="toggleDraftTrendKey(item.key)"
+            >
+              <text>{{ item.name }}</text>
+              <text v-if="diseaseProfile.core.includes(item.key)" class="chip-mark">核心</text>
+            </view>
+          </view>
+        </scroll-view>
+        <view class="picker-footer">
+          <button class="footer-btn ghost" @click.stop="closeTrendPicker">取消</button>
+          <button class="footer-btn primary" @click.stop="confirmTrendPicker">完成</button>
+        </view>
+      </view>
+    </u-popup>
 
     <!-- 趋势图表区域 -->
     <view class="chart-section" v-if="list.length > 0">
@@ -52,7 +100,7 @@
       </view>
       
       <!-- 参考范围 -->
-      <view class="ref-card">
+      <view class="ref-card" v-if="currentRefRange">
         <text class="ref-title">参考范围</text>
         <view class="ref-range">
           <text>{{ currentRefRange }} <text class="ref-unit">{{ currentUnit }}</text></text>
@@ -61,14 +109,18 @@
       </view>
     </view>
 
-    <!-- 历史记录列表 -->
+    <!-- 当前指标相关记录 -->
     <view class="history-section">
       <view class="section-header">
         <view class="title-info">
-          <text class="title">检查记录</text>
-          <text class="count">共{{ list.length }}条</text>
+          <text class="title">当前指标相关记录</text>
+          <text class="count">共{{ filteredList.length }}条</text>
         </view>
         <view class="action-btns">
+          <view class="export-btn all-record-btn" @click="navigateToHistory">
+            <u-icon name="order" size="14" color="#00A870"></u-icon>
+            <text>全部记录</text>
+          </view>
           <view class="export-btn import-btn" @click="handleImport()">
             <u-icon name="file-text" size="14" color="#722ED1"></u-icon>
             <text>导入数据</text>
@@ -80,8 +132,8 @@
         </view>
       </view>
       
-      <view class="record-list" v-if="list.length > 0">
-        <view class="record-item" v-for="(item, index) in list" :key="index" @click="navigateToDetail(item.id)">
+      <view class="record-list" v-if="filteredList.length > 0">
+        <view class="record-item" v-for="(item, index) in filteredList" :key="index" @click="navigateToDetail(item.id)">
           <view class="item-inner">
             <view class="record-left">
               <view class="record-date">{{ formatDate(item.recordDate).substring(5) }}</view>
@@ -120,7 +172,7 @@
         </view>
       </view>
       
-      <u-empty v-else mode="data" text="暂无检查记录" marginTop="60"></u-empty>
+      <u-empty v-else mode="data" text="暂无当前指标记录" marginTop="60"></u-empty>
     </view>
 
     <!-- 悬浮按钮 -->
@@ -138,12 +190,42 @@ import http from '@/utils/request.js';
 import { getBaseURL } from '@/utils/config.js';
 import { getIndicatorInfo, getIndicatorInfoFromRef } from '@/utils/indicator.js';
 import { setCache, getCache } from '@/utils/cache.js';
+import { TREND_INDICATORS, getDefaultTrendKeys, getDiseaseIndicatorProfile, normalizeTrendKeys } from '@/utils/thyroidIndicators.js';
 
 const userStore = useUserStore();
 const list = ref([]);
 const currentTab = ref('TSH');
 const canvasWidth = ref(300);
 const displayCount = ref(6);
+const selectedTrendKeys = ref([]);
+const draftTrendKeys = ref([]);
+const showTrendPicker = ref(false);
+const allIndicators = TREND_INDICATORS;
+const TREND_KEY_STORAGE = 'trend_indicator_keys';
+
+const parseStoredTrendKeys = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+const patientType = computed(() => userStore.userInfo?.patientType || '其他');
+const diseaseProfile = computed(() => getDiseaseIndicatorProfile(patientType.value));
+const tabs = computed(() => {
+  const keys = normalizeTrendKeys(selectedTrendKeys.value, patientType.value);
+  return allIndicators.filter(item => keys.includes(item.key));
+});
+
+const syncCurrentTab = () => {
+  if (!tabs.value.some(tab => tab.key === currentTab.value)) {
+    currentTab.value = tabs.value[0]?.key || 'TSH';
+  }
+};
 
 // 核心过滤逻辑：仅保留含有当前选定指标的记录用于趋势展示
 const filteredList = computed(() => {
@@ -259,21 +341,7 @@ const uploadImportData = async (base64) => {
   }
 };
 
-const tabs = [
-  { key: 'TSH', name: 'TSH', fullName: '促甲状腺激素', unit: 'mIU/L', ref: '0.27 - 4.2', color: '#3E7BFF' },
-  { key: 'FT4', name: 'FT4', fullName: '游离甲状腺素', unit: 'pmol/L', ref: '12 - 22', color: '#FF7D00' },
-  { key: 'FT3', name: 'FT3', fullName: '游离三碘甲状腺原氨酸', unit: 'pmol/L', ref: '3.1 - 6.8', color: '#F53F3F' },
-  { key: 'T3', name: 'T3', fullName: '三碘甲状腺原氨酸', unit: 'nmol/L', ref: '1.3 - 3.1', color: '#722ED1' },
-  { key: 'T4', name: 'T4', fullName: '总甲状腺素', unit: 'nmol/L', ref: '66 - 181', color: '#13C2C2' },
-  { key: 'TPOAb', name: 'TPO-Ab', fullName: '抗甲状腺过氧化物酶抗体', unit: 'IU/mL', ref: '< 34', color: '#EB2F96' },
-  { key: 'TGAb', name: 'TG-Ab', fullName: '抗甲状腺球蛋白抗体', unit: 'IU/mL', ref: '< 115', color: '#2F54EB' },
-  { key: 'Tg', name: 'Tg', fullName: '甲状腺球蛋白', unit: 'ng/mL', ref: '< 77', color: '#FAAD14' },
-  { key: 'Calcitonin', name: '降钙素', fullName: '降钙素', unit: 'pg/mL', ref: '< 9.52', color: '#A0D911' },
-  { key: 'Calcium', name: '血钙', fullName: '血钙', unit: 'mmol/L', ref: '2.11 - 2.52', color: '#FA541C' },
-  { key: 'PTH', name: 'PTH', fullName: '甲状旁腺激素', unit: 'pg/mL', ref: '15 - 65', color: '#2F54EB' }
-];
-
-const currentTabItem = computed(() => tabs.find(t => t.key === currentTab.value));
+const currentTabItem = computed(() => tabs.value.find(t => t.key === currentTab.value) || allIndicators.find(t => t.key === currentTab.value));
 const currentTabName = computed(() => currentTabItem.value?.name || '');
 const currentFullName = computed(() => currentTabItem.value?.fullName || '');
 const currentUnit = computed(() => currentTabItem.value?.unit || '');
@@ -326,17 +394,74 @@ const hasValidChartData = computed(() => {
 });
 
 const visibleListMetrics = computed(() => {
-    const defaults = ['TSH', 'FT4', 'FT3'];
-    if (!defaults.includes(currentTab.value)) {
-        return ['TSH', 'FT4', currentTab.value];
-    }
-    return defaults;
+    const base = ['TSH', 'FT4', 'FT3'];
+    const selected = normalizeTrendKeys(selectedTrendKeys.value, patientType.value);
+    const merged = [...new Set([...base, currentTab.value, ...selected.slice(0, 3)])];
+    return merged.filter(key => allIndicators.some(item => item.key === key)).slice(0, 4);
 });
 
-const getRefRange = (key) => tabs.find(t => t.key === key)?.ref || '';
+const getRefRange = (key) => allIndicators.find(t => t.key === key)?.ref || '';
 
 const hasBloodData = (item) => {
     return visibleListMetrics.value.some(k => item[k] !== undefined && item[k] !== null && item[k] !== '');
+};
+
+const persistTrendKeys = async () => {
+  const keys = normalizeTrendKeys(selectedTrendKeys.value, patientType.value);
+  selectedTrendKeys.value = keys;
+  uni.setStorageSync(TREND_KEY_STORAGE, keys);
+  if (!userStore.isLogin) return;
+  try {
+    const res = await http.post('/api/auth/profile/update', { trendIndicators: keys });
+    const nextInfo = res?.user || res || {};
+    userStore.setUserInfo({ ...(userStore.userInfo || {}), ...nextInfo, trendIndicators: keys });
+  } catch (e) {
+    uni.$u.toast('已保存到本机，联网后可同步');
+  }
+};
+
+const loadTrendKeys = () => {
+  const userKeys = parseStoredTrendKeys(userStore.userInfo?.trendIndicators);
+  const localKeys = parseStoredTrendKeys(uni.getStorageSync(TREND_KEY_STORAGE));
+  selectedTrendKeys.value = normalizeTrendKeys(userKeys.length ? userKeys : localKeys, patientType.value);
+  syncCurrentTab();
+};
+
+const openTrendPicker = () => {
+  draftTrendKeys.value = [...normalizeTrendKeys(selectedTrendKeys.value, patientType.value)];
+  showTrendPicker.value = true;
+};
+
+const closeTrendPicker = () => {
+  showTrendPicker.value = false;
+};
+
+const toggleDraftTrendKey = (key) => {
+  const exists = draftTrendKeys.value.includes(key);
+  if (exists && draftTrendKeys.value.length <= 1) {
+    uni.$u.toast('至少保留一个趋势指标');
+    return;
+  }
+  draftTrendKeys.value = exists
+    ? draftTrendKeys.value.filter(item => item !== key)
+    : [...draftTrendKeys.value, key];
+};
+
+const applyDiseasePresetToDraft = () => {
+  draftTrendKeys.value = getDefaultTrendKeys(patientType.value);
+};
+
+const selectAllIndicatorsToDraft = () => {
+  draftTrendKeys.value = allIndicators.map(item => item.key);
+};
+
+const confirmTrendPicker = async () => {
+  selectedTrendKeys.value = normalizeTrendKeys(draftTrendKeys.value, patientType.value);
+  syncCurrentTab();
+  await persistTrendKeys();
+  closeTrendPicker();
+  await nextTick();
+  drawChart();
 };
 
 const formatDate = (dateStr) => {
@@ -516,6 +641,15 @@ const fetchList = async () => {
 
 watch(currentTab, () => { nextTick(() => drawChart()); });
 watch(displayCount, () => { nextTick(() => drawChart()); });
+watch(patientType, () => {
+  selectedTrendKeys.value = normalizeTrendKeys(selectedTrendKeys.value, patientType.value);
+  syncCurrentTab();
+  nextTick(() => drawChart());
+});
+watch(tabs, () => {
+  syncCurrentTab();
+  nextTick(() => drawChart());
+});
 watch(filteredList, (newVal) => {
   if (displayCount.value > newVal.length && newVal.length >= 2) {
     displayCount.value = newVal.length;
@@ -524,16 +658,19 @@ watch(filteredList, (newVal) => {
 
 const navigateToAdd = () => uni.navigateTo({ url: '/pages/record/add' });
 const navigateToDetail = (id) => uni.navigateTo({ url: `/pages/record/detail?id=${id}` });
+const navigateToHistory = () => uni.navigateTo({ url: '/pages/record/history' });
 const formatMember = (m) => m ? `${m.name}${m.relation ? ' · ' + m.relation : ''}` : '';
 
 onMounted(() => {
   const sysInfo = uni.getSystemInfoSync();
   canvasWidth.value = sysInfo.windowWidth - 64;
+  loadTrendKeys();
   fetchList();
 });
 
 onShow(() => {
   if (!userStore.isLogin) { uni.reLaunch({ url: '/pages/login' }); return; }
+  loadTrendKeys();
   fetchList();
 });
 </script>
@@ -547,7 +684,7 @@ onShow(() => {
 
 .trend-header {
   background: linear-gradient(135deg, #3E7BFF 0%, #2A5DDF 100%);
-  padding: 40rpx 32rpx 80rpx;
+  padding: 40rpx 32rpx 70rpx;
   border-radius: 0 0 40rpx 40rpx;
   
   .tab-scroll {
@@ -580,11 +717,218 @@ onShow(() => {
       }
     }
   }
+
+  .header-meta {
+    margin-top: 22rpx;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 22rpx;
+  }
+
+  .disease-line {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6rpx;
+    color: #FFFFFF;
+
+    text:first-child {
+      font-size: 28rpx;
+      font-weight: 800;
+    }
+
+    text:last-child {
+      font-size: 22rpx;
+      line-height: 1.45;
+      color: rgba(255, 255, 255, 0.78);
+    }
+  }
+
+  .header-manage-btn {
+    margin: 0;
+    height: 64rpx;
+    line-height: 64rpx;
+    padding: 0 18rpx;
+    border-radius: 32rpx;
+    background: #FFFFFF;
+    color: #3E7BFF;
+    font-size: 24rpx;
+    font-weight: 900;
+    display: inline-flex;
+    align-items: center;
+    gap: 8rpx;
+    flex-shrink: 0;
+    box-shadow: 0 8rpx 18rpx rgba(0, 0, 0, 0.08);
+  }
+
+  .manage-count {
+    min-width: 32rpx;
+    height: 32rpx;
+    padding: 0 8rpx;
+    border-radius: 16rpx;
+    line-height: 32rpx;
+    text-align: center;
+    background: #EEF4FF;
+    color: #3E7BFF;
+    font-size: 20rpx;
+  }
 }
 
 .chart-section {
   padding: 0 32rpx;
-  margin-top: -50rpx;
+  margin-top: -40rpx;
+}
+
+.trend-picker-popup {
+  height: 78vh;
+  background: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.picker-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 34rpx 32rpx 18rpx;
+  border-bottom: 1px solid #F2F3F5;
+}
+
+.picker-title {
+  display: block;
+  font-size: 34rpx;
+  font-weight: 900;
+  color: #1D2129;
+}
+
+.picker-sub {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: #86909C;
+}
+
+.picker-close {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: #F7F8FA;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.picker-tools {
+  display: flex;
+  gap: 16rpx;
+  padding: 20rpx 32rpx 0;
+}
+
+.tool-btn {
+  flex: 1;
+  margin: 0;
+  height: 64rpx;
+  line-height: 64rpx;
+  border-radius: 32rpx;
+  background: #F2F7FF;
+  color: #3E7BFF;
+  font-size: 24rpx;
+  font-weight: 900;
+
+  &.primary {
+    background: #3E7BFF;
+    color: #FFFFFF;
+  }
+}
+
+.picker-body {
+  flex: 1;
+  min-height: 0;
+  padding: 22rpx 32rpx 32rpx;
+  box-sizing: border-box;
+}
+
+.picker-note {
+  margin-bottom: 18rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 18rpx;
+  background: #F7FAFF;
+  color: #4E5969;
+  font-size: 22rpx;
+  line-height: 1.55;
+}
+
+.picker-grid {
+  padding-bottom: 10rpx;
+}
+
+.picker-footer {
+  display: flex;
+  gap: 18rpx;
+  padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
+  border-top: 1px solid #F2F3F5;
+  background: #FFFFFF;
+}
+
+.footer-btn {
+  flex: 1;
+  margin: 0;
+  height: 78rpx;
+  line-height: 78rpx;
+  border-radius: 39rpx;
+  font-size: 28rpx;
+  font-weight: 900;
+
+  &.ghost {
+    background: #F7F8FA;
+    color: #4E5969;
+  }
+
+  &.primary {
+    background: #3E7BFF;
+    color: #FFFFFF;
+  }
+}
+
+.chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+}
+
+.metric-chip {
+  min-height: 56rpx;
+  padding: 0 18rpx;
+  border-radius: 28rpx;
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  background: #F7F8FA;
+  color: #4E5969;
+  font-size: 24rpx;
+  font-weight: 700;
+  border: 1px solid #EDF1F7;
+
+  &.selected {
+    background: #EEF4FF;
+    color: #3E7BFF;
+    border-color: rgba(62, 123, 255, 0.35);
+  }
+
+  &.core {
+    border-color: rgba(0, 180, 42, 0.28);
+  }
+}
+
+.chip-mark {
+  padding: 2rpx 8rpx;
+  border-radius: 10rpx;
+  background: rgba(0, 180, 42, 0.1);
+  color: #00A870;
+  font-size: 18rpx;
 }
 
 .chart-card {

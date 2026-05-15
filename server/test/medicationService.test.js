@@ -18,6 +18,21 @@ test('computeAdherence calculates rate and streak', () => {
   assert.equal(streak, 2);
 });
 
+test('computeAdherence counts makeup doses separately', () => {
+  const logs = [
+    { date: '2026-03-14', source: 'normal' },
+    { date: '2026-03-13', source: 'makeup' }
+  ];
+  const today = new Date('2026-03-14T00:00:00Z');
+  const { expected, taken, makeupTaken, adherence, streak } = computeAdherence(1, logs, 2, today);
+
+  assert.equal(expected, 2);
+  assert.equal(taken, 2);
+  assert.equal(makeupTaken, 1);
+  assert.equal(adherence, 100);
+  assert.equal(streak, 2);
+});
+
 test('computeAdherence handles zero plans', () => {
   const today = new Date('2026-03-14T00:00:00Z');
   const { expected, taken, adherence, streak } = computeAdherence(0, [], 7, today);

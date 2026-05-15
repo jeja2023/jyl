@@ -19,12 +19,12 @@
 
     <!-- 统计信息看板 -->
     <view class="stats-board">
-      <view class="stats-item" @click="uni.reLaunch({ url: '/pages/record/list' })">
+      <view class="stats-item" @click="goRecordHistory">
         <text class="num">{{ stats.checkupDays }}</text>
         <text class="label">记录天数</text>
       </view>
       <view class="divider"></view>
-      <view class="stats-item" @click="uni.reLaunch({ url: '/pages/record/list' })">
+      <view class="stats-item" @click="goLabTrends">
         <text class="num">{{ stats.labReports }}</text>
         <text class="label">化验份数</text>
       </view>
@@ -180,6 +180,22 @@ const goProfile = () => {
 
 const goSettings = () => {
   uni.navigateTo({ url: '/pages/my/settings' });
+};
+
+const goRecordHistory = () => {
+  if (!userStore.isLogin) {
+    uni.navigateTo({ url: '/pages/login' });
+    return;
+  }
+  uni.navigateTo({ url: '/pages/record/history' });
+};
+
+const goLabTrends = () => {
+  if (!userStore.isLogin) {
+    uni.navigateTo({ url: '/pages/login' });
+    return;
+  }
+  uni.reLaunch({ url: '/pages/record/list' });
 };
 
 const navTo = (url) => {

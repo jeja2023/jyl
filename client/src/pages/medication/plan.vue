@@ -42,6 +42,29 @@
           <text class="label">累计服用</text>
           <text class="value">{{ stats.takenDoses }}次</text>
         </view>
+        <view class="stats-item clickable" @click="openMakeup()">
+          <text class="label">补签</text>
+          <text class="value warn">{{ stats.makeupDoses || 0 }}次</text>
+        </view>
+      </view>
+
+      <view class="week-card">
+        <view class="week-head">
+          <text class="week-title">近7天打卡</text>
+          <text class="week-sub">绿色为完成，橙色为部分，红色为漏服</text>
+        </view>
+        <view class="week-grid">
+          <view
+            v-for="day in weekDays"
+            :key="day.date"
+            class="week-day"
+            :class="day.status"
+            @click="day.status === 'missed' || day.status === 'partial' ? openMakeup(day.date) : null"
+          >
+            <text class="week-label">{{ day.label }}</text>
+            <text class="week-num">{{ day.taken }}/{{ day.expected }}</text>
+          </view>
+        </view>
       </view>
 
       <!-- 列表头部 -->
@@ -53,6 +76,17 @@
         <view class="header-right" @click="openAdd">
           <u-icon name="plus" color="#3c9cff" size="16"></u-icon>
           <text class="add-text">新增时刻</text>
+        </view>
+      </view>
+
+      <view class="adjust-section" v-if="adjustments.length">
+        <view class="adjust-title">最近剂量调整</view>
+        <view class="adjust-item" v-for="item in adjustments" :key="item.id">
+          <view>
+            <text class="adjust-name">{{ item.medicineName }}</text>
+            <text class="adjust-date">{{ item.adjustmentDate }}</text>
+          </view>
+          <text class="adjust-dose">{{ item.fromDosage || '新增' }} → {{ item.toDosage }}</text>
         </view>
       </view>
 
@@ -99,6 +133,7 @@
                   <view v-else class="btn-take-pill" @click="takeMedicine(item)">
                       <text>服药打卡</text>
                   </view>
+                  <view class="makeup-link" @click.stop="openMakeup('', item)">补签</view>
               </view>
             </view>
             
@@ -123,6 +158,31 @@
           
           <!-- 底部占位 -->
           <view style="height: 100rpx;"></view>
+        </view>
+      </view>
+
+      <view class="log-section" v-if="medicationLogs.length">
+        <view class="section-header compact">
+          <view class="header-left">
+            <text class="title">最近服药记录</text>
+            <view class="badge">{{ medicationLogs.length }}</view>
+          </view>
+          <view class="header-right ghost" @click="openMakeup()">
+            <u-icon name="edit-pen" color="#3c9cff" size="15"></u-icon>
+            <text class="add-text">补签</text>
+          </view>
+        </view>
+        <view class="log-list">
+          <view class="log-item" v-for="item in medicationLogs.slice(0, 8)" :key="item.id">
+            <view>
+              <text class="log-name">{{ item.medicineNameSnapshot || item.MedicationPlan?.medicineName || '用药记录' }}</text>
+              <text class="log-meta">{{ item.date }} · {{ formatTakenAt(item.takenAt) }}</text>
+            </view>
+            <view class="log-right">
+              <text class="log-dose">{{ item.dosageSnapshot || item.MedicationPlan?.dosage || '-' }}</text>
+              <text class="log-source" :class="{ makeup: item.source === 'makeup' }">{{ item.source === 'makeup' ? '补签' : '打卡' }}</text>
+            </view>
+          </view>
         </view>
       </view>
     </view>
@@ -176,6 +236,15 @@
               shape="circle"
             ></u--input>
           </view>
+          <view class="form-item">
+            <text class="label">调整原因</text>
+            <u--input
+              v-model="newPlan.adjustReason"
+              placeholder="选填，如医生建议减量/复查后调整"
+              border="surround"
+              shape="circle"
+            ></u--input>
+          </view>
 
           <u-button 
             type="primary" 
@@ -187,6 +256,84 @@
         </view>
       </view>
     </u-popup>
+
+    <u-popup :show="showMakeup" @close="closeMakeup" mode="bottom" round="28" :lockScroll="true">
+      <view class="popup-container makeup-popup">
+        <view class="popup-header">
+          <text class="popup-title">补签服药记录</text>
+          <view class="close-icon" @click="closeMakeup">
+            <u-icon name="close" size="20" color="#999"></u-icon>
+          </view>
+        </view>
+        <view class="form-container">
+          <view class="form-item">
+            <text class="label">补签药品</text>
+            <view class="plan-select-list">
+              <view
+                v-for="item in activePlans"
+                :key="item.id"
+                class="plan-select"
+                :class="{ active: makeupForm.id === item.id }"
+                @click="makeupForm.id = item.id"
+              >
+                <text>{{ item.medicineName }}</text>
+                <text>{{ item.dosage }}</text>
+              </view>
+            </view>
+          </view>
+          <view class="form-row">
+            <view class="form-item half">
+              <text class="label">服药日期</text>
+              <view class="time-picker-trigger" @click="showMakeupDate = true">
+                <text>{{ makeupForm.date }}</text>
+                <u-icon name="arrow-right" size="16" color="#999"></u-icon>
+              </view>
+            </view>
+            <view class="form-item half">
+              <text class="label">实际时间</text>
+              <view class="time-picker-trigger" @click="showMakeupTime = true">
+                <text>{{ makeupForm.takenTime }}</text>
+                <u-icon name="arrow-right" size="16" color="#999"></u-icon>
+              </view>
+            </view>
+          </view>
+          <view class="form-item">
+            <text class="label">备注</text>
+            <u--input
+              v-model="makeupForm.note"
+              placeholder="选填，如实际已服，忘记打卡"
+              border="surround"
+              shape="circle"
+            ></u--input>
+          </view>
+          <view class="makeup-tip">最多支持补签最近30天；补签会单独标记，依从性统计会保留补签次数。</view>
+          <u-button
+            type="primary"
+            text="确认补签"
+            shape="circle"
+            customStyle="margin-top: 30rpx; height: 88rpx;"
+            @click="submitMakeup"
+          ></u-button>
+        </view>
+      </view>
+    </u-popup>
+
+    <u-datetime-picker
+      :show="showMakeupDate"
+      mode="date"
+      v-model="makeupDateValue"
+      :maxDate="makeupMaxDate"
+      @confirm="confirmMakeupDate"
+      @cancel="showMakeupDate = false"
+    ></u-datetime-picker>
+
+    <u-datetime-picker
+      :show="showMakeupTime"
+      mode="time"
+      v-model="makeupForm.takenTime"
+      @confirm="confirmMakeupTime"
+      @cancel="showMakeupTime = false"
+    ></u-datetime-picker>
 
     <u-datetime-picker
       :show="showTime"
@@ -219,6 +366,7 @@
             v-for="(day, idx) in calendarDays" 
             :key="idx"
             :class="{ 'other-month': !day.isCurrent, 'is-missed': day.isMissed, 'is-today': day.isToday }"
+            @click="day.isCurrent && day.isMissed ? openMakeup(day.date) : null"
           >
             <text class="day-num">{{ day.num }}</text>
             <view class="missed-tag" v-if="day.isMissed">漏服</view>
@@ -248,25 +396,73 @@ const userStore = useUserStore();
 const showAdd = ref(false);
 const showTime = ref(false);
 const showMissedPopup = ref(false);
+const showMakeup = ref(false);
+const showMakeupDate = ref(false);
+const showMakeupTime = ref(false);
 const viewYear = ref(new Date().getFullYear());
 const viewMonth = ref(new Date().getMonth());
 const timeValue = ref('06:30');
+const makeupDateValue = ref(Date.now());
+const makeupMaxDate = Date.now();
 const editingId = ref(null);
 const tipContent = ref('加载中...');
 // 立即尝试从缓存恢复，实现“秒开”体验
 const stats = ref(getCache('medication_stats'));
 const plans = ref(getCache('medication_plans') || []);
+const adjustments = ref(getCache('medication_adjustments') || []);
+const medicationLogs = ref(getCache('medication_logs') || []);
 
 const newPlan = reactive({
   medicineName: '',
   dosage: '',
   takeTime: '06:30',
   notes: '',
+  adjustReason: '',
   isActive: true
+});
+
+const makeupForm = reactive({
+  id: null,
+  date: '',
+  takenTime: '08:00',
+  note: ''
 });
 
 const activeCount = computed(() => {
   return plans.value.filter(p => p.isActive).length;
+});
+
+const activePlans = computed(() => plans.value.filter(p => p.isActive));
+
+const dateToStr = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+const todayStr = () => dateToStr(new Date());
+
+const logsByDate = computed(() => {
+  const grouped = {};
+  medicationLogs.value.forEach(log => {
+    if (!grouped[log.date]) grouped[log.date] = [];
+    grouped[log.date].push(log);
+  });
+  return grouped;
+});
+
+const weekDays = computed(() => {
+  const result = [];
+  const base = new Date();
+  base.setHours(0, 0, 0, 0);
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date(base.getTime() - i * 24 * 3600 * 1000);
+    const ds = dateToStr(date);
+    const taken = logsByDate.value[ds]?.length || 0;
+    const expected = activeCount.value;
+    let status = 'none';
+    if (expected === 0) status = 'none';
+    else if (taken >= expected) status = 'done';
+    else if (taken > 0) status = 'partial';
+    else if (i !== 0) status = 'missed';
+    result.push({ date: ds, label: `${date.getMonth() + 1}/${date.getDate()}`, taken, expected, status });
+  }
+  return result;
 });
 
 const goBack = () => {
@@ -309,6 +505,32 @@ const fetchStats = async () => {
   }
 };
 
+const fetchAdjustments = async () => {
+  try {
+    if (userStore.isLogin) {
+      const res = await http.get('/api/medication/adjustments?limit=5');
+      adjustments.value = res || [];
+      setCache('medication_adjustments', adjustments.value, 900);
+    }
+  } catch (e) {
+    const cached = getCache('medication_adjustments');
+    if (cached) adjustments.value = cached;
+  }
+};
+
+const fetchLogs = async () => {
+  try {
+    if (userStore.isLogin) {
+      const res = await http.get('/api/medication/logs?days=30');
+      medicationLogs.value = res || [];
+      setCache('medication_logs', medicationLogs.value, 900);
+    }
+  } catch (e) {
+    const cached = getCache('medication_logs');
+    if (cached) medicationLogs.value = cached;
+  }
+};
+
 const formatDateLabel = (dateStr) => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
@@ -343,6 +565,7 @@ const calendarDays = computed(() => {
         const ds = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
         days.push({
             num: i,
+            date: ds,
             isCurrent: true,
             isMissed: stats.value?.missedDates?.includes(ds),
             isToday: ds === todayStr
@@ -393,11 +616,13 @@ const fetchTip = async () => {
 onShow(() => {
     fetchPlans();
     fetchStats();
+    fetchAdjustments();
+    fetchLogs();
     fetchTip();
 });
 
 onPullDownRefresh(async () => {
-    await Promise.all([fetchPlans(), fetchStats(), fetchTip()]);
+    await Promise.all([fetchPlans(), fetchStats(), fetchAdjustments(), fetchLogs(), fetchTip()]);
     uni.stopPullDownRefresh();
 });
 
@@ -406,6 +631,7 @@ const openAdd = () => {
     newPlan.medicineName = '';
     newPlan.dosage = '';
     newPlan.notes = '';
+    newPlan.adjustReason = '';
     newPlan.takeTime = '06:30';
     showAdd.value = true;
 };
@@ -443,6 +669,7 @@ const savePlan = async () => {
     
     closePopup();
     await Promise.all([fetchPlans(), fetchStats()]);
+    await fetchAdjustments();
   } catch (err) {
     console.error(err);
   }
@@ -454,6 +681,7 @@ const editPlan = (item) => {
     newPlan.dosage = item.dosage;
     newPlan.takeTime = item.takeTime;
     newPlan.notes = item.notes;
+    newPlan.adjustReason = '';
     newPlan.isActive = item.isActive;
     showAdd.value = true;
 };
@@ -466,6 +694,7 @@ const closePopup = () => {
         newPlan.medicineName = '';
         newPlan.dosage = '';
         newPlan.notes = '';
+        newPlan.adjustReason = '';
         newPlan.takeTime = '06:30';
     }, 300);
 };
@@ -479,7 +708,7 @@ const deletePlan = (id) => {
         try {
           await http.delete(`/api/medication/delete?id=${id}`);
           uni.$u.toast('已删除');
-          await Promise.all([fetchPlans(), fetchStats()]);
+          await Promise.all([fetchPlans(), fetchStats(), fetchAdjustments()]);
         } catch (err) {
           console.error(err);
         }
@@ -495,7 +724,7 @@ const takeMedicine = async (item) => {
     try {
     await http.post('/api/medication/take', { id: item.id });
     uni.$u.toast('已确认服药');
-    await fetchStats();
+    await Promise.all([fetchStats(), fetchLogs()]);
   } catch (err) {
     item.lastTakenDate = prevDate;
     uni.$u.toast('操作失败');
@@ -507,6 +736,58 @@ const isTakenToday = (item) => {
     const date = new Date();
     const today = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     return item.lastTakenDate === today;
+};
+
+const openMakeup = (date = '', plan = null) => {
+  const targetPlan = plan || activePlans.value[0] || plans.value[0];
+  if (!targetPlan) {
+    uni.$u.toast('请先添加用药提醒');
+    return;
+  }
+  makeupForm.id = targetPlan.id;
+  makeupForm.date = date || todayStr();
+  makeupForm.takenTime = formatTime(targetPlan.takeTime) || '08:00';
+  makeupForm.note = '';
+  makeupDateValue.value = new Date(`${makeupForm.date}T00:00:00`).getTime();
+  showMissedPopup.value = false;
+  showMakeup.value = true;
+};
+
+const closeMakeup = () => {
+  showMakeup.value = false;
+};
+
+const confirmMakeupDate = (e) => {
+  const date = new Date(e.value);
+  makeupForm.date = dateToStr(date);
+  makeupDateValue.value = e.value;
+  showMakeupDate.value = false;
+};
+
+const confirmMakeupTime = (e) => {
+  makeupForm.takenTime = e.value;
+  showMakeupTime.value = false;
+};
+
+const submitMakeup = async () => {
+  if (!makeupForm.id || !makeupForm.date) {
+    uni.$u.toast('请选择补签药品和日期');
+    return;
+  }
+  try {
+    await http.post('/api/medication/makeup', { ...makeupForm });
+    uni.$u.toast('补签成功');
+    showMakeup.value = false;
+    await Promise.all([fetchPlans(), fetchStats(), fetchLogs()]);
+  } catch (err) {
+    uni.$u.toast(err.message || '补签失败');
+  }
+};
+
+const formatTakenAt = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 };
 
 const togglePlan = async (item) => {
@@ -638,12 +919,139 @@ onMounted(() => {
       &.danger {
           color: #FF4D4F;
       }
+
+      &.warn {
+          color: #FF7D00;
+      }
     }
     
     &.clickable:active {
         opacity: 0.7;
     }
   }
+}
+
+.week-card,
+.log-section {
+  background: #FFFFFF;
+  border-radius: 28rpx;
+  padding: 24rpx;
+  margin-bottom: 32rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(62, 123, 255, 0.08);
+}
+
+.week-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 18rpx;
+}
+
+.week-title {
+  color: #1D2129;
+  font-size: 28rpx;
+  font-weight: 900;
+}
+
+.week-sub {
+  color: #86909C;
+  font-size: 20rpx;
+}
+
+.week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10rpx;
+}
+
+.week-day {
+  min-height: 82rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18rpx;
+  background: #F7F8FA;
+  border: 1px solid #EEF0F4;
+}
+
+.week-day.done {
+  background: #EAFBF4;
+  border-color: #B7EBD3;
+}
+
+.week-day.partial {
+  background: #FFF7E8;
+  border-color: #FFD591;
+}
+
+.week-day.missed {
+  background: #FFF1F0;
+  border-color: #FFA39E;
+}
+
+.week-label {
+  color: #4E5969;
+  font-size: 20rpx;
+  font-weight: 700;
+}
+
+.week-num {
+  margin-top: 4rpx;
+  color: #1D2129;
+  font-size: 22rpx;
+  font-weight: 900;
+}
+
+.adjust-section {
+  background: #FFFFFF;
+  border-radius: 28rpx;
+  padding: 24rpx;
+  margin-bottom: 32rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(62, 123, 255, 0.08);
+}
+
+.adjust-title {
+  color: #1D2129;
+  font-size: 28rpx;
+  font-weight: 900;
+  margin-bottom: 16rpx;
+}
+
+.adjust-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+  padding: 14rpx 0;
+  border-top: 1px solid #F2F3F5;
+}
+
+.adjust-name {
+  display: block;
+  color: #1D2129;
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.adjust-date {
+  display: block;
+  color: #86909C;
+  font-size: 20rpx;
+  margin-top: 4rpx;
+}
+
+.adjust-dose {
+  flex-shrink: 0;
+  color: #3E7BFF;
+  background: #EEF4FF;
+  border-radius: 999rpx;
+  padding: 8rpx 14rpx;
+  font-size: 22rpx;
+  font-weight: 800;
 }
 
 .calendar-popup {
@@ -796,6 +1204,20 @@ onMounted(() => {
       font-weight: 800;
       margin-left: 10rpx;
     }
+
+    &.ghost {
+      background: #F6F8FF;
+      box-shadow: none;
+    }
+  }
+
+  &.compact {
+    margin-bottom: 20rpx;
+    padding: 0;
+
+    .header-left .title {
+      font-size: 30rpx;
+    }
   }
 }
 
@@ -875,6 +1297,11 @@ onMounted(() => {
     }
 
     .action-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10rpx;
+
       /* 打卡按钮 */
       .btn-take-pill {
         background: linear-gradient(135deg, #3E7BFF 0%, #2A5DDF 100%);
@@ -902,6 +1329,12 @@ onMounted(() => {
           font-weight: 800;
           margin-left: 8rpx;
         }
+      }
+
+      .makeup-link {
+        color: #3E7BFF;
+        font-size: 22rpx;
+        font-weight: 800;
       }
     }
   }
@@ -999,6 +1432,103 @@ onMounted(() => {
     }
     
     .form-row { display: flex; gap: 32rpx; }
+}
+
+.makeup-popup {
+  max-height: 86vh;
+}
+
+.plan-select-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+  max-height: 280rpx;
+  overflow-y: auto;
+}
+
+.plan-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 22rpx 24rpx;
+  color: #4E5969;
+  background: #F8FAFF;
+  border: 1px solid #E5E6EB;
+  border-radius: 20rpx;
+  font-size: 26rpx;
+  font-weight: 800;
+}
+
+.plan-select.active {
+  color: #3E7BFF;
+  background: #EEF4FF;
+  border-color: #3E7BFF;
+}
+
+.makeup-tip {
+  color: #86909C;
+  font-size: 22rpx;
+  line-height: 1.6;
+  background: #F7F8FA;
+  padding: 18rpx 22rpx;
+  border-radius: 18rpx;
+}
+
+.log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.log-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+  padding: 16rpx 0;
+  border-top: 1px solid #F2F3F5;
+}
+
+.log-name {
+  display: block;
+  color: #1D2129;
+  font-size: 25rpx;
+  font-weight: 900;
+}
+
+.log-meta {
+  display: block;
+  margin-top: 4rpx;
+  color: #86909C;
+  font-size: 21rpx;
+}
+
+.log-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6rpx;
+}
+
+.log-dose {
+  color: #3E7BFF;
+  font-size: 23rpx;
+  font-weight: 900;
+}
+
+.log-source {
+  color: #00A870;
+  background: #EAFBF4;
+  border-radius: 999rpx;
+  padding: 4rpx 12rpx;
+  font-size: 20rpx;
+  font-weight: 800;
+}
+
+.log-source.makeup {
+  color: #FF7D00;
+  background: #FFF7E8;
 }
 
 .time-picker-trigger {

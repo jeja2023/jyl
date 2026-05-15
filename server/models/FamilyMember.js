@@ -27,9 +27,14 @@ const FamilyMember = sequelize.define('FamilyMember', {
         comment: '出生日期'
     },
     patientType: {
-        type: DataTypes.ENUM('甲减', '甲亢', '甲状腺结节', '甲癌术后', '桥本氏甲状腺炎', '其他'),
+        type: DataTypes.STRING(64),
         defaultValue: '其他',
         comment: '疾病类型'
+    },
+    treatmentStage: {
+        type: DataTypes.STRING(64),
+        defaultValue: '日常随访',
+        comment: '治疗阶段/随访阶段'
     },
     note: {
         type: DataTypes.STRING,

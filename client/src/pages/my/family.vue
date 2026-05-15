@@ -82,6 +82,13 @@
             </view>
           </view>
           <view class="form-item">
+            <text class="label">治疗阶段</text>
+            <view class="select-box" @click="showStage = true">
+              <text>{{ form.treatmentStage || '日常随访' }}</text>
+              <u-icon name="arrow-right" size="14" color="#C9CDD4"></u-icon>
+            </view>
+          </view>
+          <view class="form-item">
             <text class="label">备注</text>
             <u--input v-model="form.note" placeholder="选填" border="none" class="custom-input"></u--input>
           </view>
@@ -95,6 +102,7 @@
 
     <u-action-sheet :show="showGender" :actions="genderActions" @select="onGenderSelect" @close="showGender = false"></u-action-sheet>
     <u-action-sheet :show="showType" :actions="typeActions" @select="onTypeSelect" @close="showType = false"></u-action-sheet>
+    <u-action-sheet :show="showStage" :actions="stageActions" @select="onStageSelect" @close="showStage = false"></u-action-sheet>
     <u-datetime-picker 
       :show="showBirth" 
       v-model="birthValue" 
@@ -110,12 +118,14 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import http from '@/utils/request.js';
+import { PATIENT_TYPES, TREATMENT_STAGES } from '@/utils/thyroidIndicators.js';
 
 const members = ref([]);
 const showForm = ref(false);
 const editingId = ref(null);
 const showGender = ref(false);
 const showType = ref(false);
+const showStage = ref(false);
 const showBirth = ref(false);
 const birthValue = ref(Date.now());
 
@@ -125,6 +135,7 @@ const form = reactive({
   gender: '',
   birthDate: '',
   patientType: '其他',
+  treatmentStage: '日常随访',
   note: ''
 });
 
@@ -133,14 +144,8 @@ const genderActions = [
   { name: '女', value: '女' }
 ];
 
-const typeActions = [
-  { name: '甲减', value: '甲减' },
-  { name: '甲亢', value: '甲亢' },
-  { name: '甲状腺结节', value: '甲状腺结节' },
-  { name: '甲癌术后', value: '甲癌术后' },
-  { name: '桥本氏甲状腺炎', value: '桥本氏甲状腺炎' },
-  { name: '其他', value: '其他' }
-];
+const typeActions = PATIENT_TYPES.map(name => ({ name, value: name }));
+const stageActions = TREATMENT_STAGES.map(name => ({ name, value: name }));
 
 const loadMembers = async () => {
   try {
@@ -152,7 +157,7 @@ const loadMembers = async () => {
 
 const openAdd = () => {
   editingId.value = null;
-  Object.assign(form, { name: '', relation: '', gender: '', birthDate: '', patientType: '其他', note: '' });
+  Object.assign(form, { name: '', relation: '', gender: '', birthDate: '', patientType: '其他', treatmentStage: '日常随访', note: '' });
   showForm.value = true;
 };
 
@@ -164,6 +169,7 @@ const editMember = (item) => {
     gender: item.gender || '',
     birthDate: item.birthDate || '',
     patientType: item.patientType || '其他',
+    treatmentStage: item.treatmentStage || '日常随访',
     note: item.note || ''
   });
   showForm.value = true;
@@ -205,6 +211,11 @@ const onGenderSelect = (e) => {
 const onTypeSelect = (e) => {
   form.patientType = e.value;
   showType.value = false;
+};
+
+const onStageSelect = (e) => {
+  form.treatmentStage = e.value;
+  showStage.value = false;
 };
 
 const onBirthConfirm = (e) => {

@@ -22,6 +22,7 @@
         <view class="section-title">
           <u-icon name="file-text" size="18" color="#3E7BFF"></u-icon>
           <text>血液化验指标</text>
+          <text class="sub-date">{{ detailPatientType }}监测</text>
         </view>
         
         <view class="metrics-grid">
@@ -32,6 +33,9 @@
             </view>
             <view class="label-group">
               <text class="label">{{ item.label }}</text>
+              <text class="metric-role" :class="metricRole(item.key)" v-if="metricRoleText(item.key)">
+                {{ metricRoleText(item.key) }}
+              </text>
               <text class="unit" :class="{'detected': record.units && record.units[item.key]}" v-if="record.units && record.units[item.key]">{{ record.units[item.key] }}</text>
               <text class="unit" v-else-if="item.unit">{{ item.unit }}</text>
             </view>
@@ -157,6 +161,7 @@ import http from '@/utils/request.js';
 import { getBaseURL } from '@/utils/config.js';
 import { getIndicatorInfoFromRef, getIndicatorAdvice } from '@/utils/indicator.js';
 import { setCache, getCache } from '@/utils/cache.js';
+import { ALL_INDICATORS, getDiseaseIndicatorProfile } from '@/utils/thyroidIndicators.js';
 
 const userStore = useUserStore();
 
@@ -250,19 +255,26 @@ const confirmDelete = async () => {
   }
 };
 
-const labMetrics = [
-  { key: 'TSH', label: 'TSH', unit: 'mIU/L', ref: '0.27 - 4.2' },
-  { key: 'FT4', label: 'FT4', unit: 'pmol/L', ref: '12 - 22' },
-  { key: 'FT3', label: 'FT3', unit: 'pmol/L', ref: '3.1 - 6.8' },
-  { key: 'T3', label: 'T3', unit: 'nmol/L', ref: '1.3 - 3.1' },
-  { key: 'T4', label: 'T4', unit: 'nmol/L', ref: '66 - 181' },
-  { key: 'TPOAb', label: 'TPO-Ab', unit: 'IU/mL', ref: '< 34' },
-  { key: 'TGAb', label: 'TG-Ab', unit: 'IU/mL', ref: '< 115' },
-  { key: 'Tg', label: 'Tg', unit: 'ng/mL', ref: '< 77' },
-  { key: 'Calcitonin', label: '降钙素', unit: 'pg/mL', ref: '< 9.52' },
-  { key: 'Calcium', label: '血钙', unit: 'mmol/L', ref: '2.11 - 2.52' },
-  { key: 'PTH', label: 'PTH', unit: 'pg/mL', ref: '15 - 65' }
-];
+const labMetrics = ALL_INDICATORS.map(item => ({
+  key: item.key,
+  label: item.name,
+  unit: item.unit,
+  ref: item.ref
+}));
+
+const detailPatientType = computed(() => record.value?.FamilyMember?.patientType || userStore.userInfo?.patientType || '其他');
+const detailDiseaseProfile = computed(() => getDiseaseIndicatorProfile(detailPatientType.value));
+const metricRole = (key) => {
+  if (detailDiseaseProfile.value.core.includes(key)) return 'core';
+  if (detailDiseaseProfile.value.recommended.includes(key)) return 'recommended';
+  return '';
+};
+const metricRoleText = (key) => {
+  const role = metricRole(key);
+  if (role === 'core') return '核心';
+  if (role === 'recommended') return '建议';
+  return '';
+};
 
 const hasUltrasoundData = computed(() => {
   return record.value.thyroidLeft || record.value.noduleCount || record.value.ultrasoundImage?.length || record.value.tiradsLevel;
@@ -325,10 +337,9 @@ const buildSummary = (data) => {
   parts.push(`甲友乐检查摘要`);
   parts.push(`日期：${data.recordDate || '-'}`);
   parts.push(`对象：${member}`);
-  const metrics = ['TSH','FT3','FT4','T3','T4','TPOAb','TGAb','TRAb','Tg','Calcitonin','Calcium','PTH'];
-  const metricText = metrics
-    .filter(k => data[k] !== undefined && data[k] !== null && data[k] !== '')
-    .map(k => `${k}: ${data[k]}`)
+  const metricText = ALL_INDICATORS
+    .filter(item => data[item.key] !== undefined && data[item.key] !== null && data[item.key] !== '')
+    .map(item => `${item.name}: ${data[item.key]}`)
     .join('，');
   if (metricText) parts.push(`化验：${metricText}`);
   if (data.tiradsLevel) parts.push(`TI-RADS：${data.tiradsLevel}`);
@@ -339,7 +350,7 @@ const buildSummary = (data) => {
 };
 
 const getAdvice = (item) => {
-  const profile = userStore.userInfo || {};
+  const profile = { ...(userStore.userInfo || {}), patientType: detailPatientType.value };
   return getIndicatorAdvice(item.key, record.value[item.key], item.ref, profile);
 };
 
@@ -504,6 +515,25 @@ onShow(() => {
         font-size: 20rpx;
         color: #1D2129;
         font-weight: 700;
+      }
+
+      .metric-role {
+        align-self: center;
+        margin-top: 4rpx;
+        padding: 2rpx 8rpx;
+        border-radius: 10rpx;
+        font-size: 16rpx;
+        font-weight: 800;
+
+        &.core {
+          background: #FFF2F0;
+          color: #F53F3F;
+        }
+
+        &.recommended {
+          background: #EEF4FF;
+          color: #3E7BFF;
+        }
       }
       
       .unit {

@@ -53,9 +53,14 @@ const User = sequelize.define('User', {
     },
     // --- 甲状腺专属字段 ---
     patientType: {
-        type: DataTypes.ENUM('甲减', '甲亢', '甲状腺结节', '甲癌术后', '桥本氏甲状腺炎', '其他'),
+        type: DataTypes.STRING(64),
         defaultValue: '其他',
         comment: '疾病类型'
+    },
+    treatmentStage: {
+        type: DataTypes.STRING(64),
+        defaultValue: '日常随访',
+        comment: '治疗阶段/随访阶段'
     },
     diagnosisDate: {
         type: DataTypes.DATEONLY,
@@ -91,6 +96,11 @@ const User = sequelize.define('User', {
         type: DataTypes.INTEGER,
         defaultValue: 0,
         comment: '百科阅读数'
+    },
+    trendIndicators: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: '用户自定义趋势指标(JSON数组)'
     }
 }, {
     timestamps: true,

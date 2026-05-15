@@ -12,6 +12,7 @@
 		{ "path": "pages/login", "style": { "navigationBarTitleText": "欢迎加入", "navigationStyle": "custom" } },
 		{ "path": "pages/record/add", "style": { "navigationBarTitleText": "指标录入", "navigationStyle": "custom" } },
 		{ "path": "pages/record/list", "style": { "navigationBarTitleText": "历史趋势" } },
+		{ "path": "pages/record/history", "style": { "navigationBarTitleText": "检查记录" } },
 		{ "path": "pages/record/detail", "style": { "navigationBarTitleText": "记录详情", "navigationStyle": "custom" } },
 		{ "path": "pages/medication/plan", "style": { "navigationBarTitleText": "用药提醒", "enablePullDownRefresh": true } },
 		{ "path": "pages/checkup/calendar", "style": { "navigationBarTitleText": "复查日历", "navigationStyle": "custom" } },

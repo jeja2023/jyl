@@ -1,5 +1,6 @@
 const HealthRecord = require('../models/HealthRecord');
 const FamilyMember = require('../models/FamilyMember');
+const User = require('../models/User');
 const Response = require('../utils/response');
 const { analyzeRecord, parseRanges } = require('../utils/indicatorAnalysis');
 const { buildDashboard, buildMonthlyInsights } = require('../services/InsightService');
@@ -26,9 +27,14 @@ class InsightController {
         if (!record) return Response.error(ctx, '记录不存在', 404);
 
         let customRanges = {};
+        let patientType = '其他';
         if (record.memberId) {
             const member = await FamilyMember.findOne({ where: { id: record.memberId, UserId: userId } });
             customRanges = parseRanges(member?.referenceRanges);
+            patientType = member?.patientType || '其他';
+        } else {
+            const user = await User.findByPk(userId, { attributes: ['patientType'] });
+            patientType = user?.patientType || '其他';
         }
 
         const previous = await HealthRecord.findOne({
@@ -39,7 +45,7 @@ class InsightController {
             order: [['recordDate', 'DESC']]
         });
 
-        Response.success(ctx, analyzeRecord(record.toJSON(), customRanges, previous?.toJSON()));
+        Response.success(ctx, analyzeRecord(record.toJSON(), customRanges, previous?.toJSON(), patientType));
     }
 }
 

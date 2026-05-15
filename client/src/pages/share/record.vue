@@ -35,6 +35,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { getBaseURL } from '@/utils/config.js';
+import { ALL_INDICATORS } from '@/utils/thyroidIndicators.js';
 
 const record = ref(null);
 const token = ref('');
@@ -47,10 +48,9 @@ const memberName = computed(() => {
 
 const metricText = computed(() => {
   if (!record.value) return '';
-  const metrics = ['TSH','FT3','FT4','T3','T4','TPOAb','TGAb','TRAb','Tg','Calcitonin','Calcium','PTH'];
-  return metrics
-    .filter(k => record.value[k] !== undefined && record.value[k] !== null && record.value[k] !== '')
-    .map(k => `${k}: ${record.value[k]}`)
+  return ALL_INDICATORS
+    .filter(item => record.value[item.key] !== undefined && record.value[item.key] !== null && record.value[item.key] !== '')
+    .map(item => `${item.name}: ${record.value[item.key]}`)
     .join('，');
 });
 

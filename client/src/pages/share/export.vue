@@ -55,6 +55,7 @@ import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 import { getBaseURL } from '@/utils/config.js';
+import { ALL_INDICATORS } from '@/utils/thyroidIndicators.js';
 
 const userStore = useUserStore();
 const records = ref([]);
@@ -82,10 +83,9 @@ const getSummary = (item) => {
   const memberText = item.FamilyMember ? formatMember(item.FamilyMember) : '本人';
   parts.push(`对象: ${memberText}`);
 
-  const metrics = ['TSH', 'FT3', 'FT4', 'T3', 'T4', 'TPOAb', 'TGAb', 'TRAb', 'Tg', 'Calcitonin', 'Calcium', 'PTH'];
-  const metricText = metrics
-    .filter(k => item[k] !== undefined && item[k] !== null && item[k] !== '')
-    .map(k => `${k} ${item[k]}`)
+  const metricText = ALL_INDICATORS
+    .filter(metric => item[metric.key] !== undefined && item[metric.key] !== null && item[metric.key] !== '')
+    .map(metric => `${metric.name} ${item[metric.key]}`)
     .join('，');
   if (metricText) parts.push(`化验: ${metricText}`);
   if (item.tiradsLevel) parts.push(`TI-RADS ${item.tiradsLevel}`);
