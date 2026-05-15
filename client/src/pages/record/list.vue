@@ -1101,14 +1101,16 @@ onShow(() => {
   
   .section-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 20rpx;
     margin-bottom: 24rpx;
     
     .title-info {
       display: flex;
       align-items: center;
       gap: 12rpx;
+      min-width: 0;
     }
 
     .title {
@@ -1116,6 +1118,7 @@ onShow(() => {
       font-weight: 900;
       color: #1D2129;
       position: relative;
+      line-height: 1.25;
     }
     
     .count {
@@ -1125,22 +1128,34 @@ onShow(() => {
     }
 
     .action-btns {
-      display: flex;
-      gap: 16rpx;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14rpx;
+      width: 100%;
     }
 
     .export-btn {
       display: flex;
       align-items: center;
+      justify-content: center;
       gap: 8rpx;
-      padding: 10rpx 24rpx;
+      height: 76rpx;
+      padding: 0 14rpx;
       background: #EEF4FF;
-      border-radius: 40rpx;
+      border-radius: 24rpx;
+      min-width: 0;
       
       text {
         font-size: 24rpx;
         color: #3E7BFF;
         font-weight: 800;
+        white-space: nowrap;
+        line-height: 1;
+      }
+
+      &.all-record-btn {
+        background: #EAFBF4;
+        text { color: #00A870; }
       }
 
       &.import-btn {
