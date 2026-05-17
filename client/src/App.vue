@@ -3,9 +3,12 @@ import config from '@/config/index.js';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 import { startReminderPolling, stopReminderPolling } from '@/utils/reminder.js';
+import { cleanupPwaCache } from '@/utils/pwaCleanup.js';
 
 export default {
   onLaunch: function () {
+    cleanupPwaCache();
+
     // 应用启动时自动从后端获取最新业务配置
     config.fetchSystemConfig();
 
@@ -16,7 +19,7 @@ export default {
         userStore.setUserInfo(res);
       }).catch(err => {
         // 请求失败由 request.js 拦截器统一处理 401 跳转
-        console.warn('启动时 Token 校验异常:', err);
+        if (import.meta.env.DEV) console.warn('启动时 Token 校验异常:', err);
       });
     }
   },

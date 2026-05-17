@@ -29,9 +29,13 @@ class DbService {
                     logger.warn('生产环境不建议使用 DB_SYNC_ALTER，已自动忽略');
                 }
 
-                const syncOptions = allowAlter ? { alter: true } : {};
-                await sequelize.sync(syncOptions);
-                logger.info('数据库模型同步成功');
+                if (isDev) {
+                    const syncOptions = allowAlter ? { alter: true } : {};
+                    await sequelize.sync(syncOptions);
+                    logger.info('数据库模型同步成功');
+                } else {
+                    logger.info('生产环境跳过 sequelize.sync，请通过迁移脚本维护表结构');
+                }
 
                 // 4. 初始化数据（如管理员）
                 await this.seedData();
@@ -49,12 +53,31 @@ class DbService {
         }
     }
 
-
+    /**
+     * 检查数据库连接状态
+     */
+    static async checkConnection() {
+        try {
+            await sequelize.authenticate();
+            return true;
+        } catch (err) {
+            logger.error('数据库健康检查失败', { message: err.message });
+            return false;
+        }
+    }
 
     static async seedData() {
         // 自动创建管理员账户
         const adminUser = process.env.ADMIN_USER || 'admin';
-        const adminPass = process.env.ADMIN_PASS || '123456';
+        const adminPass = process.env.ADMIN_PASS;
+        const isProd = process.env.NODE_ENV === 'production';
+
+        if (!adminPass) {
+            if (isProd) {
+                logger.warn('生产环境未配置 ADMIN_PASS，跳过管理员自动初始化');
+                return;
+            }
+        }
 
         try {
             const user = await User.findOne({ where: { username: adminUser } });
@@ -62,7 +85,7 @@ class DbService {
             if (!user) {
                 await User.create({
                     username: adminUser,
-                    password: adminPass,
+                    password: adminPass || '123456',
                     nickname: '系统管理员',
                     role: 'admin',
                     patientType: '其他'

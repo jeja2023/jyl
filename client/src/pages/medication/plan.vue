@@ -793,7 +793,6 @@ const formatTakenAt = (value) => {
 const togglePlan = async (item) => {
   // 乐观更新
   // item.isActive 已经在 v-model 中改变了，这里只需要发送请求
-  console.log('Toggle:', item.isActive);
   try {
     await http.post('/api/medication/toggle', {
       id: item.id,

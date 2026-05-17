@@ -14,7 +14,7 @@
 - 报告 OCR 复核台：OCR 识别结果先进入待确认状态，用户确认后再入库，减少误识别污染趋势。
 - 医生/家属分享模式：分享链接支持字段脱敏、有效期、撤销、访问次数和访问记录。
 - 数据洞察页：按月展示指标趋势、服药依从性、复查完成率和异常次数。
-- PWA/离线缓存：新增弱网草稿与待同步队列，减少报告录入时的数据丢失。
+- Web 缓存治理：H5 构建已移除 PWA Service Worker，服务端会清理旧版 `sw.js` 和浏览器 Cache，避免旧包导致页面白屏或接口 401。
 - 安全加固：上传真实图片校验、分享 token 哈希存储、日志脱敏、生产错误信息保护和管理员接口限制。
 
 新增前端入口：`pages/insight/dashboard`、`pages/ocr/review`、`pages/share/manage`、`pages/my/family-profile`。生产发布前请阅读 `部署说明.md` 并执行 `server` 目录下的 `npm run migrate`。

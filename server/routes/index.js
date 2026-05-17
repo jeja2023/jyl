@@ -98,7 +98,14 @@ router.delete('/checkup/delete', auth, CheckupController.delete);
 router.get('/tip/random', auth, HealthTipController.random);
 router.post('/tip/seed', auth, admin, HealthTipController.seed);
 
-router.post('/ocr/recognize', auth, OcrController.recognize);
+const ocrBody = koaBody({
+    multipart: false,
+    json: true,
+    urlencoded: true,
+    jsonLimit: '12mb',
+    formLimit: '12mb'
+});
+router.post('/ocr/recognize', auth, ocrBody, OcrController.recognize);
 router.get('/ocr/review/list', auth, OcrReviewController.list);
 router.post('/ocr/review/confirm', auth, OcrReviewController.confirm);
 
@@ -114,6 +121,8 @@ const uploadBody = koaBody({
     multipart: true,
     json: true,
     urlencoded: true,
+    jsonLimit: '12mb',
+    formLimit: '12mb',
     formidable: {
         maxFileSize: 10 * 1024 * 1024
     }

@@ -1,6 +1,6 @@
 <template>
   <view class="export-page">
-    <u-navbar title="报告导出与分享" autoBack placeholder :titleStyle="{ fontWeight: '700' }"></u-navbar>
+    <u-navbar title="报告导出与分享" @leftClick="handleBack" placeholder :titleStyle="{ fontWeight: '700' }"></u-navbar>
 
     <view class="header-card">
       <view class="header-top">
@@ -55,7 +55,19 @@ import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 import { getBaseURL } from '@/utils/config.js';
+import { buildRecordExportUrl, downloadExportFile } from '@/utils/exportFile.js';
 import { ALL_INDICATORS } from '@/utils/thyroidIndicators.js';
+
+const handleBack = () => {
+  const pages = getCurrentPages();
+  if (pages.value && pages.value.length > 1 || pages.length > 1) {
+    uni.navigateBack();
+  } else {
+    uni.switchTab({
+      url: '/pages/index/index'
+    });
+  }
+};
 
 const userStore = useUserStore();
 const records = ref([]);
@@ -106,37 +118,8 @@ const exportOne = (item) => {
 };
 
 const doExport = (id) => {
-  const token = userStore.token;
-  const baseUrl = getBaseURL();
-  const url = `${baseUrl}/api/record/export?token=${token}${id ? `&id=${id}` : ''}`;
-
-  // #ifdef H5
-  window.location.href = url;
-  // #endif
-
-  // #ifndef H5
-  uni.showLoading({ title: '准备导出...' });
-  uni.downloadFile({
-    url,
-    success: (res) => {
-      if (res.statusCode === 200) {
-        uni.openDocument({
-          filePath: res.tempFilePath,
-          showMenu: true,
-          success: () => uni.hideLoading(),
-          fail: () => {
-            uni.hideLoading();
-            uni.$u.toast('预览失败，请尝试在浏览器打开');
-          }
-        });
-      }
-    },
-    fail: () => {
-      uni.hideLoading();
-      uni.$u.toast('导出失败');
-    }
-  });
-  // #endif
+  const url = buildRecordExportUrl({ id });
+  downloadExportFile(url, userStore.token);
 };
 
 const copySummary = (item) => {
@@ -159,7 +142,7 @@ const copyShareLink = async (item) => {
 const openPreview = async (item) => {
   const token = await createShareToken(item);
   if (!token) return;
-  uni.navigateTo({ url: `/pages/share/record?token=${token}` });
+  uni.navigateTo({ url: `/pages/share/record?token=${encodeURIComponent(token)}` });
 };
 
 const createShareToken = async (item) => {
@@ -180,7 +163,7 @@ const createShareToken = async (item) => {
 const createShareUrl = async (item) => {
   const token = await createShareToken(item);
   if (!token) return '';
-  return `${getBaseURL()}/#/pages/share/record?token=${token}`;
+  return `${getBaseURL()}/#/pages/share/record?token=${encodeURIComponent(token)}`;
 };
 
 const openShareManage = () => {
@@ -299,6 +282,7 @@ onShow(fetchRecords);
   line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

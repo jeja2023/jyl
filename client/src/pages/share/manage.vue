@@ -34,7 +34,10 @@
       <view class="share-card" v-for="item in filteredShares" :key="item.id">
         <view class="card-top">
           <view>
-            <text class="record-title">健康记录 #{{ item.resourceId }}</text>
+            <view class="record-title">
+              <text>{{ item.HealthRecord ? item.HealthRecord.recordDate : '健康记录 #' + item.resourceId }}</text>
+              <text v-if="item.HealthRecord && item.HealthRecord.FamilyMember" class="member-sub"> ({{ item.HealthRecord.FamilyMember.name }})</text>
+            </view>
             <text class="created-at">{{ formatDateTime(item.createdAt) }}</text>
           </view>
           <view class="status-pill" :class="getStatus(item).className">{{ getStatus(item).text }}</view>
@@ -251,11 +254,19 @@ onShow(fetchShares);
 }
 
 .record-title {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
   font-size: 30rpx;
   color: #1D2129;
   font-weight: 800;
   margin-bottom: 8rpx;
+
+  .member-sub {
+    font-size: 24rpx;
+    color: #3E7BFF;
+    font-weight: normal;
+  }
 }
 
 .created-at {

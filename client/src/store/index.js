@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { isJwtExpired } from '@/utils/jwt.js';
 
 /**
  * 用户状态管理
@@ -8,12 +9,18 @@ export const useUserStore = defineStore('user', {
     state: () => {
         // 从本地存储恢复状态
         const savedToken = uni.getStorageSync('token') || '';
-        const savedUserInfo = uni.getStorageSync('userInfo') || null;
+        const tokenExpired = isJwtExpired(savedToken);
+        const savedUserInfo = tokenExpired ? null : (uni.getStorageSync('userInfo') || null);
+
+        if (tokenExpired) {
+            uni.removeStorageSync('token');
+            uni.removeStorageSync('userInfo');
+        }
 
         return {
             userInfo: savedUserInfo,
-            token: savedToken,
-            isLogin: !!savedToken
+            token: tokenExpired ? '' : savedToken,
+            isLogin: !!savedToken && !tokenExpired
         };
     },
     actions: {
@@ -26,6 +33,7 @@ export const useUserStore = defineStore('user', {
         // 设置 Token
         setToken(token) {
             this.token = token;
+            this.isLogin = !!token;
             uni.setStorageSync('token', token);
         },
         // 退出登录

@@ -5,6 +5,7 @@ const Response = require('../utils/response');
 const { logAction } = require('../utils/actionLog');
 const { calculateStats } = require('../services/MedicationService');
 const { Op } = require('sequelize');
+const logger = require('../utils/logger');
 
 const dateToStr = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const isDateOnly = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
@@ -31,7 +32,7 @@ class MedicationController {
             reason: data.adjustReason || '新增用药计划',
             UserId: userId,
             MedicationPlanId: plan.id
-        }).catch(err => console.warn('[剂量调整记录失败]', err.message));
+        }).catch(err => logger.warn('剂量调整记录失败', { message: err.message }));
 
         Response.success(ctx, plan, '服药计划已添加');
         logAction(ctx, '添加用药计划', '用药管理', `用户添加了药品: ${data.medicineName}`);
@@ -43,6 +44,7 @@ class MedicationController {
 
         const list = await MedicationPlan.findAll({
             where: { UserId: userId },
+            attributes: ['id', 'medicineName', 'dosage', 'takeTime', 'isActive', 'notes', 'lastTakenDate', 'createdAt', 'updatedAt'],
             order: [['takeTime', 'ASC']]
         });
 
@@ -56,6 +58,7 @@ class MedicationController {
         if (planId) where.MedicationPlanId = planId;
         const list = await MedicationAdjustment.findAll({
             where,
+            attributes: ['id', 'adjustmentDate', 'medicineName', 'fromDosage', 'toDosage', 'reason', 'MedicationPlanId', 'createdAt'],
             order: [['adjustmentDate', 'DESC'], ['createdAt', 'DESC']],
             limit: Math.min(parseInt(limit, 10) || 20, 100)
         });
@@ -224,7 +227,7 @@ class MedicationController {
                 reason: adjustReason || '修改用药剂量',
                 UserId: userId,
                 MedicationPlanId: plan.id
-            }).catch(err => console.warn('[剂量调整记录失败]', err.message));
+            }).catch(err => logger.warn('剂量调整记录失败', { message: err.message }));
         }
 
         Response.success(ctx, plan, '计划已更新');
@@ -253,7 +256,7 @@ class MedicationController {
             Response.success(ctx, null, '计划已删除');
             logAction(ctx, '删除用药计划', '用药管理', `用户删除了服药计划: ${plan.medicineName}`);
         } catch (err) {
-            console.error('[删除计划错误]', err);
+            logger.error('删除用药计划失败', { message: err.message });
             Response.error(ctx, '服务器内部错误，删除失败');
         }
     }

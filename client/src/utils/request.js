@@ -2,6 +2,7 @@ import Request from 'luch-request';
 import { useUserStore } from '@/store/index.js';
 
 import { getBaseURL } from './config.js';
+import { isJwtExpired } from './jwt.js';
 
 const http = new Request();
 
@@ -32,6 +33,10 @@ http.interceptors.request.use((config) => {
     // 从 Pinia 获取 Token
     const userStore = useUserStore();
     if (userStore.token) {
+        if (isJwtExpired(userStore.token)) {
+            userStore.logout();
+            return Promise.reject({ code: 401, message: '登录已过期' });
+        }
         config.header.Authorization = `Bearer ${userStore.token}`;
     }
 

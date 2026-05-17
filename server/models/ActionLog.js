@@ -46,7 +46,12 @@ const ActionLog = sequelize.define('ActionLog', {
 }, {
     timestamps: true,
     updatedAt: false, // 只有创建时间
-    comment: '系统操作日志表'
+    comment: '系统操作日志表',
+    indexes: [
+        { name: 'idx_action_logs_created', fields: ['createdAt'] },
+        { name: 'idx_action_logs_action_created', fields: ['action', 'createdAt'] },
+        { name: 'idx_action_logs_username_created', fields: ['username', 'createdAt'] }
+    ]
 });
 
 module.exports = ActionLog;

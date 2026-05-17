@@ -3,6 +3,7 @@ const ActionLog = require('../models/ActionLog');
 const Response = require('../utils/response');
 const { Op } = require('sequelize');
 const { logAction } = require('../utils/actionLog');
+const { getPagination } = require('../utils/pagination');
 
 class AdminController {
     /**
@@ -10,7 +11,7 @@ class AdminController {
      */
     static async listUsers(ctx) {
         const { page = 1, pageSize = 20, keyword = '' } = ctx.query;
-        const offset = (page - 1) * pageSize;
+        const pagination = getPagination(ctx.query, { defaultPageSize: 20, maxPageSize: 100 });
 
         const where = {};
         if (keyword) {
@@ -25,16 +26,16 @@ class AdminController {
         try {
             const { count, rows } = await User.findAndCountAll({
                 where,
-                limit: parseInt(pageSize),
-                offset: parseInt(offset),
+                limit: pagination.limit,
+                offset: pagination.offset,
                 order: [['createdAt', 'DESC']]
             });
 
             return Response.success(ctx, {
                 total: count,
                 list: rows,
-                page: parseInt(page),
-                pageSize: parseInt(pageSize)
+                page: pagination.page,
+                pageSize: pagination.pageSize
             });
         } catch (err) {
             return Response.error(ctx, '获取用户列表失败: ' + err.message);
@@ -100,7 +101,7 @@ class AdminController {
      */
     static async listLogs(ctx) {
         const { page = 1, pageSize = 20, action = '', username = '' } = ctx.query;
-        const offset = (page - 1) * pageSize;
+        const pagination = getPagination(ctx.query, { defaultPageSize: 20, maxPageSize: 100 });
 
         const where = {};
         if (action) {
@@ -113,16 +114,16 @@ class AdminController {
         try {
             const { count, rows } = await ActionLog.findAndCountAll({
                 where,
-                limit: parseInt(pageSize),
-                offset: parseInt(offset),
+                limit: pagination.limit,
+                offset: pagination.offset,
                 order: [['createdAt', 'DESC']]
             });
 
             return Response.success(ctx, {
                 total: count,
                 list: rows,
-                page: parseInt(page),
-                pageSize: parseInt(pageSize)
+                page: pagination.page,
+                pageSize: pagination.pageSize
             });
         } catch (err) {
             return Response.error(ctx, '获取日志失败: ' + err.message);

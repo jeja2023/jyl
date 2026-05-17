@@ -9,6 +9,7 @@ const MailService = require('../utils/mail');
 const { Op } = require('sequelize');
 const { logAction } = require('../utils/actionLog');
 const { TREND_KEYS, getDiseaseIndicatorProfile, getDefaultTrendKeys } = require('../utils/indicatorAnalysis');
+const logger = require('../utils/logger');
 
 const parseTrendIndicators = (raw, patientType = '其他') => {
     if (!raw) return getDefaultTrendKeys(patientType);
@@ -160,20 +161,19 @@ class AuthController {
             return Response.error(ctx, '用户名或邮箱及密码不能为空');
         }
 
-        // 查找用户 (支持用户名或邮箱)
+        const loginName = String(username).trim();
         const user = await User.findOne({
             where: {
                 [Op.or]: [
-                    { username: username },
-                    { email: username }
+                    { username: loginName },
+                    { email: loginName }
                 ]
             }
         });
 
-        // 登录锁定检查
-        if (user && user.loginLockedUntil && new Date(user.loginLockedUntil) > new Date()) {
-            const lockMinutes = parseInt(process.env.LOGIN_LOCK_MINUTES || '15', 10);
-            return Response.error(ctx, `账号已锁定，请${lockMinutes}分钟后再试`, 403);
+        if (user && user.loginLockedUntil && new Date(user.loginLockedUntil).getTime() > Date.now()) {
+            const remainingMinutes = Math.max(1, Math.ceil((new Date(user.loginLockedUntil).getTime() - Date.now()) / 60000));
+            return Response.error(ctx, `账号已锁定，请 ${remainingMinutes} 分钟后再试`, 403);
         }
 
         if (!user || !(await user.comparePassword(password))) {
@@ -190,12 +190,14 @@ class AuthController {
 
                 await user.update(updateData);
             }
-            const reason = !user ? '用户不存在' : '密码错误';
-            console.warn(`[登录失败] 用户名/邮箱: ${username}, 原因: ${reason}`);
+
+            logger.warn('登录失败', {
+                username: loginName,
+                reason: user ? 'password_mismatch' : 'user_not_found'
+            });
             return Response.error(ctx, '用户名/邮箱或密码错误', 401);
         }
 
-        // 更新最后登录时间
         await user.update({ lastLoginAt: new Date(), loginFailCount: 0, loginLockedUntil: null });
 
         const token = AuthController.generateToken(user);

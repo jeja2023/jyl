@@ -25,7 +25,10 @@ const CheckupReminder = sequelize.define('CheckupReminder', {
     }
 }, {
     timestamps: true,
-    comment: '复查提醒表'
+    comment: '复查提醒表',
+    indexes: [
+        { name: 'idx_checkups_user_completed_date', fields: ['UserId', 'isCompleted', 'date'] }
+    ]
 });
 
 // 建立关联

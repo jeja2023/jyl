@@ -8,6 +8,7 @@ const serve = require('koa-static');
 const mount = require('koa-mount');
 const compress = require('koa-compress');
 const helmet = require('koa-helmet');
+const pkg = require('./package.json');
 require('dotenv').config();
 
 // 环境变量校验
@@ -85,7 +86,15 @@ if (process.env.NODE_ENV === 'production' && process.env.CORS_ORIGINS) {
     corsOptions.credentials = true;
 }
 app.use(cors(corsOptions));
-app.use(bodyParser({ jsonLimit: '50mb', formLimit: '50mb' })); // 进一步放宽限制，防止大图上传报错
+const largeBodyPaths = new Set(['/api/ocr/recognize', '/api/upload/report']);
+const defaultBodyParser = bodyParser({ jsonLimit: '2mb', formLimit: '1mb' });
+app.use(async (ctx, next) => {
+    if (largeBodyPaths.has(ctx.path)) {
+        await next();
+        return;
+    }
+    await defaultBodyParser(ctx, next);
+});
 
 // 静态文件服务 - 使用 koa-static 替换手动流式读取，提升性能
 const staticPath = path.join(__dirname, '../storage');
@@ -96,20 +105,84 @@ app.use(mount('/storage', serve(staticPath, {
 
 // 路由
 const apiRouter = require('./routes/index');
+
+// 健康检查接口
+apiRouter.get('/health', async (ctx) => {
+    const DbService = require('./services/DbService');
+    const dbStatus = await DbService.checkConnection();
+    ctx.body = {
+        status: 'ok',
+        uptime: process.uptime(),
+        timestamp: Date.now(),
+        database: dbStatus ? 'connected' : 'disconnected',
+        version: pkg.version
+    };
+});
+
 app.use(apiRouter.routes()).use(apiRouter.allowedMethods());
 
 // 生产环境：托管前端构建产物（dist/build/h5）
 // 前端 build 后的静态文件由后端直接托管，前端访问同一端口，无跨域问题
 const distPath = path.join(__dirname, '../client/dist/build/h5');
 if (fs.existsSync(distPath)) {
-    // 针对 PWA 和 SPA 关键文件的缓存优化中间件
+    const noStore = (ctx) => {
+        ctx.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+        ctx.set('Pragma', 'no-cache');
+        ctx.set('Expires', '0');
+        ctx.set('Clear-Site-Data', '"cache"');
+    };
+
     app.use(async (ctx, next) => {
-        // 匹配 PWA 注册文件、Service Worker 和 入口 HTML
-        const pwaFiles = ['/index.html', '/sw.js', '/registerSW.js', '/manifest.webmanifest'];
-        if (pwaFiles.includes(ctx.path) || ctx.path === '/') {
-            ctx.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-            ctx.set('Pragma', 'no-cache');
-            ctx.set('Expires', '0');
+        if (ctx.path === '/sw.js') {
+            noStore(ctx);
+            ctx.type = 'application/javascript';
+            ctx.body = `self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    if (self.registration.unregister) await self.registration.unregister();
+    if (self.caches) {
+      const keys = await self.caches.keys();
+      await Promise.all(keys.map((key) => self.caches.delete(key)));
+    }
+    const clients = await self.clients.matchAll({ type: 'window' });
+    clients.forEach((client) => client.navigate(client.url));
+  })());
+});`;
+            return;
+        }
+
+        if (ctx.path === '/registerSW.js') {
+            noStore(ctx);
+            ctx.type = 'application/javascript';
+            ctx.body = `if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations()
+    .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+    .then(() => window.caches ? window.caches.keys() : [])
+    .then((keys) => Promise.all((keys || []).map((key) => window.caches.delete(key))))
+    .catch(() => {});
+}`;
+            return;
+        }
+
+        if (ctx.path === '/manifest.webmanifest') {
+            noStore(ctx);
+            ctx.type = 'application/manifest+json';
+            ctx.body = JSON.stringify({ name: 'JYL', short_name: 'JYL', start_url: '/', display: 'browser' });
+            return;
+        }
+
+        if ((ctx.path === '/index.html' || ctx.path === '/') && ctx.method === 'GET') {
+            const indexFile = path.join(distPath, 'index.html');
+            if (fs.existsSync(indexFile)) {
+                noStore(ctx);
+                ctx.type = 'html';
+                ctx.body = fs.createReadStream(indexFile);
+                return;
+            }
+        }
+
+        if (ctx.path === '/index.html' || ctx.path === '/') {
+            noStore(ctx);
         }
         await next();
     });
@@ -122,14 +195,15 @@ if (fs.existsSync(distPath)) {
 
     // 2. 如果静态文件未匹配，且是 GET 请求，则作为 SPA 回退到 index.html
     app.use(async (ctx, next) => {
-        // 只有不带后缀名（即不是文件请求）且不是 API/Storage 的 GET 请求才回退
-        const isPageRequest = !ctx.path.includes('.') && ctx.method === 'GET';
+        // 只有不带后缀名（即不是文件请求）、是 GET 请求、且请求头包含 text/html 且不是 API/Storage 的请求才回退
+        const isHtmlRequest = ctx.get('Accept')?.includes('text/html');
+        const isPageRequest = !ctx.path.includes('.') && ctx.method === 'GET' && isHtmlRequest;
         
         if (isPageRequest && !ctx.path.startsWith('/api') && !ctx.path.startsWith('/storage')) {
             const indexFile = path.join(distPath, 'index.html');
             if (fs.existsSync(indexFile)) {
+                noStore(ctx);
                 ctx.type = 'html';
-                ctx.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
                 ctx.body = fs.createReadStream(indexFile);
                 return;
             }
@@ -158,4 +232,3 @@ app.listen(port, () => {
     console.log('╚══════════════════════════════════════════╝');
     console.log('');
 });
-

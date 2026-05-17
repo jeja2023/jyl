@@ -246,6 +246,10 @@ const HealthRecord = sequelize.define('HealthRecord', {
         {
             name: 'idx_hr_user_date',
             fields: ['UserId', 'recordDate']
+        },
+        {
+            name: 'idx_hr_user_member_date',
+            fields: ['UserId', 'memberId', 'recordDate']
         }
     ]
 });

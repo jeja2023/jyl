@@ -39,7 +39,10 @@ const MedicationPlan = sequelize.define('MedicationPlan', {
     }
 }, {
     timestamps: true,
-    comment: '用户服药提醒计划表' // 表级注释
+    comment: '用户服药提醒计划表', // 表级注释
+    indexes: [
+        { name: 'idx_med_plans_user_active_time', fields: ['UserId', 'isActive', 'takeTime'] }
+    ]
 });
 
 User.hasMany(MedicationPlan);

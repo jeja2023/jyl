@@ -203,7 +203,6 @@ const changeCategory = (cat) => {
 };
 
 const openMenu = () => {
-    console.log('Open Menu Clicked');
     showActionSheet.value = true;
 };
 

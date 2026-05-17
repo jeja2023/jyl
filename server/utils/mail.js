@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const logger = require('./logger');
 
 /**
  * 邮件发送服务
@@ -16,9 +17,10 @@ class MailService {
                     user: process.env.SMTP_USER,
                     pass: process.env.SMTP_PASS
                 },
-                // 提高 Gmail 等服务的兼容性
                 tls: {
-                    rejectUnauthorized: false
+                    rejectUnauthorized: process.env.NODE_ENV === 'production'
+                        ? true
+                        : process.env.SMTP_TLS_REJECT_UNAUTHORIZED !== 'false'
                 }
             });
         }
@@ -33,7 +35,7 @@ class MailService {
      */
     static async sendCode(to, code) {
         if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-            console.warn('[邮件] 未配置SMTP服务，跳过发送', { to, code });
+            logger.warn('未配置SMTP服务，跳过邮件验证码发送', { email: to });
             return true; // 开发模式假设成功
         }
 
@@ -61,10 +63,10 @@ class MailService {
 
         try {
             await this.transporter.sendMail(mailOptions);
-            console.log(`[邮件] 验证码已成功发送至: ${to}`);
+            logger.info('邮件验证码发送成功', { email: to });
             return true;
         } catch (error) {
-            console.error('[邮件] 发送失败:', error.message);
+            logger.error('邮件验证码发送失败', { message: error.message });
             throw new Error('邮件发送失败');
         }
     }

@@ -921,7 +921,7 @@ const processImageData = async (filePath, type) => {
   try {
     const base64 = await fileToBase64(filePath);
 
-    console.log('[OCR] 开始识别...');
+    if (import.meta.env.DEV) console.debug('[OCR] 开始识别...');
     const ocrResult = await http.post('/api/ocr/recognize', { image: base64, type });
 
     if (ocrResult && ocrResult.indicators) {
@@ -938,12 +938,12 @@ const processImageData = async (filePath, type) => {
       }
     }
 
-    console.log('[上传] 开始上传图片...');
+    if (import.meta.env.DEV) console.debug('[上传] 开始上传图片...');
     let uploadResult;
     try {
       uploadResult = await uploadReportFile(filePath, type);
     } catch (uploadErr) {
-      console.warn('uploadFile 失败，改用 base64 上传', uploadErr);
+      if (import.meta.env.DEV) console.warn('uploadFile 失败，改用 base64 上传', uploadErr);
       uploadResult = await http.post('/api/upload/report', { image: base64, type });
     }
 

@@ -9,7 +9,10 @@
     "migrate": "sequelize-cli db:migrate",
     "migrate:undo": "sequelize-cli db:migrate:undo",
     "migrate:check": "node scripts/check-migrations.js",
-    "test": "node --test"
+    "test": "node --test",
+    "unlock:user": "node scripts/unlock-user.js",
+    "reset:admin": "node scripts/reset-admin.js",
+    "clean:indexes": "node scripts/clean-indexes.js"
   },
   "keywords": [
     "甲状腺",

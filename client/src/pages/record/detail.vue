@@ -159,6 +159,7 @@ import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 import { getBaseURL } from '@/utils/config.js';
+import { buildRecordExportUrl, downloadExportFile } from '@/utils/exportFile.js';
 import { getIndicatorInfoFromRef, getIndicatorAdvice } from '@/utils/indicator.js';
 import { setCache, getCache } from '@/utils/cache.js';
 import { ALL_INDICATORS, getDiseaseIndicatorProfile } from '@/utils/thyroidIndicators.js';
@@ -207,37 +208,8 @@ const onActionSelect = (e) => {
 };
 
 const handleExport = (id) => {
-  const token = userStore.token;
-  const baseUrl = getBaseURL();
-  const url = `${baseUrl}/api/record/export?token=${token}&id=${id}`;
-  
-  // #ifdef H5
-  window.location.href = url;
-  // #endif
-  
-  // #ifndef H5
-  uni.showLoading({ title: '准备导出...' });
-  uni.downloadFile({
-    url,
-    success: (res) => {
-      if (res.statusCode === 200) {
-        uni.openDocument({
-          filePath: res.tempFilePath,
-          showMenu: true,
-          success: () => uni.hideLoading(),
-          fail: () => {
-             uni.hideLoading();
-             uni.$u.toast('预览失败，请尝试在浏览器打开');
-          }
-        });
-      }
-    },
-    fail: () => {
-      uni.hideLoading();
-      uni.$u.toast('导出失败');
-    }
-  });
-  // #endif
+  const url = buildRecordExportUrl({ id });
+  downloadExportFile(url, userStore.token);
 };
 
 const confirmDelete = async () => {
@@ -320,7 +292,7 @@ const copyShareLink = async () => {
     const token = res?.token;
     if (!token) return uni.$u.toast('生成分享链接失败');
     const baseUrl = getBaseURL();
-    const url = `${baseUrl}/#/pages/share/record?token=${token}`;
+    const url = `${baseUrl}/#/pages/share/record?token=${encodeURIComponent(token)}`;
     uni.setClipboardData({
       data: url,
       success: () => uni.$u.toast('分享链接已复制')

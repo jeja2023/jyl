@@ -4,6 +4,7 @@ const Response = require('../utils/response');
 const { logAction } = require('../utils/actionLog');
 const { Op } = require('sequelize');
 const xss = require('xss');
+const { getPagination } = require('../utils/pagination');
 
 class WikiController {
     /**
@@ -11,7 +12,8 @@ class WikiController {
      * GET /api/wiki/list
      */
     static async list(ctx) {
-        const { category, page = 1, pageSize = 20, keyword } = ctx.query;
+        const { category, keyword } = ctx.query;
+        const { page, pageSize, limit, offset } = getPagination(ctx.query, { defaultPageSize: 20, maxPageSize: 50 });
 
         const where = { status: 'published' };
         if (category && category !== '全部') {
@@ -27,16 +29,16 @@ class WikiController {
         const { count, rows } = await WikiArticle.findAndCountAll({
             where,
             order: [['isTop', 'DESC'], ['sortOrder', 'DESC'], ['createdAt', 'DESC']],
-            offset: (page - 1) * pageSize,
-            limit: parseInt(pageSize),
+            offset,
+            limit,
             attributes: ['id', 'title', 'summary', 'category', 'cover', 'views', 'isTop', 'authorName', 'createdAt']
         });
 
         Response.success(ctx, {
             list: rows,
             total: count,
-            page: parseInt(page),
-            pageSize: parseInt(pageSize)
+            page,
+            pageSize
         });
     }
 
@@ -116,7 +118,8 @@ class WikiController {
      */
     static async myArticles(ctx) {
         const userId = ctx.state.user.id;
-        const { status, page = 1, pageSize = 20 } = ctx.query;
+        const { status } = ctx.query;
+        const { page, pageSize, limit, offset } = getPagination(ctx.query, { defaultPageSize: 20, maxPageSize: 50 });
 
         const where = { authorId: userId };
         if (status) {
@@ -126,16 +129,16 @@ class WikiController {
         const { count, rows } = await WikiArticle.findAndCountAll({
             where,
             order: [['createdAt', 'DESC']],
-            offset: (page - 1) * pageSize,
-            limit: parseInt(pageSize),
+            offset,
+            limit,
             attributes: ['id', 'title', 'summary', 'category', 'cover', 'views', 'status', 'rejectReason', 'createdAt', 'updatedAt']
         });
 
         Response.success(ctx, {
             list: rows,
             total: count,
-            page: parseInt(page),
-            pageSize: parseInt(pageSize)
+            page,
+            pageSize
         });
     }
 
@@ -215,21 +218,21 @@ class WikiController {
      * GET /api/wiki/pending
      */
     static async pendingList(ctx) {
-        const { page = 1, pageSize = 20 } = ctx.query;
+        const { page, pageSize, limit, offset } = getPagination(ctx.query, { defaultPageSize: 20, maxPageSize: 50 });
 
         const { count, rows } = await WikiArticle.findAndCountAll({
             where: { status: 'pending' },
             order: [['createdAt', 'ASC']], // 先提交的先审核
-            offset: (page - 1) * pageSize,
-            limit: parseInt(pageSize),
+            offset,
+            limit,
             attributes: ['id', 'title', 'summary', 'category', 'cover', 'authorId', 'authorName', 'createdAt']
         });
 
         Response.success(ctx, {
             list: rows,
             total: count,
-            page: parseInt(page),
-            pageSize: parseInt(pageSize)
+            page,
+            pageSize
         });
     }
 

@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const https = require('https');
+const logger = require('./logger');
 
 /**
  * 腾讯云短信服务
@@ -21,12 +22,12 @@ class SmsService {
 
         // 检查配置
         if (!secretId || !secretKey) {
-            console.error('[短信] 未配置腾讯云密钥');
+            logger.error('短信服务未配置腾讯云密钥');
             throw new Error('短信服务未配置');
         }
 
         if (!smsAppId || !smsTemplateId) {
-            console.error('[短信] 未配置短信应用ID或模板ID');
+            logger.error('短信服务未配置应用ID或模板ID');
             throw new Error('短信服务未配置');
         }
 
@@ -97,18 +98,18 @@ class SmsService {
                 res.on('end', () => {
                     try {
                         const result = JSON.parse(data);
-                        console.log('[短信] 发送结果:', JSON.stringify(result));
+                        logger.debug('短信发送响应', { response: result.Response });
 
                         if (result.Response && result.Response.Error) {
-                            console.error('[短信] 发送失败:', result.Response.Error.Message);
+                            logger.error('短信发送失败', { message: result.Response.Error.Message });
                             reject(new Error(result.Response.Error.Message));
                         } else if (result.Response && result.Response.SendStatusSet) {
                             const status = result.Response.SendStatusSet[0];
                             if (status.Code === 'Ok') {
-                                console.log(`[短信] 验证码已发送至 ${phone}`);
+                                logger.info('短信验证码发送成功', { phone });
                                 resolve(true);
                             } else {
-                                console.error('[短信] 发送失败:', status.Message);
+                                logger.error('短信发送失败', { message: status.Message });
                                 reject(new Error(status.Message));
                             }
                         } else {

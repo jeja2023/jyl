@@ -5,49 +5,44 @@ const Response = require('../utils/response');
 const { logAction } = require('../utils/actionLog');
 const ExcelJS = require('exceljs');
 const { DEFAULT_RANGES, TREND_KEYS } = require('../utils/indicatorAnalysis');
+const logger = require('../utils/logger');
+const { getPagination } = require('../utils/pagination');
 
 const LAB_KEYS = Object.keys(DEFAULT_RANGES);
 
 class RecordController {
-    // 辅助方法：清洗数据，将空字符串转换为 null
     static cleanData(data) {
         for (const key in data) {
-            if (data[key] === '') {
-                data[key] = null;
-            }
+            if (data[key] === '') data[key] = null;
         }
     }
 
-    // 导出数据
     static async export(ctx) {
         const userId = ctx.state.user.id;
-        const { id } = ctx.query; // 如果传了 id 则导出单条，否则导出全部
+        const { id, memberId } = ctx.query;
 
         const where = { UserId: userId };
-        if (id) {
-            where.id = id;
-        }
+        if (id) where.id = id;
+        if (memberId) where.memberId = memberId;
 
         const records = await HealthRecord.findAll({
             where,
+            include: [{ model: FamilyMember, attributes: ['name'] }],
             order: [['recordDate', 'DESC']]
         });
-        
-        console.log(`[导出诊断] 用户 ID: ${userId}, 查找到记录数: ${records?.length || 0}`);
 
+        logger.debug('Export records query completed', { userId, count: records?.length || 0 });
         if (!records || records.length === 0) {
-            console.warn(`[导出停止] 用户 ID: ${userId} 没有可导出的记录`);
+            logger.warn('Export stopped: no records found', { userId });
             return Response.error(ctx, '无记录可导出');
         }
-
-        console.log(`[导出执行] 正在开始生成 Excel 文件...`);
 
         const workbook = new ExcelJS.Workbook();
         const sheet = workbook.addWorksheet('健康指标记录');
 
-        // 定义表头
-        const columns = [
+        sheet.columns = [
             { header: '日期', key: 'recordDate', width: 15 },
+            { header: '所属成员', key: 'memberName', width: 12 },
             ...LAB_KEYS.map(key => {
                 const range = DEFAULT_RANGES[key] || {};
                 return { header: `${key}${range.unit ? ` (${range.unit})` : ''}`, key, width: 14 };
@@ -57,9 +52,6 @@ class RecordController {
             { header: '超声提示/备注', key: 'feeling', width: 30 }
         ];
 
-        sheet.columns = columns;
-
-        // 设置表头样式
         sheet.getRow(1).font = { bold: true };
         sheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
         sheet.getRow(1).fill = {
@@ -68,10 +60,10 @@ class RecordController {
             fgColor: { argb: 'FFE9E9E9' }
         };
 
-        // 添加数据
         records.forEach(item => {
-            const rowData = {
+            sheet.addRow({
                 recordDate: item.recordDate,
+                memberName: item.FamilyMember ? item.FamilyMember.name : '本人',
                 ...LAB_KEYS.reduce((acc, key) => {
                     acc[key] = item[key];
                     return acc;
@@ -79,12 +71,10 @@ class RecordController {
                 weight: item.weight,
                 heartRate: item.heartRate,
                 feeling: [item.ultrasoundNote, item.conclusion, item.feeling].filter(Boolean).join(' ')
-            };
-            sheet.addRow(rowData);
+            });
         });
 
-        // 统一单元格样式
-        sheet.eachRow((row, rowNumber) => {
+        sheet.eachRow((row) => {
             row.eachCell((cell) => {
                 cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
                 cell.border = {
@@ -96,41 +86,29 @@ class RecordController {
             });
         });
 
-        // 设置响应头并导出
-        const filename = `Health_Records_${new Date().getTime()}.xlsx`;
+        const filename = `Health_Records_${Date.now()}.xlsx`;
         ctx.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         ctx.set('Content-Disposition', `attachment; filename=${filename}`);
 
         const buffer = await workbook.xlsx.writeBuffer();
-        console.log(`[导出完成] Excel Buffer 已生成, 大小: ${buffer.length} bytes`);
+        logger.info('Export Excel generated', { userId, bytes: buffer.length });
         ctx.body = buffer;
-
-        logAction(ctx, '导出数据', '健康记录', `用户导出了 ${records.length} 条记录`);
+        logAction(ctx, '导出数据', '健康记录', `用户导出了${records.length}条记录`);
     }
 
-    // 导入数据
     static async import(ctx) {
         const userId = ctx.state.user.id;
         const { fileData } = ctx.request.body;
-
-        if (!fileData) {
-            return Response.error(ctx, '未接收到文件数据');
-        }
+        if (!fileData) return Response.error(ctx, '未接收到文件数据');
 
         try {
-            // 解析 Base64
             const base64Data = fileData.replace(/^data:.*base64,/, '');
             const buffer = Buffer.from(base64Data, 'base64');
-
             const workbook = new ExcelJS.Workbook();
             await workbook.xlsx.load(buffer);
             const sheet = workbook.getWorksheet(1);
+            if (!sheet) return Response.error(ctx, 'Excel 格式错误：未找到工作表');
 
-            if (!sheet) {
-                return Response.error(ctx, 'Excel 格式错误：未找到工作表');
-            }
-
-            // 获取表头映射
             const headerRow = sheet.getRow(1);
             const colMap = {};
             const fieldAliases = {
@@ -170,7 +148,8 @@ class RecordController {
                 CRP: ['CRP', 'C反应蛋白'],
                 weight: ['体重', 'weight'],
                 heartRate: ['心率', 'heartRate', '心跳'],
-                feeling: ['备注', 'feeling', '说明', '超声提示/备注']
+                feeling: ['备注', 'feeling', '说明', '超声提示/备注'],
+                memberName: ['成员', '姓名', '所属成员', 'name']
             };
 
             headerRow.eachCell((cell, colNumber) => {
@@ -182,36 +161,29 @@ class RecordController {
                 }
             });
 
-            if (!colMap.recordDate) {
-                return Response.error(ctx, '导入失败：Excel 中必须包含“日期”列');
-            }
+            if (!colMap.recordDate) return Response.error(ctx, '导入失败：Excel 中必须包含“日期”列');
 
             const importRecords = [];
             let skipCount = 0;
-
-            // 遍历数据行 (从第二行开始)
             sheet.eachRow((row, rowNumber) => {
                 if (rowNumber === 1) return;
-
                 const dateVal = row.getCell(colMap.recordDate).value;
                 if (!dateVal) return;
 
-                // 处理日期格式
-                let recordDate;
-                if (dateVal instanceof Date) {
-                    recordDate = dateVal.toISOString().split('T')[0];
-                } else {
-                    recordDate = String(dateVal).trim();
+                const recordDate = dateVal instanceof Date
+                    ? dateVal.toISOString().split('T')[0]
+                    : String(dateVal).trim();
+                const rowData = { UserId: userId, recordDate };
+
+                if (colMap.memberName) {
+                    const memberName = row.getCell(colMap.memberName).value;
+                    if (memberName && memberName !== '本人') {
+                        rowData._tempMemberName = String(memberName).trim();
+                    }
                 }
 
-                const rowData = {
-                    UserId: userId,
-                    recordDate
-                };
-
-                // 填充其他字段
                 for (const field in colMap) {
-                    if (field === 'recordDate') continue;
+                    if (field === 'recordDate' || field === 'memberName') continue;
                     const val = row.getCell(colMap[field]).value;
                     rowData[field] = val !== null && val !== undefined ? String(val).trim() : null;
                 }
@@ -219,99 +191,85 @@ class RecordController {
                 importRecords.push(rowData);
             });
 
-            if (importRecords.length === 0) {
-                return Response.error(ctx, '未在 Excel 中找到有效数据');
-            }
+            if (importRecords.length === 0) return Response.error(ctx, '未在 Excel 中找到有效数据');
 
-            // 执行保存 (这里使用循环保存，以便触发日期重复逻辑或简单处理)
-            // 也可以先批量查重
+            const members = await FamilyMember.findAll({ where: { UserId: userId } });
+            const memberMap = {};
+            members.forEach(member => {
+                memberMap[member.name] = member.id;
+            });
+
             let successCount = 0;
             for (const item of importRecords) {
                 try {
-                    // 检查是否已存在同日期的记录
+                    if (item._tempMemberName && memberMap[item._tempMemberName]) {
+                        item.memberId = memberMap[item._tempMemberName];
+                    }
+                    delete item._tempMemberName;
+
                     const existing = await HealthRecord.findOne({
-                        where: { UserId: userId, recordDate: item.recordDate }
+                        where: {
+                            UserId: userId,
+                            recordDate: item.recordDate,
+                            memberId: item.memberId || null
+                        }
                     });
 
-                    if (existing) {
-                        await existing.update(item);
-                    } else {
-                        await HealthRecord.create(item);
-                    }
+                    if (existing) await existing.update(item);
+                    else await HealthRecord.create(item);
                     successCount++;
                 } catch (e) {
-                    console.error('导入行失败:', e);
+                    logger.warn('Import row failed', { message: e.message });
                     skipCount++;
                 }
             }
 
             Response.success(ctx, { successCount, skipCount }, `成功导入 ${successCount} 条记录${skipCount > 0 ? `，跳过 ${skipCount} 条` : ''}`);
-            logAction(ctx, '导入数据', '健康记录', `用户导入了 ${successCount} 条记录`);
-
+            logAction(ctx, '导入数据', '健康记录', `用户导入了${successCount}条记录`);
         } catch (error) {
-            console.error('[导入失败]', error);
+            logger.error('Import failed', { message: error.message });
             Response.error(ctx, '解析 Excel 文件失败');
         }
     }
 
-    // 新增记录
     static async create(ctx) {
         const data = ctx.request.body;
         const userId = ctx.state.user.id;
-
-        // 数据清洗
         RecordController.cleanData(data);
 
-        if (!data.recordDate) {
-            return Response.error(ctx, '缺少报告日期');
-        }
-
-        // 成员校验
+        if (!data.recordDate) return Response.error(ctx, '缺少报告日期');
         if (data.memberId) {
             const member = await FamilyMember.findOne({ where: { id: data.memberId, UserId: userId } });
-            if (!member) {
-                return Response.error(ctx, '家庭成员不存在', 400);
-            }
+            if (!member) return Response.error(ctx, '家庭成员不存在', 400);
         }
 
-        // 如果填写了B超数据但没填B超日期，默认使用主日期
         if ((data.thyroidLeft || data.noduleCount || data.ultrasoundNote) && !data.ultrasoundDate) {
             data.ultrasoundDate = data.recordDate;
         }
 
-        const record = await HealthRecord.create({
-            ...data,
-            UserId: userId
-        });
-
+        const record = await HealthRecord.create({ ...data, UserId: userId });
         Response.success(ctx, record, '健康记录已保存');
         logAction(ctx, '新增记录', '健康记录', `用户新增了日期为 ${data.recordDate} 的检查记录`);
     }
 
-    // 获取列表 (按日期倒序)
     static async list(ctx) {
         const userId = ctx.state.user.id;
-        const { limit = 20, offset = 0, hasLab } = ctx.query;
-        const { Op } = require('sequelize');
+        const { hasLab } = ctx.query;
+        const { limit, offset } = getPagination(ctx.query, { defaultPageSize: 20, maxPageSize: 100 });
 
         const where = { UserId: userId };
-
-        // 如果需要过滤含血检的记录
         if (hasLab == 1) {
             where[Op.or] = LAB_KEYS.map(key => ({ [key]: { [Op.ne]: null } }));
         }
 
         const { count, rows } = await HealthRecord.findAndCountAll({
             where,
-            include: [
-                { model: FamilyMember, attributes: ['id', 'name', 'relation', 'patientType'] }
-            ],
+            include: [{ model: FamilyMember, attributes: ['id', 'name', 'relation', 'patientType'] }],
             order: [['recordDate', 'DESC']],
-            limit: parseInt(limit),
-            offset: parseInt(offset)
+            limit,
+            offset
         });
 
-        // 处理多图 JSON 字符串
         const list = rows.map(item => {
             const row = item.toJSON();
             row.reportImage = RecordController.parseImages(row.reportImage);
@@ -321,82 +279,58 @@ class RecordController {
             return row;
         });
 
-        Response.success(ctx, {
-            total: count,
-            list
-        });
+        Response.success(ctx, { total: count, list });
     }
 
-    // 获取单条记录详情
     static async detail(ctx) {
         const { id } = ctx.params;
         const userId = ctx.state.user.id;
-
         const record = await HealthRecord.findOne({
             where: { id, UserId: userId },
-            include: [
-                { model: FamilyMember, attributes: ['id', 'name', 'relation', 'patientType'] }
-            ]
+            include: [{ model: FamilyMember, attributes: ['id', 'name', 'relation', 'patientType'] }]
         });
 
-        if (!record) {
-            return Response.error(ctx, '记录不存在', 404);
-        }
+        if (!record) return Response.error(ctx, '记录不存在', 404);
 
-        // 处理多图 JSON 字符串
         const row = record.toJSON();
         row.reportImage = RecordController.parseImages(row.reportImage);
         row.ultrasoundImage = RecordController.parseImages(row.ultrasoundImage);
         row.indicatorUnits = RecordController.parseJson(row.indicatorUnits) || row.indicatorUnits;
         row.ocrReview = RecordController.parseJson(row.ocrReview) || row.ocrReview;
-
         Response.success(ctx, row);
     }
 
-    // 获取趋势图数据 (最近12条记录)
     static async trend(ctx) {
         const userId = ctx.state.user.id;
-        const { Op } = require('sequelize');
-
         const list = await HealthRecord.findAll({
             where: {
                 UserId: userId,
                 [Op.or]: TREND_KEYS.map(key => ({ [key]: { [Op.ne]: null } }))
             },
             attributes: ['recordDate', ...TREND_KEYS],
-            order: [['recordDate', 'DESC']], // 改为倒序获取最新的
+            order: [['recordDate', 'DESC']],
             limit: 12
         });
-
-        // 取出后反转，变成按时间正序排列以便前端展示
         Response.success(ctx, list.reverse());
     }
 
-    // 更新记录
     static async update(ctx) {
         const { id } = ctx.params;
         const userId = ctx.state.user.id;
         const data = ctx.request.body;
-
         const record = await HealthRecord.findOne({ where: { id, UserId: userId } });
         if (!record) return Response.error(ctx, '记录不存在', 404);
 
-        // 数据清洗
         RecordController.cleanData(data);
-
-        // 成员校验（允许置空）
         if (Object.prototype.hasOwnProperty.call(data, 'memberId')) {
             if (data.memberId) {
                 const member = await FamilyMember.findOne({ where: { id: data.memberId, UserId: userId } });
-                if (!member) {
-                    return Response.error(ctx, '家庭成员不存在', 400);
-                }
+                if (!member) return Response.error(ctx, '家庭成员不存在', 400);
             } else {
                 data.memberId = null;
             }
         }
 
-        // 如果填写了B超数据但没填B超日期，默认使用主日期 (同步创建时的逻辑)
         if ((data.thyroidLeft || data.noduleCount || data.ultrasoundNote) && !data.ultrasoundDate) {
             data.ultrasoundDate = data.recordDate || record.recordDate;
         }
@@ -406,11 +340,9 @@ class RecordController {
         logAction(ctx, '更新记录', '健康记录', `用户更新了日期为 ${record.recordDate} 的检查记录`);
     }
 
-    // 删除记录
     static async delete(ctx) {
         const { id } = ctx.params;
         const userId = ctx.state.user.id;
-
         const record = await HealthRecord.findOne({ where: { id, UserId: userId } });
         if (!record) return Response.error(ctx, '记录不存在', 404);
 
@@ -418,7 +350,7 @@ class RecordController {
         Response.success(ctx, null, '记录已删除');
         logAction(ctx, '删除记录', '健康记录', `用户删除了日期为 ${record.recordDate} 的检查记录`);
     }
-    // 辅助方法：解析图片 JSON 字符串，并确保返回扁平化的字符串数组
+
     static parseImages(val) {
         if (!val) return [];
         let result;
@@ -432,11 +364,9 @@ class RecordController {
                 result = [val];
             }
         }
-        // 深度清理：确保数组内是字符串，如果是嵌套数组则展开 (修复历史 Bug 产生的数据)
         return result.map(item => Array.isArray(item) ? item[0] : item).filter(i => i && typeof i === 'string');
     }
 
-    // 辅助方法：解析 JSON 字符串
     static parseJson(val) {
         if (!val) return null;
         if (typeof val === 'object') return val;

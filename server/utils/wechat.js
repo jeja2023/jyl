@@ -1,4 +1,5 @@
 const https = require('https');
+const logger = require('./logger');
 
 /**
  * 微信小程序服务
@@ -27,10 +28,10 @@ class WechatService {
                 res.on('end', () => {
                     try {
                         const result = JSON.parse(data);
-                        console.log('[微信] code2Session结果:', JSON.stringify(result));
+                        logger.debug('微信 code2Session 响应', { errcode: result.errcode });
 
                         if (result.errcode) {
-                            console.error('[微信] 登录失败:', result.errmsg);
+                            logger.error('微信登录失败', { message: result.errmsg });
                             reject(new Error(result.errmsg || '微信登录失败'));
                         } else {
                             resolve({
@@ -83,7 +84,7 @@ class WechatService {
                 res.on('end', () => {
                     try {
                         const result = JSON.parse(data);
-                        console.log('[微信] 获取手机号结果:', JSON.stringify(result));
+                        logger.debug('微信获取手机号响应', { errcode: result.errcode });
 
                         if (result.errcode !== 0) {
                             reject(new Error(result.errmsg || '获取手机号失败'));

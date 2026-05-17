@@ -187,7 +187,7 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
-import { getBaseURL } from '@/utils/config.js';
+import { buildRecordExportUrl, downloadExportFile } from '@/utils/exportFile.js';
 import { getIndicatorInfo, getIndicatorInfoFromRef } from '@/utils/indicator.js';
 import { setCache, getCache } from '@/utils/cache.js';
 import { TREND_INDICATORS, getDefaultTrendKeys, getDiseaseIndicatorProfile, normalizeTrendKeys } from '@/utils/thyroidIndicators.js';
@@ -260,38 +260,8 @@ const changeCount = (type) => {
 };
 
 const handleExport = (id) => {
-  const token = userStore.token;
-  const baseUrl = getBaseURL();
-  let url = `${baseUrl}/api/record/export?token=${token}`;
-  if (id) url += `&id=${id}`;
-  
-  // #ifdef H5
-  window.location.href = url;
-  // #endif
-  
-  // #ifndef H5
-  uni.showLoading({ title: '准备导出...' });
-  uni.downloadFile({
-    url,
-    success: (res) => {
-      if (res.statusCode === 200) {
-        uni.openDocument({
-          filePath: res.tempFilePath,
-          showMenu: true,
-          success: () => uni.hideLoading(),
-          fail: () => {
-             uni.hideLoading();
-             uni.$u.toast('暂不支持此格式预览，请通过浏览器打开');
-          }
-        });
-      }
-    },
-    fail: () => {
-      uni.hideLoading();
-      uni.$u.toast('导出失败');
-    }
-  });
-  // #endif
+  const url = buildRecordExportUrl({ id });
+  downloadExportFile(url, userStore.token);
 };
 
 const handleImport = () => {

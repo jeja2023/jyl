@@ -19,10 +19,10 @@ const config = {
             if (res) {
                 this.SUPPORT_EMAIL = res.supportEmail || this.SUPPORT_EMAIL;
                 this.WECHAT_SUPPORT = res.wechatSupport || this.WECHAT_SUPPORT;
-                console.log('✅ 系统业务配置同步成功');
+                if (import.meta.env.DEV) console.log('系统业务配置同步成功');
             }
         } catch (err) {
-            console.error('❌ 系统配置同步失败，使用内置默认值', err);
+            if (import.meta.env.DEV) console.error('系统配置同步失败，使用内置默认值', err);
         }
     }
 };

@@ -122,7 +122,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onBeforeUnmount } from 'vue';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 import { PATIENT_TYPES } from '@/utils/thyroidIndicators.js';
@@ -144,6 +144,15 @@ const codeTime = ref(0);
 const timer = ref(null);
 const usernameExists = ref(false);
 
+const clearCodeTimer = () => {
+    if (timer.value) {
+        clearInterval(timer.value);
+        timer.value = null;
+    }
+};
+
+onBeforeUnmount(clearCodeTimer);
+
 const goToPage = (type) => {
     uni.navigateTo({ url: `/pages/my/${type}` });
 };
@@ -164,7 +173,7 @@ const handleCheckUsername = async () => {
             uni.$u.toast('该用户名已被占用');
         }
     } catch (e) {
-        console.error('校验用户名失败', e);
+        if (import.meta.env.DEV) console.error('校验用户名失败', e);
     }
 };
 
@@ -204,9 +213,10 @@ const handleSendEmailCode = async () => {
         });
         uni.$u.toast('邮箱验证码已发送');
         codeTime.value = 60;
-        timer = setInterval(() => {
+        clearCodeTimer();
+        timer.value = setInterval(() => {
             codeTime.value--;
-            if (codeTime.value <= 0) clearInterval(timer);
+            if (codeTime.value <= 0) clearCodeTimer();
         }, 1000);
     } catch (e) {
         // failed

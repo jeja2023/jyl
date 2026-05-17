@@ -34,7 +34,11 @@ const Notification = sequelize.define('Notification', {
     }
 }, {
     timestamps: true,
-    comment: '系统通知表'
+    comment: '系统通知表',
+    indexes: [
+        { name: 'idx_notifications_user_created', fields: ['UserId', 'createdAt'] },
+        { name: 'idx_notifications_user_read_created', fields: ['UserId', 'isRead', 'createdAt'] }
+    ]
 });
 
 // 建立关联

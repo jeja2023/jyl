@@ -3,6 +3,7 @@ const https = require('https');
 const Response = require('../utils/response');
 const { logAction } = require('../utils/actionLog');
 const { parseBase64Image } = require('../utils/imageValidation');
+const logger = require('../utils/logger');
 
 /**
  * OCR控制器 - 用于化验单图片识别
@@ -146,7 +147,7 @@ class OcrController {
         // 合并所有识别文本
         const allText = textDetections.map(item => item.DetectedText).join(' ');
 
-        console.log('[化验单OCR] 识别原文:', allText);
+        logger.debug('化验单OCR识别完成', { rawText: allText, length: allText.length });
 
         const result = {};
 
@@ -225,13 +226,13 @@ class OcrController {
                 if (unit) {
                     result[`${cnKey}单位`] = unit;
                 }
-                console.log(`[化验单OCR] 匹配到 ${cnKey}: ${value} ${unit || ''}`);
+                logger.debug('化验单OCR匹配到指标', { indicator: cnKey, hasValue: value !== null && value !== undefined, unit });
             }
         }
 
         // 返回识别结果统计
         const recognizedCount = Object.keys(result).length;
-        console.log(`[化验单OCR] 共识别到 ${recognizedCount} 个指标`);
+        logger.debug('化验单OCR解析完成', { recognizedCount });
 
         return {
             indicators: result,
@@ -249,7 +250,7 @@ class OcrController {
         // 预处理：统一全角字符，替换单位
         allText = allText.replace(/（/g, '(').replace(/）/g, ')').replace(/：/g, ':').replace(/，/g, ',');
 
-        console.log('[B超OCR] 识别原文:', allText);
+        logger.debug('B超OCR识别完成', { rawText: allText, length: allText.length });
 
         // 提取检查所见段落（去除患者信息噪音）
         const findingsMatch = allText.match(/(?:超声所见|检查所见|所见|描述)[:：]?\s*([\s\S]+?)(?=\s*(?:超声提示|提示|报告医生|审核医生|$))/i);
@@ -376,7 +377,7 @@ class OcrController {
             result['淋巴结'] = '未见异常';
         }
 
-        console.log('[B超OCR] 解析结果:', result);
+        logger.debug('B超OCR解析完成', { fields: Object.keys(result) });
 
         return {
             indicators: result,
