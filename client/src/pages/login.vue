@@ -68,6 +68,12 @@
         </view>
 
         <view class="aux-links">
+           <!-- #ifdef H5 -->
+           <view class="apk-inline-link" @click="downloadAndroidApk">
+             <u-icon name="download" size="16" color="#3E7BFF"></u-icon>
+             <text>下载安卓版</text>
+           </view>
+           <!-- #endif -->
            <text v-if="loginType === 'password'" @click="loginType = 'email'">还没有账号？<text class="blue">去注册</text></text>
            <text v-else @click="loginType = 'password'">已有账号？<text class="blue">去登录</text></text>
         </view>
@@ -91,15 +97,6 @@
           @click="submitLogin"
         ></u-button>
 
-        <!-- #ifdef H5 -->
-        <view class="apk-download-card" @click="downloadAndroidApk">
-          <view class="apk-download-main">
-            <u-icon name="download" size="22" color="#3E7BFF"></u-icon>
-            <text>下载安卓版</text>
-          </view>
-          <view class="apk-download-desc">首次安装使用，已安装用户无需重复下载</view>
-        </view>
-        <!-- #endif -->
       </view>
 
 
@@ -563,13 +560,30 @@ const skipRegister = () => {
 }
 
 .aux-links {
-  text-align: right;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24rpx;
   font-size: 26rpx;
   color: #86909C;
   margin-top: 10rpx;
   margin-bottom: 40rpx;
   font-weight: 600;
   .blue { color: #3E7BFF; margin-left: 8rpx; text-decoration: underline; }
+}
+
+.apk-inline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  color: #3E7BFF;
+  font-size: 26rpx;
+  font-weight: 800;
+  white-space: nowrap;
+
+  &:active {
+    opacity: 0.75;
+  }
 }
 
 .submit-btn {
