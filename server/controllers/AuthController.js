@@ -1,12 +1,14 @@
 const HealthRecord = require('../models/HealthRecord');
 const User = require('../models/User');
 const VerifyCode = require('../models/VerifyCode');
+const VerifySendLock = require('../models/VerifySendLock');
 const FamilyMember = require('../models/FamilyMember');
 const jwt = require('jsonwebtoken');
 const Response = require('../utils/response');
 const SmsService = require('../utils/sms');
 const MailService = require('../utils/mail');
-const { Op } = require('sequelize');
+const sequelize = require('../db');
+const { Op, UniqueConstraintError } = require('sequelize');
 const { logAction } = require('../utils/actionLog');
 const { TREND_KEYS, getDiseaseIndicatorProfile, getDefaultTrendKeys } = require('../utils/indicatorAnalysis');
 const logger = require('../utils/logger');
@@ -20,6 +22,34 @@ const normalizePublicUrl = (ctx, url) => {
         const publicBase = process.env.APP_PUBLIC_BASE_URL || process.env.PUBLIC_BASE_URL;
         return publicBase ? new URL(url, publicBase).toString() : url;
     }
+};
+
+const getSendLockKey = (targetType, target) => `${targetType}:${target}`;
+
+const findOrCreateSendLock = async (targetType, target, transaction) => {
+    const targetKey = getSendLockKey(targetType, target);
+    try {
+        await VerifySendLock.findOrCreate({
+            where: { targetKey },
+            defaults: { targetKey },
+            transaction
+        });
+    } catch (err) {
+        if (!isUniqueConstraintError(err)) throw err;
+    }
+
+    return VerifySendLock.findByPk(targetKey, {
+        transaction,
+        lock: transaction.LOCK.UPDATE
+    });
+};
+
+const isUniqueConstraintError = (err) => err instanceof UniqueConstraintError || err?.name === 'SequelizeUniqueConstraintError';
+
+const clientError = (message) => {
+    const err = new Error(message);
+    err.isClientError = true;
+    return err;
 };
 
 const parseTrendIndicators = (raw, patientType = '其他') => {
@@ -235,50 +265,65 @@ class AuthController {
             return Response.error(ctx, '请输入正确的邮箱地址');
         }
 
-        // 检查是否频繁发送（1分钟内只能发一次）
-        const recentCode = await VerifyCode.findOne({
-            where: {
-                target: email,
-                targetType: 'email',
-                createdAt: { [Op.gte]: new Date(Date.now() - 60000) }
-            }
-        });
-
-        if (recentCode) {
-            return Response.error(ctx, '验证码发送太频繁，请1分钟后再试');
-        }
-
-        // 如果是注册流程，预先检查邮箱或用户名是否已存在
-        if (type === 'register') {
-            const { username } = ctx.request.body;
-            // 构造查询条件
-            const orConditions = [{ email }];
-            if (username) {
-                orConditions.push({ username });
-            }
-            
-            const existUser = await User.findOne({ 
-                where: { [Op.or]: orConditions } 
-            });
-            
-            if (existUser) {
-                if (existUser.email === email) return Response.error(ctx, '该邮箱已注册，请直接登录');
-                if (username && existUser.username === username) return Response.error(ctx, '该用户名已被占用');
-            }
-        }
-
-        // 生成验证码
-        const code = MailService.generateCode(6);
-        const expireAt = new Date(Date.now() + 5 * 60 * 1000); // 5分钟有效
-
-        // 保存验证码
-        await VerifyCode.create({ target: email, code, type, targetType: 'email', expireAt });
-
+        let code = null;
         try {
-            await MailService.sendCode(email, code);
+            await sequelize.transaction(async (transaction) => {
+                await findOrCreateSendLock('email', email, transaction);
+
+                const recentCode = await VerifyCode.findOne({
+                    where: {
+                        target: email,
+                        targetType: 'email',
+                        createdAt: { [Op.gte]: new Date(Date.now() - 60000) }
+                    },
+                    transaction
+                });
+
+                if (recentCode) {
+                    throw clientError('验证码发送太频繁，请1分钟后再试');
+                }
+
+                // 如果是注册流程，预先检查邮箱或用户名是否已存在
+                if (type === 'register') {
+                    const { username } = ctx.request.body;
+                    const orConditions = [{ email }];
+                    if (username) {
+                        orConditions.push({ username });
+                    }
+
+                    const existUser = await User.findOne({
+                        where: { [Op.or]: orConditions },
+                        transaction
+                    });
+
+                    if (existUser) {
+                        if (existUser.email === email) throw clientError('该邮箱已注册，请直接登录');
+                        if (username && existUser.username === username) throw clientError('该用户名已被占用');
+                    }
+                }
+
+                code = MailService.generateCode(6);
+                try {
+                    await MailService.sendCode(email, code);
+                } catch (err) {
+                    console.error('[邮件] 发送失败:', err.message);
+                    throw clientError('验证码发送失败，请稍后重试');
+                }
+
+                const expireAt = new Date(Date.now() + 5 * 60 * 1000); // 5分钟有效
+                await VerifyCode.create({
+                    target: email,
+                    code,
+                    type,
+                    targetType: 'email',
+                    expireAt
+                }, { transaction });
+            });
         } catch (err) {
-            console.error('[邮件] 发送失败:', err.message);
-            return Response.error(ctx, '验证码发送失败，请稍后重试');
+            if (err?.isClientError) {
+                return Response.error(ctx, err.message);
+            }
+            throw err;
         }
 
         Response.success(ctx, null, '验证码已发送至您的邮箱');
@@ -305,46 +350,63 @@ class AuthController {
             return Response.error(ctx, '密码长度至少6位');
         }
 
-        // 1. 检查验证码
-        const verifyCode = await VerifyCode.findOne({
-            where: {
-                target: email,
-                code,
-                targetType: 'email',
-                used: false,
-                expireAt: { [Op.gte]: new Date() }
-            },
-            order: [['createdAt', 'DESC']]
-        });
-        if (!verifyCode) {
-            return Response.error(ctx, '验证码错误或已过期');
-        }
+        let newUser;
+        try {
+            newUser = await sequelize.transaction(async (transaction) => {
+                // 1. 检查验证码
+                const verifyCode = await VerifyCode.findOne({
+                    where: {
+                        target: email,
+                        code,
+                        targetType: 'email',
+                        used: false,
+                        expireAt: { [Op.gte]: new Date() }
+                    },
+                    order: [['createdAt', 'DESC']],
+                    transaction,
+                    lock: transaction.LOCK.UPDATE
+                });
+                if (!verifyCode) {
+                    throw clientError('验证码错误或已过期');
+                }
 
-        // 2. 检查唯一性
-        const existUser = await User.findOne({
-            where: {
-                [Op.or]: [
-                    { username: username },
-                    { email: email }
-                ]
+                // 2. 检查唯一性
+                const existUser = await User.findOne({
+                    where: {
+                        [Op.or]: [
+                            { username: username },
+                            { email: email }
+                        ]
+                    },
+                    transaction,
+                    lock: transaction.LOCK.UPDATE
+                });
+                if (existUser) {
+                    if (existUser.username === username) throw clientError('该用户名已被占用');
+                    if (existUser.email === email) throw clientError('该邮箱已注册，请直接登录');
+                }
+
+                // 3. 消费验证码
+                await verifyCode.update({ used: true }, { transaction });
+
+                // 4. 创建用户
+                return User.create({
+                    username,
+                    email,
+                    password,
+                    nickname: username,
+                    patientType: '其他'
+                }, { transaction });
+            });
+        } catch (err) {
+            if (err?.isClientError) {
+                return Response.error(ctx, err.message);
             }
-        });
-        if (existUser) {
-            if (existUser.username === username) return Response.error(ctx, '该用户名已被占用');
-            if (existUser.email === email) return Response.error(ctx, '该邮箱已注册，请直接登录');
+            if (isUniqueConstraintError(err)) {
+                return Response.error(ctx, '该用户名或邮箱已注册');
+            }
+            throw err;
         }
-
-        // 3. 消费验证码
-        await verifyCode.update({ used: true });
-
-        // 4. 创建用户
-        const newUser = await User.create({
-            username,
-            email,
-            password,
-            nickname: username,
-            patientType: '其他'
-        });
 
         // 自动登录
         const token = AuthController.generateToken(newUser);
@@ -369,36 +431,48 @@ class AuthController {
             return Response.error(ctx, '请输入正确的手机号');
         }
 
-        // 检查是否频繁发送（1分钟内只能发一次）
-        const recentCode = await VerifyCode.findOne({
-            where: {
-                target: phone,
-                targetType: 'sms',
-                createdAt: { [Op.gte]: new Date(Date.now() - 60000) }
-            }
-        });
+        try {
+            await sequelize.transaction(async (transaction) => {
+                await findOrCreateSendLock('sms', phone, transaction);
 
-        if (recentCode) {
-            return Response.error(ctx, '验证码发送太频繁，请1分钟后再试');
-        }
+                const recentCode = await VerifyCode.findOne({
+                    where: {
+                        target: phone,
+                        targetType: 'sms',
+                        createdAt: { [Op.gte]: new Date(Date.now() - 60000) }
+                    },
+                    transaction
+                });
 
-        // 生成验证码
-        const code = SmsService.generateCode(6);
-        const expireAt = new Date(Date.now() + 5 * 60 * 1000); // 5分钟有效
+                if (recentCode) {
+                    throw clientError('验证码发送太频繁，请1分钟后再试');
+                }
 
-        // 保存验证码
-        await VerifyCode.create({ target: phone, code, type, targetType: 'sms', expireAt });
+                const code = SmsService.generateCode(6);
 
-        // 发送短信（开发环境可跳过实际发送）
-        if (process.env.NODE_ENV === 'development' && !process.env.SMS_APP_ID) {
-            console.log(`[开发模式] 手机号 ${phone} 的验证码是: ${code}`);
-        } else {
-            try {
-                await SmsService.sendCode(phone, code);
-            } catch (err) {
-                console.error('[短信] 发送失败:', err.message);
-                return Response.error(ctx, '验证码发送失败，请稍后重试');
-            }
+                if (process.env.NODE_ENV === 'development' && !process.env.SMS_APP_ID) {
+                    console.log(`[开发模式] 手机号 ${phone} 的验证码是: ${code}`);
+                } else {
+                    try {
+                        await SmsService.sendCode(phone, code);
+                    } catch (err) {
+                        console.error('[短信] 发送失败:', err.message);
+                        throw clientError('验证码发送失败，请稍后重试');
+                    }
+                }
+
+                const expireAt = new Date(Date.now() + 5 * 60 * 1000); // 5分钟有效
+                await VerifyCode.create({
+                    target: phone,
+                    code,
+                    type,
+                    targetType: 'sms',
+                    expireAt
+                }, { transaction });
+            });
+        } catch (err) {
+            if (err?.isClientError) return Response.error(ctx, err.message);
+            throw err;
         }
 
         Response.success(ctx, null, '验证码已发送');
@@ -482,39 +556,58 @@ class AuthController {
             return Response.error(ctx, '密码长度至少6位');
         }
 
-        // 验证验证码
-        const verifyCode = await VerifyCode.findOne({
-            where: {
-                target: phone,
-                code,
-                targetType: 'sms',
-                used: false,
-                expireAt: { [Op.gte]: new Date() }
-            },
-            order: [['createdAt', 'DESC']]
-        });
+        let newUser;
+        try {
+            newUser = await sequelize.transaction(async (transaction) => {
+                // 验证验证码
+                const verifyCode = await VerifyCode.findOne({
+                    where: {
+                        target: phone,
+                        code,
+                        targetType: 'sms',
+                        used: false,
+                        expireAt: { [Op.gte]: new Date() }
+                    },
+                    order: [['createdAt', 'DESC']],
+                    transaction,
+                    lock: transaction.LOCK.UPDATE
+                });
 
-        if (!verifyCode) {
-            return Response.error(ctx, '验证码错误或已过期');
+                if (!verifyCode) {
+                    throw clientError('验证码错误或已过期');
+                }
+
+                // 检查用户是否已存在
+                const existUser = await User.findOne({
+                    where: { phone },
+                    transaction,
+                    lock: transaction.LOCK.UPDATE
+                });
+                if (existUser) {
+                    throw clientError('该手机号已注册，请直接登录');
+                }
+
+                // 标记验证码已使用
+                await verifyCode.update({ used: true }, { transaction });
+
+                // 创建新用户
+                return User.create({
+                    phone,
+                    password, // 模型钩子会自动加密
+                    username: phone, // 默认用户名同手机号
+                    nickname: nickname || `甲友${phone.slice(-4)}`,
+                    patientType: '其他'
+                }, { transaction });
+            });
+        } catch (err) {
+            if (err?.isClientError) {
+                return Response.error(ctx, err.message);
+            }
+            if (isUniqueConstraintError(err)) {
+                return Response.error(ctx, '该手机号已注册，请直接登录');
+            }
+            throw err;
         }
-
-        // 检查用户是否已存在
-        const existUser = await User.findOne({ where: { phone } });
-        if (existUser) {
-            return Response.error(ctx, '该手机号已注册，请直接登录');
-        }
-
-        // 标记验证码已使用
-        await verifyCode.update({ used: true });
-
-        // 创建新用户
-        const newUser = await User.create({
-            phone,
-            password, // 模型钩子会自动加密
-            username: phone, // 默认用户名同手机号
-            nickname: nickname || `甲友${phone.slice(-4)}`,
-            patientType: '其他'
-        });
 
         // 自动登录
         const token = AuthController.generateToken(newUser);

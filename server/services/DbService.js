@@ -12,6 +12,7 @@ const MedicationLog = require('../models/MedicationLog');
 const MedicationAdjustment = require('../models/MedicationAdjustment');
 const SymptomAssessment = require('../models/SymptomAssessment');
 const ShareLink = require('../models/ShareLink');
+const VerifySendLock = require('../models/VerifySendLock');
 const logger = require('../utils/logger');
 
 class DbService {

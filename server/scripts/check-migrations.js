@@ -5,6 +5,7 @@ const REQUIRED_COLUMNS = {
   FamilyMembers: ['patientType', 'treatmentStage', 'referenceRanges', 'checkupIntervalDays'],
   HealthRecords: ['TSI', 'TBAb', 'CEA', 'VitaminD', 'Albumin', 'ALP', 'ALT', 'AST', 'GGT', 'Bilirubin', 'WBC', 'Neutrophils', 'TC', 'LDL', 'HDL', 'Triglyceride', 'CK', 'ESR', 'CRP'],
   ShareLinks: ['tokenHash', 'expiresAt', 'revokedAt', 'accessCount', 'options'],
+  VerifySendLocks: ['targetKey'],
   MedicationAdjustments: ['adjustmentDate', 'medicineName', 'fromDosage', 'toDosage', 'reason'],
   MedicationLogs: ['date', 'takenAt', 'source', 'note', 'medicineNameSnapshot', 'dosageSnapshot']
 };

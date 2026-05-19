@@ -6,14 +6,16 @@ export const getBaseURL = () => {
     let baseURL = import.meta.env.VITE_API_BASE || '';
 
     // #ifdef H5
-    if (!baseURL) {
-        const { protocol, hostname, origin } = window.location;
-        const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+    const { protocol, hostname, origin } = window.location;
+    const isLocalhost = ['localhost', '127.0.0.1', '0.0.0.0'].includes(hostname);
 
+    if (isLocalhost) {
+        return 'http://localhost:3000';
+    }
+
+    if (!baseURL) {
         if (import.meta.env.DEV) {
-            baseURL = isLocalhost ? 'http://localhost:3000' : `${protocol}//${hostname}:3000`;
-        } else if (isLocalhost) {
-            baseURL = 'http://localhost:3000';
+            baseURL = `${protocol}//${hostname}:3000`;
         } else {
             baseURL = origin;
         }
