@@ -6,6 +6,17 @@ const logger = require('./logger');
  * 用于发送注册/登录验证码
  */
 class MailService {
+    static getFromAddress() {
+        const from = process.env.SMTP_FROM || '';
+        const user = process.env.SMTP_USER;
+
+        if (from.includes('<') || from.includes('@')) {
+            return from;
+        }
+
+        return `"${from || '甲友乐'}" <${user}>`;
+    }
+
     static get transporter() {
         if (!this._transporter) {
             const port = parseInt(process.env.SMTP_PORT) || 465;
@@ -40,7 +51,7 @@ class MailService {
         }
 
         const mailOptions = {
-            from: `"甲友乐" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+            from: this.getFromAddress(),
             to: to,
             subject: '【甲友乐】注册与登录注册验证码',
             html: `
