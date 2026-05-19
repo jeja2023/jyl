@@ -140,19 +140,28 @@ if (fs.existsSync(distPath)) {
     };
 
     app.use(async (ctx, next) => {
-        if (ctx.path === '/sw.js') {
+        if (ctx.path === '/sw.js' || ctx.path === '/service-worker.js') {
             noStore(ctx);
             ctx.type = 'application/javascript';
             ctx.body = `self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
-    if (self.registration.unregister) await self.registration.unregister();
+    // 优先清除所有浏览器静态缓存，防止 unregister 后进程被杀导致清理未完成
     if (self.caches) {
-      const keys = await self.caches.keys();
-      await Promise.all(keys.map((key) => self.caches.delete(key)));
+      try {
+        const keys = await self.caches.keys();
+        await Promise.all(keys.map((key) => self.caches.delete(key)));
+      } catch (e) {}
     }
+    // 卸载 Service Worker
+    if (self.registration.unregister) {
+      await self.registration.unregister();
+    }
+    // 强制刷新所有关联的标签页以加载服务端最新资源
     const clients = await self.clients.matchAll({ type: 'window' });
-    clients.forEach((client) => client.navigate(client.url));
+    clients.forEach((client) => {
+      try { client.navigate(client.url); } catch (e) {}
+    });
   })());
 });`;
             return;
