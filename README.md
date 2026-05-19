@@ -1,116 +1,282 @@
-# 甲友乐 JYL
+﻿# 甲友乐 JYL
 
-> **⚠️ 重要声明：** 甲友乐是一款专为甲状腺病友设计的**指标管理与健康监测工具**。本应用不属于医疗器械，不具任何医疗诊断功能，亦不提供任何医疗建议。应用内所有内容（含百科、建议等）仅供参考，任何医疗决策均须咨询专业医师。
+甲友乐是一款面向甲状腺病友的指标管理与健康监测工具，帮助用户记录检查指标、观察趋势、管理用药、复查提醒、家庭成员档案和健康资料分享。
 
-甲友乐旨在帮助用户更科学地管理历史指标、记录用药情况，通过可视化的趋势掌握健康状态，是您甲状腺健康管理的贴心助手。
+重要声明：本项目不是医疗器械，不提供医疗诊断或治疗建议。应用内的百科、提示、趋势分析和建议仅用于健康管理参考，任何医疗决策都应咨询专业医生。
 
-## v1.7.0 最新能力概览（2026-05-14）
+## 当前版本
 
-本版本围绕“甲状腺健康长期管理”补齐了从数据录入、复核、解释、提醒到分享的完整闭环：
+当前版本：`1.8.0`
 
-- 智能复查计划：根据最近指标、病种类型、用药计划和历史复查间隔自动生成复查建议，并支持一键写入提醒日历。
-- 指标解释与异常标记：支持 TSH、FT3、FT4、Tg、TRAb 等常见指标的参考范围判断、趋势方向识别和异常提示。
-- 家庭成员健康档案增强：每位成员可独立设置病种、指标参考范围和复查周期，适合多成员长期管理。
-- 报告 OCR 复核台：OCR 识别结果先进入待确认状态，用户确认后再入库，减少误识别污染趋势。
-- 医生/家属分享模式：分享链接支持字段脱敏、有效期、撤销、访问次数和访问记录。
-- 数据洞察页：按月展示指标趋势、服药依从性、复查完成率和异常次数。
-- Web 缓存治理：H5 构建已移除 PWA Service Worker，服务端会清理旧版 `sw.js` 和浏览器 Cache，避免旧包导致页面白屏或接口 401。
-- 安全加固：上传真实图片校验、分享 token 哈希存储、日志脱敏、生产错误信息保护和管理员接口限制。
+本版本重点完成 Android APK 首包发布与后续热更新链路，适用于“不上架应用商店，直接让用户下载安装 APK”的场景。
 
-新增前端入口：`pages/insight/dashboard`、`pages/ocr/review`、`pages/share/manage`、`pages/my/family-profile`。生产发布前请阅读 `部署说明.md` 并执行 `server` 目录下的 `npm run migrate`。
+- Android 正式打包：支持 HBuilderX 云打包与 Linux HBuilderX CLI，已纳入 DCloud AppID、正式包名、自有签名证书和 `arm64-v8a` 发布流程。
+- 生产接口地址：App 构建使用 `https://jyl.880301.xyz`，避免移动端误连 `localhost:3000`。
+- 一次安装，后续热更新：新增 wgt 更新检查、下载、安装和重启机制；普通前端更新无需重新安装 APK。
+- APK 下载入口：H5 登录页提供“下载安卓版”，默认下载 `/storage/app-releases/jyl.apk`。
+- 打包稳定性：生成标准 Android PNG 图标，移除中文文件名静态资源，修复 HBuilderX 图标与文件名校验问题。
+- 发布文档：详见 `ANDROID_APK_BUILD.md` 和 `APP_RELEASE_CHECKLIST.md`。
+
+## 核心功能
+
+- 指标记录：支持甲状腺相关化验指标、超声、体征和备注记录。
+- 趋势分析：按指标查看历史趋势、异常状态和变化方向。
+- 检查记录：集中管理历史检查记录，支持详情查看和导出。
+- OCR 识别与复核：检查报告识别后进入复核流程，确认后再入库。
+- 用药管理：记录用药计划、服药打卡、漏服和补签。
+- 复查提醒：根据记录和管理计划生成复查提醒。
+- 家庭成员：支持为家庭成员建立独立健康档案。
+- 分享管理：支持面向医生或家属的记录分享、撤销和访问控制。
+- 百科交流：支持甲状腺相关知识内容浏览与投稿。
+- 管理后台：支持用户、日志、百科审核等后台管理能力。
 
 ## 项目结构
 
-```
+```text
 jyl/
-├── client/          # 前端 (uni-app + Vue3)
-│   ├── src/
-│   │   ├── pages/       # 页面文件
-│   │   ├── store/       # Pinia 状态管理
-│   │   ├── utils/       # 工具函数
-│   │   └── static/      # 静态资源
-│   └── package.json
-│
-└── server/          # 后端 (Koa + Sequelize)
-    ├── controllers/     # 控制器
-    ├── models/          # 数据模型
-    ├── middlewares/     # 中关件
-    ├── routes/          # 路由
-    ├── utils/           # 工具类
-    └── package.json
+├─ client/                    # 前端，uni-app + Vue 3
+│  ├─ src/
+│  │  ├─ pages/               # 页面
+│  │  ├─ components/          # 组件
+│  │  ├─ config/              # 前端业务配置
+│  │  ├─ store/               # Pinia 状态
+│  │  ├─ static/              # 静态资源
+│  │  └─ utils/               # 工具方法
+│  ├─ scripts/                # App 图标、App 构建、wgt 构建脚本
+│  └─ package.json
+├─ server/                    # 后端，Koa + Sequelize
+│  ├─ controllers/            # 控制器
+│  ├─ models/                 # 数据模型
+│  ├─ routes/                 # 路由
+│  ├─ scripts/                # 运维与热更新发布脚本
+│  ├─ services/               # 服务层
+│  ├─ test/                   # 后端测试
+│  ├─ utils/                  # 工具方法
+│  └─ package.json
+├─ storage/                   # 运行期文件，报告、日志、App 更新包、APK
+├─ docker/                    # Docker 部署配置
+├─ ANDROID_APK_BUILD.md       # Android APK 与热更新发布指南
+├─ APP_RELEASE_CHECKLIST.md   # App 发布检查清单
+├─ 部署说明.md                # 生产部署说明
+└─ 更新日志.md                # 更新日志
 ```
 
-## 📸 界面预览
+## 技术栈
 
-*(此处可插入新版 UI 截图：如沉浸式登录、平滑趋势图、智能指标录入等)*
+前端：
 
-- 🩺 **智能症状自测 (Risk Assessment)**：基于 12 项典型甲状腺体征的行为医学测评，支持**甲亢/甲减倾向性分析**。测评报告自动存云端，支持历史记录的多维度对比与详情回溯。
-- 👨‍👩‍👧‍👦 **家庭健康档案**：支持添加多位家庭成员，统一管理家人的健康指标。出生日期范围全覆盖（1920年起），专为家中长辈打造的关怀式录入界面。
-- 📮 **个人消息中心**：整合系统公告与健康计划，提供一站式的个人健康事务处理入口。
-- 📚 **甲功百科交流**：通过 `optionalAuth` 技术，实现百科阅读量的**真实个人统计**。
-- 📱 **深度合规认证系统**：
-    *   微信小程序：支持**微信手机号一键登录**与微信快捷授权。
-    *   H5/Web 预览：提供**微信模拟登录通道**，无需小程序即可体验全量功能。
-    *   行业标杆级透明知情：重构验证页面视线焦点，将《用户协议》强制触点植入不可绕过的核心交互扇区。
+- Vue 3
+- uni-app
+- uview-plus
+- Pinia
+- luch-request
+- Vite
 
-## 快速开始
+后端：
+
+- Node.js
+- Koa
+- Sequelize
+- MySQL
+- JWT
+- node:test
+
+## 本地开发
 
 ### 环境要求
 
-- Node.js >= 16
-- MySQL >= 8.0 (Docker 模式已内置)
+- Node.js 16 或更高版本
+- MySQL 5.7 或更高版本，推荐 MySQL 8
+- npm
 
-### 快速启动 (Docker 推荐)
-
-如果您有 Docker 环境，可直接进入项目根目录：
-
-```bash
-# 1. 准备配置 (并根据需要修改内容)
-cp docker/.env_docker.example docker/.env_docker
-
-# 2. 一键启动
-docker-compose -f docker/docker-compose.yml up -d --build
-```
-
-详细说明请参考 [部署说明.md](./部署说明.md)。
-
-### 后端启动
+### 安装依赖
 
 ```bash
 cd server
 npm install
-# 配置 .env 文件
+
+cd ../client
+npm install
+```
+
+### 配置后端环境变量
+
+在 `server` 目录准备 `.env` 文件，至少需要配置：
+
+```text
+PORT=3000
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=your_database
+DB_USER=your_user
+DB_PASS=your_password
+JWT_SECRET=your_jwt_secret
+```
+
+更多部署配置请参考 `部署说明.md`。
+
+### 启动后端
+
+```bash
+cd server
+npm run start
+```
+
+开发时也可以使用：
+
+```bash
+cd server
 npm run dev
 ```
 
-### 前端启动
+如果 Windows 本地环境运行 `nodemon` 出现 `spawn EPERM`，可临时使用 `npm run start`。
+
+### 启动前端 H5
 
 ```bash
 cd client
-npm install
-npm run dev:h5      # H5 预览（支持局域网手机访问，带微信模拟登录）
-npm run dev:mp-weixin  # 微信小程序
+npm run dev:h5
 ```
 
-> **提示**：前端在 H5 模式下运行，点击“微信登录图标”将自动进入开发者模拟通道。
+本地访问：
 
-## 技术栈
+```text
+http://localhost:5173
+```
 
-**前端**
-- Vue 3 + Composition API
-- uni-app 跨平台框架
-- uview-plus UI 组件库
-- Pinia 状态管理
+如果使用后端托管后的 H5 构建产物，则访问：
 
-**后端**
-- Koa 2 Web 框架
-- Sequelize ORM (支持字段自动合并/SQL 自动修复)
-- MySQL 数据库
-- JWT 身份认证 (包含可选认证中间件)
+```text
+http://localhost:3000
+```
 
-## 更新日志
+## 构建
 
-详情请参见 [更新日志.md](./更新日志.md)
+### 构建 H5
+
+```bash
+cd client
+npm run build:h5
+```
+
+构建产物：
+
+```text
+client/dist/build/h5
+```
+
+后端会在生产模式下托管该目录。
+
+### 构建 App 离线资源
+
+```bash
+cd client
+npm run build:app
+```
+
+### 生成 wgt 热更新包
+
+```bash
+cd client
+npm run build:wgt
+```
+
+或一次性执行：
+
+```bash
+cd client
+npm run release:app
+```
+
+## Android APK 发布
+
+当前 Android 包信息：
+
+```text
+AppID: __UNI__F18FC4D
+包名: com.jiayoule.app
+versionName: 1.8.0
+versionCode: 180
+生产 API: https://jyl.880301.xyz
+```
+
+APK 首次安装包通过 HBuilderX 或 Linux HBuilderX CLI 打包。正式发布必须使用自有签名证书，不使用测试证书。
+
+登录页 APK 下载入口默认指向：
+
+```text
+/storage/app-releases/jyl.apk
+```
+
+本地测试时会使用当前本地域名，例如：
+
+```text
+http://localhost:3000/storage/app-releases/jyl.apk
+```
+
+生产环境默认使用同源路径。如果需要使用 CDN 或对象存储，可在后端环境变量中设置：
+
+```text
+APK_DOWNLOAD_URL=https://your-domain/path/to/jyl.apk
+```
+
+## App 热更新
+
+普通前端资源更新优先发布 wgt 热更新包，用户安装 APK 后不需要重复下载安装。
+
+发布 wgt 示例：
+
+```bash
+cd server
+npm run app:update:publish -- ..\client\dist\release\jyl-1.8.0-180.wgt 1.8.0 180 "发布说明"
+```
+
+以下变更需要重新打 APK：
+
+- Android 权限变化
+- 原生模块或原生插件变化
+- 包名、证书、DCloud AppID 变化
+- App 图标、启动图等原生资源变化
+- 生产 API 地址变化
+- 首包版本过旧，无法兼容新的 wgt 资源
+
+详细流程见 `ANDROID_APK_BUILD.md`。
+
+## 测试与校验
+
+后端测试：
+
+```bash
+cd server
+npm test
+```
+
+前端构建校验：
+
+```bash
+cd client
+npm run build:h5
+```
+
+App 发布前建议同时检查：
+
+- `APP_RELEASE_CHECKLIST.md`
+- `ANDROID_APK_BUILD.md`
+- `更新日志.md`
+
+## 生产部署
+
+生产部署主要流程：
+
+1. 拉取最新代码。
+2. 安装前后端依赖。
+3. 配置后端 `.env`。
+4. 执行数据库迁移。
+5. 构建 H5。
+6. 启动后端服务。
+7. 配置 Nginx、HTTPS、域名和进程守护。
+
+详细步骤见 `部署说明.md`。
 
 ## 许可证
 

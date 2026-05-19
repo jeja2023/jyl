@@ -1,106 +1,107 @@
 {
-    "name": "甲友乐",
-    "appid": "",
-    "description": "",
-    "versionName": "1.6.7",
-    "versionCode": "166",
-    "transformPx": false,
-    "app-plus": {
-        "usingComponents": true,
-        "nvueStyleCompiler": "uni-app",
-        "compilerVersion": 3,
-        "splashscreen": {
-            "alwaysShowBeforeRender": true,
-            "waiting": true,
-            "autoclose": true,
-            "delay": 0
+    "name" : "甲友乐",
+    "appid" : "__UNI__F18FC4D",
+    "description" : "甲状腺健康管理工具",
+    "versionName" : "1.8.0",
+    "versionCode" : "180",
+    "transformPx" : false,
+    "app-plus" : {
+        "usingComponents" : true,
+        "nvueStyleCompiler" : "uni-app",
+        "compilerVersion" : 3,
+        "splashscreen" : {
+            "alwaysShowBeforeRender" : true,
+            "waiting" : true,
+            "autoclose" : true,
+            "delay" : 0
         },
-        "modules": {},
-        "distribute": {
-            "android": {
-                "permissions": [
-                    "<uses-permission android:name=\"android.permission.CHANGE_NETWORK_STATE\"/>",
-                    "<uses-permission android:name=\"android.permission.MOUNT_UNMOUNT_FILESYSTEMS\"/>",
+        "modules" : {},
+        "distribute" : {
+            "android" : {
+                "permissions" : [
+                    "<uses-permission android:name=\"android.permission.INTERNET\"/>",
                     "<uses-permission android:name=\"android.permission.VIBRATE\"/>",
-                    "<uses-permission android:name=\"android.permission.READ_LOGS\"/>",
                     "<uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\"/>",
-                    "<uses-feature android:name=\"android.hardware.camera.autofocus\"/>",
+                    "<uses-feature android:name=\"android.hardware.camera.autofocus\" android:required=\"false\"/>",
                     "<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\"/>",
                     "<uses-permission android:name=\"android.permission.CAMERA\"/>",
-                    "<uses-permission android:name=\"android.permission.GET_ACCOUNTS\"/>",
-                    "<uses-permission android:name=\"android.permission.READ_PHONE_STATE\"/>",
-                    "<uses-permission android:name=\"android.permission.CHANGE_WIFI_STATE\"/>",
                     "<uses-permission android:name=\"android.permission.WAKE_LOCK\"/>",
                     "<uses-permission android:name=\"android.permission.FLASHLIGHT\"/>",
-                    "<uses-feature android:name=\"android.hardware.camera\"/>",
-                    "<uses-permission android:name=\"android.permission.WRITE_SETTINGS\"/>"
-                ]
+                    "<uses-feature android:name=\"android.hardware.camera\" android:required=\"false\"/>"
+                ],
+                "minSdkVersion" : 23,
+                "targetSdkVersion" : 35,
+                "abiFilters" : [ "arm64-v8a" ]
             },
-            "ios": {},
-            "sdkConfigs": {},
-            "icons": {
-                "android": {
-                    "hdpi": "static/logo.png",
-                    "xhdpi": "static/logo.png",
-                    "xxhdpi": "static/logo.png",
-                    "xxxhdpi": "static/logo.png"
+            "ios" : {
+                "dSYMs" : false
+            },
+            "sdkConfigs" : {},
+            "icons" : {
+                "android" : {
+                    "hdpi" : "src/static/app-icons/icon-hdpi.png",
+                    "xhdpi" : "src/static/app-icons/icon-xhdpi.png",
+                    "xxhdpi" : "src/static/app-icons/icon-xxhdpi.png",
+                    "xxxhdpi" : "src/static/app-icons/icon-xxxhdpi.png"
                 },
-                "ios": {
-                    "appiconset": "static/logo.png"
+                "ios" : {
+                    "appiconset" : "static/logo.png"
                 }
             }
         }
     },
-    "h5": {
-        "title": "甲友乐",
-        "favicon": "static/logo.ico",
-        "router": {
-            "mode": "history",
-            "base": ""
+    "h5" : {
+        "title" : "甲友乐",
+        "favicon" : "static/logo.ico",
+        "router" : {
+            "mode" : "history",
+            "base" : ""
         },
-        "sdkConfigs": {
-            "pwa": {
-                "name": "甲友乐",
-                "short_name": "甲友乐",
-                "description": "专为甲状腺病友设计的健康管理工具",
-                "start_url": "./",
-                "display": "standalone",
-                "background_color": "#3E7BFF",
-                "theme_color": "#3E7BFF",
-                "icons": [
+        "sdkConfigs" : {
+            "pwa" : {
+                "name" : "甲友乐",
+                "short_name" : "甲友乐",
+                "description" : "专为甲状腺病友设计的健康管理工具",
+                "start_url" : "./",
+                "display" : "standalone",
+                "background_color" : "#3E7BFF",
+                "theme_color" : "#3E7BFF",
+                "icons" : [
                     {
-                        "src": "static/logo.png",
-                        "sizes": "192x192",
-                        "type": "image/png"
+                        "src" : "static/logo.png",
+                        "sizes" : "192x192",
+                        "type" : "image/png"
                     },
                     {
-                        "src": "static/logo.png",
-                        "sizes": "512x512",
-                        "type": "image/png"
+                        "src" : "static/logo.png",
+                        "sizes" : "512x512",
+                        "type" : "image/png"
                     }
                 ]
             }
         }
     },
-    "quickapp": {},
-    "mp-weixin": {
-        "appid": "",
-        "setting": {
-            "urlCheck": false
+    "quickapp" : {},
+    "mp-weixin" : {
+        "appid" : "",
+        "setting" : {
+            "urlCheck" : false
         },
-        "usingComponents": true
+        "usingComponents" : true
     },
-    "mp-alipay": {
-        "usingComponents": true
+    "mp-alipay" : {
+        "usingComponents" : true
     },
-    "mp-baidu": {
-        "usingComponents": true
+    "mp-baidu" : {
+        "usingComponents" : true
     },
-    "mp-toutiao": {
-        "usingComponents": true
+    "mp-toutiao" : {
+        "usingComponents" : true
     },
-    "uniStatistics": {
-        "enable": false
+    "uniStatistics" : {
+        "enable" : false
     },
-    "vueVersion": "3"
+    "vueVersion" : "3",
+    "locale" : "zh-Hans",
+    "fallbackLocale" : "zh-Hans"
 }

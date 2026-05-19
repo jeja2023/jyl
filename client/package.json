@@ -1,6 +1,6 @@
 {
   "name": "uni-preset-vue",
-  "version": "1.6.7",
+  "version": "1.8.0",
   "scripts": {
     "dev:custom": "uni -p",
     "dev:h5": "uni",
@@ -19,6 +19,11 @@
     "dev:quickapp-webview-huawei": "uni -p quickapp-webview-huawei",
     "dev:quickapp-webview-union": "uni -p quickapp-webview-union",
     "build:custom": "uni build -p",
+    "build:app": "node scripts/build-app.js",
+    "build:app-plus": "npm run build:app",
+    "build:wgt": "node scripts/build-wgt.js",
+    "icons:app": "node scripts/generate-app-icons.js",
+    "release:app": "npm run build:app && npm run build:wgt",
     "build:h5": "uni build",
     "build:h5:ssr": "uni build --ssr",
     "build:mp-alipay": "uni build -p mp-alipay",

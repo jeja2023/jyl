@@ -98,6 +98,13 @@ app.use(async (ctx, next) => {
 
 // 静态文件服务 - 使用 koa-static 替换手动流式读取，提升性能
 const staticPath = path.join(__dirname, '../storage');
+app.use(async (ctx, next) => {
+    await next();
+    if (ctx.status < 400 && ctx.body && ctx.path.endsWith('.apk')) {
+        ctx.type = 'application/vnd.android.package-archive';
+        ctx.set('Content-Disposition', `attachment; filename="${path.basename(ctx.path)}"`);
+    }
+});
 app.use(mount('/storage', serve(staticPath, {
     maxage: 86400000, // 缓存一天
     gzip: true

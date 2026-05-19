@@ -25,7 +25,7 @@ def log(tag, msg, color='cyan'):
 def check_node():
     try:
         result = subprocess.run(['node', '--version'], capture_output=True, text=True)
-        log('检查', f"Node.js {result.stdout.strip()} ✓", 'green')
+        log('检查', f"Node.js {result.stdout.strip()} 成功", 'green')
         return True
     except FileNotFoundError:
         log('错误', 'Node.js 未安装，请先安装 Node.js >= 16', 'red')
@@ -39,9 +39,9 @@ def check_npm_deps(directory, name):
         if result.returncode != 0:
             log('错误', f'{name} 依赖安装失败', 'red')
             return False
-        log(name, '依赖安装完成 ✓', 'green')
+        log(name, '依赖安装完成 成功', 'green')
     else:
-        log(name, '依赖已就绪 ✓', 'green')
+        log(name, '依赖已就绪 成功', 'green')
     return True
 
 def start_server():

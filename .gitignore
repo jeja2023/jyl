@@ -14,6 +14,7 @@ npm-debug.log*
 .env.local
 .env.*.local
 docker/.env_docker
+certs/
 
 # 编辑器配置
 .idea/

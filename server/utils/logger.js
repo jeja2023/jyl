@@ -22,6 +22,10 @@ if (process.env.WRITE_LOG_FILE === 'true' || process.env.NODE_ENV === 'productio
         }
         const logPath = path.join(logDir, 'app.log');
         logStream = fs.createWriteStream(logPath, { flags: 'a', encoding: 'utf8' });
+        logStream.on('error', (err) => {
+            console.error('[logger] File logging disabled:', err.message);
+            logStream = null;
+        });
     } catch (err) {
         console.error('[日志系统] 无法初始化日志文件流:', err.message);
     }
@@ -30,7 +34,12 @@ if (process.env.WRITE_LOG_FILE === 'true' || process.env.NODE_ENV === 'productio
 // 异步流式写入日志到文件
 const writeToFile = (msg) => {
     if (logStream) {
-        logStream.write(msg + '\n');
+        try {
+            logStream.write(msg + '\n');
+        } catch (err) {
+            console.error('[logger] File logging disabled:', err.message);
+            logStream = null;
+        }
     }
 };
 

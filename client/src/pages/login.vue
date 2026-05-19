@@ -8,7 +8,7 @@
 
     <view class="content-body">
       <view class="logo-area">
-        <image src="/static/logo.ico" mode="aspectFit" class="logo-img"></image>
+        <image src="/static/app-icons/icon-xxxhdpi.png" mode="aspectFit" class="logo-img"></image>
         <view class="brand-name">甲友乐</view>
         <view class="brand-slogan">指标管理 · 趋势监测 · 经验交流</view>
         <view class="medical-disclaimer-tip">非医疗诊断工具，不提供医疗建议</view>
@@ -90,6 +90,16 @@
           class="submit-btn" 
           @click="submitLogin"
         ></u-button>
+
+        <!-- #ifdef H5 -->
+        <view class="apk-download-card" @click="downloadAndroidApk">
+          <view class="apk-download-main">
+            <u-icon name="download" size="22" color="#3E7BFF"></u-icon>
+            <text>下载安卓版</text>
+          </view>
+          <view class="apk-download-desc">首次安装使用，已安装用户无需重复下载</view>
+        </view>
+        <!-- #endif -->
       </view>
 
 
@@ -126,6 +136,7 @@ import { ref, reactive, computed, onBeforeUnmount } from 'vue';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 import { PATIENT_TYPES } from '@/utils/thyroidIndicators.js';
+import config from '@/config/index.js';
 
 const userStore = useUserStore();
 const loading = ref(false);
@@ -155,6 +166,19 @@ onBeforeUnmount(clearCodeTimer);
 
 const goToPage = (type) => {
     uni.navigateTo({ url: `/pages/my/${type}` });
+};
+
+const downloadAndroidApk = () => {
+    const downloadUrl = config.APK_DOWNLOAD_URL;
+    if (!downloadUrl) {
+        return uni.$u.toast('安装包暂未配置');
+    }
+    // #ifdef H5
+    window.location.href = new URL(downloadUrl, window.location.origin).toString();
+    // #endif
+    // #ifndef H5
+    plus.runtime.openURL(downloadUrl);
+    // #endif
 };
 
 // 临时存储登录结果（用于新用户完善资料）
@@ -559,6 +583,39 @@ const skipRegister = () => {
   border-radius: 55rpx !important;
   
   &:active { transform: scale(0.98); opacity: 0.9; }
+}
+
+.apk-download-card {
+  margin-top: 28rpx;
+  padding: 28rpx 32rpx;
+  border-radius: 32rpx;
+  background: #FFFFFF;
+  border: 1px solid #E8F0FF;
+  box-shadow: 0 8rpx 24rpx rgba(62, 123, 255, 0.06);
+  text-align: center;
+
+  &:active {
+    opacity: 0.82;
+    transform: scale(0.99);
+  }
+
+  .apk-download-main {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12rpx;
+    color: #3E7BFF;
+    font-size: 30rpx;
+    font-weight: 800;
+  }
+
+  .apk-download-desc {
+    margin-top: 10rpx;
+    color: #86909C;
+    font-size: 22rpx;
+    font-weight: 500;
+    line-height: 1.4;
+  }
 }
 
 // 微信登录区

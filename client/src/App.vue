@@ -4,6 +4,7 @@ import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 import { startReminderPolling, stopReminderPolling } from '@/utils/reminder.js';
 import { cleanupPwaCache } from '@/utils/pwaCleanup.js';
+import { checkAppUpdate } from '@/utils/appUpdate.js';
 
 export default {
   onLaunch: function () {
@@ -11,6 +12,7 @@ export default {
 
     // 应用启动时自动从后端获取最新业务配置
     config.fetchSystemConfig();
+    checkAppUpdate();
 
     // 如果存有 Token，在启动时校验有效性并同步用户信息
     const userStore = useUserStore();

@@ -10,6 +10,17 @@ const { Op } = require('sequelize');
 const { logAction } = require('../utils/actionLog');
 const { TREND_KEYS, getDiseaseIndicatorProfile, getDefaultTrendKeys } = require('../utils/indicatorAnalysis');
 const logger = require('../utils/logger');
+const pkg = require('../package.json');
+
+const normalizePublicUrl = (ctx, url) => {
+    if (!url) return '';
+    try {
+        return new URL(url).toString();
+    } catch (e) {
+        const publicBase = process.env.APP_PUBLIC_BASE_URL || process.env.PUBLIC_BASE_URL;
+        return publicBase ? new URL(url, publicBase).toString() : url;
+    }
+};
 
 const parseTrendIndicators = (raw, patientType = '其他') => {
     if (!raw) return getDefaultTrendKeys(patientType);
@@ -653,7 +664,9 @@ class AuthController {
     static async getPublicConfig(ctx) {
         Response.success(ctx, {
             supportEmail: process.env.SUPPORT_EMAIL || 'support@jiayoule.com',
-            wechatSupport: process.env.WECHAT_SUPPORT || 'JYL_Support'
+            wechatSupport: process.env.WECHAT_SUPPORT || 'JYL_Support',
+            version: pkg.version,
+            apkDownloadUrl: normalizePublicUrl(ctx, process.env.APK_DOWNLOAD_URL || '/storage/app-releases/jyl.apk')
         });
     }
 }

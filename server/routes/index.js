@@ -16,6 +16,7 @@ const NotificationController = require('../controllers/NotificationController');
 const WikiController = require('../controllers/WikiController');
 const InsightController = require('../controllers/InsightController');
 const OcrReviewController = require('../controllers/OcrReviewController');
+const AppUpdateController = require('../controllers/AppUpdateController');
 const auth = require('../middlewares/auth');
 const admin = require('../middlewares/auth').admin;
 const optional = require('../middlewares/auth').optional;
@@ -61,6 +62,7 @@ router.post('/auth/sms/send', smsLimiter, AuthController.sendSmsCode);
 router.post('/auth/sms/register', authLimiter, AuthController.smsRegister);
 router.post('/auth/sms/login', authLimiter, AuthController.smsLogin);
 router.get('/common/config', AuthController.getPublicConfig);
+router.get('/app/update/check', AppUpdateController.check);
 
 router.get('/auth/stats', auth, AuthController.stats);
 router.get('/auth/profile', auth, AuthController.profile);

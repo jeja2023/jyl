@@ -1,6 +1,6 @@
 {
   "name": "jyl-server",
-  "version": "1.6.7",
+  "version": "1.8.0",
   "description": "甲友乐后端服务 - 甲状腺健康管理平台",
   "main": "index.js",
   "scripts": {
@@ -9,6 +9,7 @@
     "migrate": "sequelize-cli db:migrate",
     "migrate:undo": "sequelize-cli db:migrate:undo",
     "migrate:check": "node scripts/check-migrations.js",
+    "app:update:publish": "node scripts/publish-app-update.js",
     "test": "node --test",
     "unlock:user": "node scripts/unlock-user.js",
     "reset:admin": "node scripts/reset-admin.js",
