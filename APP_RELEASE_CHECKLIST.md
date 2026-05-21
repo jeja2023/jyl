@@ -1,6 +1,6 @@
 # App 发布检查清单
 
-当前版本：`1.8.2`（`versionCode: 182`）
+当前版本：`1.8.3`（`versionCode: 183`）
 
 ## 首次 APK
 
@@ -8,7 +8,7 @@
 - `client/.env.production` 已配置正式 `VITE_API_BASE`
 - `client/src/manifest.json` 已配置 DCloud AppID
 - Android 包名已确定且不会随意变更
-- `versionName` / `versionCode` 已递增到 `1.8.2 / 182`
+- `versionName` / `versionCode` 已递增到 `1.8.3 / 183`
 - Android 签名证书已备份
 - 权限列表已按最小权限原则检查
 - Android 图标均为英文文件名 PNG

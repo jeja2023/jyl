@@ -1,6 +1,6 @@
 # Android APK 与热更新发布指南
 
-当前版本：`1.8.2`（`versionCode: 182`）
+当前版本：`1.8.3`（`versionCode: 183`）
 
 目标：用户首次安装 APK 后，后续普通前端更新通过 wgt 热更新完成，用户无需反复卸载或重新安装 APK。
 
@@ -45,8 +45,8 @@ VITE_API_BASE=https://jyl.880301.xyz
 
 - `appid` 已配置 DCloud AppID
 - `name` 是正式应用名
-- `versionName` 为 `1.8.2`
-- `versionCode` 为 `182`
+- `versionName` 为 `1.8.3`
+- `versionCode` 为 `183`
 - Android 包名稳定，例如 `com.jiayoule.app`
 - Android 只保留 `arm64-v8a`
 - 权限只保留业务真实需要的最小集合
@@ -95,15 +95,15 @@ npm run release:app
 输出文件示例：
 
 ```text
-client/dist/release/jyl-1.8.2-182.wgt
-client/dist/release/jyl-1.8.2-182.wgt.json
+client/dist/release/jyl-1.8.3-183.wgt
+client/dist/release/jyl-1.8.3-183.wgt.json
 ```
 
 3. 发布到后端：
 
 ```bash
 cd server
-npm run app:update:publish -- ..\client\dist\release\jyl-1.8.2-182.wgt 1.8.2 182 "用药提醒、服药计划和拍照上传识别修复"
+npm run app:update:publish -- ..\client\dist\release\jyl-1.8.3-183.wgt 1.8.3 183 "修复 App 页面重复导航栏"
 ```
 
 强制更新示例：

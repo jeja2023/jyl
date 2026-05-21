@@ -32,7 +32,7 @@ const config = {
     // 默认值（当后端尚未加载完成或失败时使用）
     SUPPORT_EMAIL: 'support@jiayoule.com',
     WECHAT_SUPPORT: 'JYL_Support',
-    VERSION: '1.8.2',
+    VERSION: '1.8.3',
     APK_DOWNLOAD_URL: '/storage/app-releases/jyl-1.8.2.apk',
 
     /**

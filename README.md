@@ -6,7 +6,7 @@
 
 ## 当前版本
 
-当前版本：`1.8.2`
+当前版本：`1.8.3`
 
 本版本重点修复用药提醒、服药计划和拍照上传识别链路，让提醒规则更符合真实服药场景，也让 OCR 异常不再阻断图片上传。
 
@@ -195,8 +195,8 @@ npm run release:app
 ```text
 AppID: __UNI__F18FC4D
 包名: com.jiayoule.app
-versionName: 1.8.2
-versionCode: 182
+versionName: 1.8.3
+versionCode: 183
 生产 API: https://jyl.880301.xyz
 ```
 
@@ -228,7 +228,7 @@ APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.2.apk
 
 ```bash
 cd server
-npm run app:update:publish -- ..\client\dist\release\jyl-1.8.2-182.wgt 1.8.2 182 "发布说明"
+npm run app:update:publish -- ..\client\dist\release\jyl-1.8.3-183.wgt 1.8.3 183 "发布说明"
 ```
 
 以下变更需要重新打 APK：

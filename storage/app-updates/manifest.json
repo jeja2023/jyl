@@ -3,16 +3,16 @@
   "platforms": [
     "android"
   ],
-  "versionName": "1.8.2",
-  "versionCode": 182,
+  "versionName": "1.8.3",
+  "versionCode": 183,
   "minVersionCode": 180,
   "force": true,
-  "wgtUrl": "/storage/app-updates/jyl-1.8.2-182.wgt",
-  "size": 5433534,
-  "md5": "2b20b6d9f9327b75df36588727c8fdeb",
-  "sha256": "39d221006a216eb271156e5953023b8a4672eba42bfa759bf3078489a6a8e7ca",
+  "wgtUrl": "/storage/app-updates/jyl-1.8.3-183.wgt",
+  "size": 5433536,
+  "md5": "42576788a9803f1fc907d6f11064610a",
+  "sha256": "51f7d1b57e89f151a630475219f0f982d3c8375aea481c4f376f285ecdf30cc4",
   "releaseNotes": [
     "修复 App 页面重复导航栏"
   ],
-  "publishedAt": "2026-05-21T13:32:24.809Z"
+  "publishedAt": "2026-05-21T13:54:04.752Z"
 }
