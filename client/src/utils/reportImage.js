@@ -24,6 +24,11 @@ export const isReportImagePath = (path) => {
   if (value.startsWith(REPORT_PREFIX)) return true;
 
   try {
+    // 兼容部分移动端 JS 引擎中 URL 构造函数不可用的情况，优先使用高鲁棒性的正则解析 fallback
+    const match = value.match(/^https?:\/\/[^/]+(\/.*)/i);
+    if (match) {
+      return match[1].startsWith(REPORT_PREFIX);
+    }
     const url = new URL(value);
     return url.pathname.startsWith(REPORT_PREFIX);
   } catch (e) {

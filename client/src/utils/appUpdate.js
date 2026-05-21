@@ -75,9 +75,30 @@ const installWgt = (filePath) => new Promise((resolve, reject) => {
 
 const isTrustedUpdateUrl = (downloadUrl, baseURL) => {
   try {
-    const parsed = new URL(downloadUrl);
-    const base = new URL(baseURL);
-    return parsed.protocol === 'https:' || parsed.origin === base.origin;
+    // 兼容部分移动端 JS 引擎中 URL 构造函数不可用或缺失的情况，使用高鲁棒性的正则解析 fallback
+    const getProtocolAndOrigin = (urlStr) => {
+      if (!urlStr || typeof urlStr !== 'string') return null;
+      const match = urlStr.match(/^(https?:)\/\/([^/]+)/i);
+      if (!match) return null;
+      return {
+        protocol: match[1].toLowerCase(),
+        origin: `${match[1].toLowerCase()}//${match[2].toLowerCase()}`
+      };
+    };
+
+    const parsed = getProtocolAndOrigin(downloadUrl);
+    if (!parsed) return false;
+
+    // 1. 如果下载地址是安全的 HTTPS 协议，则视为可信的（如官方 CDN）
+    if (parsed.protocol === 'https:') {
+      return true;
+    }
+
+    // 2. 否则，判断下载地址的源（origin）是否与 API 基础地址（baseURL）相同
+    const base = getProtocolAndOrigin(baseURL);
+    if (!base) return false;
+
+    return parsed.origin === base.origin;
   } catch (err) {
     return false;
   }
