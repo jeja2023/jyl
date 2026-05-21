@@ -8,11 +8,11 @@
   "minVersionCode": 180,
   "force": true,
   "wgtUrl": "/storage/app-updates/jyl-1.8.2-182.wgt",
-  "size": 5433557,
-  "md5": "1f08b2d84fc01bc1f99e3ec5e14e942d",
-  "sha256": "8171f0475d53b3d2069a9b58744c6e9d89877a3fb1a90ba243fe5c78de9233e0",
+  "size": 5433620,
+  "md5": "94713614313dae3b9c9b4dddba99f2ce",
+  "sha256": "c9ed934de2442315eb2991976854bd64e6053272ff4b14290242d0c4fa1b44a7",
   "releaseNotes": [
-    "用药提醒、服药计划和拍照上传识别修复"
+    "修复 App 热更新地址识别与失败提示"
   ],
-  "publishedAt": "2026-05-21T12:00:37.975Z"
+  "publishedAt": "2026-05-21T12:19:57.837Z"
 }

@@ -20,7 +20,12 @@ const normalizeUrl = (ctx, url) => {
         return new URL(url, publicBase).toString();
     }
 
-    return new URL(url, ctx.origin).toString();
+    const forwardedProto = String(ctx.get?.('x-forwarded-proto') || '').split(',')[0].trim();
+    const forwardedHost = String(ctx.get?.('x-forwarded-host') || '').split(',')[0].trim();
+    const protocol = forwardedProto || ctx.protocol || 'http';
+    const host = forwardedHost || ctx.host;
+    const origin = host ? `${protocol}://${host}` : ctx.origin;
+    return new URL(url, origin).toString();
 };
 
 const readManifest = () => {

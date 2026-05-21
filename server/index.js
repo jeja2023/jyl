@@ -18,6 +18,7 @@ if (!validateEnv()) {
 }
 
 const app = new Koa();
+app.proxy = true;
 const port = process.env.PORT || 3000;
 const logger = require('./utils/logger');
 const { startCleanupJobs } = require('./utils/cleanup');

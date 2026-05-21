@@ -47,6 +47,12 @@ const requestUpdateInfo = (url) => new Promise((resolve, reject) => {
   });
 });
 
+const getErrorMessage = (err) => {
+  if (!err) return '未知错误';
+  if (typeof err === 'string') return err;
+  return err.message || err.errMsg || JSON.stringify(err);
+};
+
 const downloadFile = (url, onProgress) => new Promise((resolve, reject) => {
   const task = uni.downloadFile({
     url,
@@ -93,7 +99,6 @@ export const checkAppUpdate = async ({ forceCheck = false } = {}) => {
 
   try {
     await plusReady();
-    uni.setStorageSync(LAST_CHECK_KEY, String(Date.now()));
 
     const systemInfo = uni.getSystemInfoSync();
     const platform = (systemInfo.platform || 'android').toLowerCase();
@@ -106,6 +111,7 @@ export const checkAppUpdate = async ({ forceCheck = false } = {}) => {
     ].join('&');
 
     const updateInfo = await requestUpdateInfo(`${baseURL}/api/app/update/check?${query}`);
+    uni.setStorageSync(LAST_CHECK_KEY, String(Date.now()));
 
     if (!updateInfo?.hasUpdate || !updateInfo.downloadUrl) return;
     if (!isTrustedUpdateUrl(updateInfo.downloadUrl, baseURL)) {
@@ -161,6 +167,11 @@ export const checkAppUpdate = async ({ forceCheck = false } = {}) => {
       }
     });
   } catch (err) {
+    const message = getErrorMessage(err);
+    uni.showToast({
+      title: `更新检查失败：${message}`.slice(0, 60),
+      icon: 'none'
+    });
     if (import.meta.env.DEV) console.warn('App update check skipped:', err);
   }
   // #endif

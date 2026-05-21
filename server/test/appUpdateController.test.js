@@ -10,6 +10,9 @@ const manifestPath = path.join(updateDir, 'manifest.json');
 const createCtx = (query = {}) => ({
   query,
   origin: 'https://jyl.example.com',
+  protocol: 'https',
+  host: 'jyl.example.com',
+  get: () => '',
   status: 0,
   body: null
 });
@@ -59,6 +62,36 @@ test('app update check returns package info for older android app', async () => 
   assert.equal(ctx.body.data.versionCode, 168);
   assert.equal(ctx.body.data.downloadUrl, 'https://jyl.example.com/storage/app-updates/jyl-1.6.8-168.wgt');
   assert.deepEqual(ctx.body.data.releaseNotes, ['fix login']);
+
+  cleanup();
+});
+
+test('app update check uses forwarded https origin behind proxy', async () => {
+  cleanup();
+  fs.mkdirSync(updateDir, { recursive: true });
+  fs.writeFileSync(manifestPath, JSON.stringify({
+    enabled: true,
+    platforms: ['android'],
+    versionName: '1.8.2',
+    versionCode: 182,
+    wgtUrl: '/storage/app-updates/jyl-1.8.2-182.wgt'
+  }));
+
+  const ctx = {
+    ...createCtx({ platform: 'android', versionCode: '180', versionName: '1.8.0' }),
+    origin: 'http://127.0.0.1:3000',
+    protocol: 'http',
+    host: '127.0.0.1:3000',
+    get: (name) => ({
+      'x-forwarded-proto': 'https',
+      'x-forwarded-host': 'jyl.880301.xyz'
+    }[String(name).toLowerCase()] || '')
+  };
+
+  await AppUpdateController.check(ctx);
+
+  assert.equal(ctx.body.data.hasUpdate, true);
+  assert.equal(ctx.body.data.downloadUrl, 'https://jyl.880301.xyz/storage/app-updates/jyl-1.8.2-182.wgt');
 
   cleanup();
 });
