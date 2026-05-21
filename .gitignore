@@ -34,4 +34,8 @@ Thumbs.db
 *.temp
 
 # 用户上传的文件
-storage/
+storage/*
+!storage/app-updates/
+storage/app-updates/*
+!storage/app-updates/manifest.json
+!storage/app-updates/*.wgt
