@@ -19,6 +19,11 @@ const MedicationPlan = sequelize.define('MedicationPlan', {
         allowNull: false,
         comment: '服用剂量 (如: 1.5片 / 75ug)'
     },
+    weeklyDosage: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: '按星期覆盖剂量，JSON对象，键为0-6（周日-周六）'
+    },
     takeTime: {
         type: DataTypes.TIME,
         allowNull: false,

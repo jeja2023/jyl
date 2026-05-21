@@ -6,6 +6,7 @@ const { logAction } = require('../utils/actionLog');
 const { calculateStats } = require('../services/MedicationService');
 const { Op } = require('sequelize');
 const logger = require('../utils/logger');
+const { getPlanDosageForDate, stringifyWeeklyDosage } = require('../utils/medicationDosage');
 
 const dateToStr = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const isDateOnly = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
@@ -20,8 +21,10 @@ class MedicationController {
         const data = ctx.request.body;
         const userId = ctx.state.user.id;
 
+        const { weeklyDosage, ...planData } = data;
         const plan = await MedicationPlan.create({
-            ...data,
+            ...planData,
+            weeklyDosage: stringifyWeeklyDosage(weeklyDosage),
             UserId: userId
         });
         await MedicationAdjustment.create({
@@ -44,7 +47,7 @@ class MedicationController {
 
         const list = await MedicationPlan.findAll({
             where: { UserId: userId },
-            attributes: ['id', 'medicineName', 'dosage', 'takeTime', 'isActive', 'notes', 'lastTakenDate', 'createdAt', 'updatedAt'],
+            attributes: ['id', 'medicineName', 'dosage', 'weeklyDosage', 'takeTime', 'isActive', 'notes', 'lastTakenDate', 'createdAt', 'updatedAt'],
             order: [['takeTime', 'ASC']]
         });
 
@@ -97,6 +100,7 @@ class MedicationController {
 
         plan.lastTakenDate = today;
         await plan.save();
+        const dosageSnapshot = getPlanDosageForDate(plan, new Date());
 
         await MedicationLog.findOrCreate({
             where: { UserId: userId, MedicationPlanId: plan.id, date: today },
@@ -104,7 +108,7 @@ class MedicationController {
                 takenAt: new Date(),
                 source: 'normal',
                 medicineNameSnapshot: plan.medicineName,
-                dosageSnapshot: plan.dosage
+                dosageSnapshot
             }
         });
 
@@ -143,6 +147,7 @@ class MedicationController {
         }
 
         const takenAt = combineDateTime(date, takenTime || plan.takeTime);
+        const dosageSnapshot = getPlanDosageForDate(plan, takenAt);
         const [log, created] = await MedicationLog.findOrCreate({
             where: { UserId: userId, MedicationPlanId: plan.id, date },
             defaults: {
@@ -150,7 +155,7 @@ class MedicationController {
                 source: date === today ? 'normal' : 'makeup',
                 note: note || null,
                 medicineNameSnapshot: plan.medicineName,
-                dosageSnapshot: plan.dosage
+                dosageSnapshot
             }
         });
 
@@ -159,7 +164,7 @@ class MedicationController {
             log.source = date === today && log.source === 'normal' ? 'normal' : 'makeup';
             log.note = note || log.note;
             log.medicineNameSnapshot = log.medicineNameSnapshot || plan.medicineName;
-            log.dosageSnapshot = log.dosageSnapshot || plan.dosage;
+            log.dosageSnapshot = dosageSnapshot;
             await log.save();
         }
 
@@ -201,7 +206,7 @@ class MedicationController {
 
     // 更新计划信息
     static async update(ctx) {
-        const { id, medicineName, dosage, takeTime, notes, adjustReason } = ctx.request.body;
+        const { id, medicineName, dosage, weeklyDosage, takeTime, notes, adjustReason } = ctx.request.body;
         const userId = ctx.state.user.id;
 
         const plan = await MedicationPlan.findOne({ where: { id, UserId: userId } });
@@ -210,15 +215,18 @@ class MedicationController {
         }
 
         const oldDosage = plan.dosage;
+        const oldWeeklyDosage = plan.weeklyDosage || null;
         const oldMedicineName = plan.medicineName;
+        const nextWeeklyDosage = stringifyWeeklyDosage(weeklyDosage);
         plan.medicineName = medicineName;
         plan.dosage = dosage;
+        plan.weeklyDosage = nextWeeklyDosage;
         plan.takeTime = takeTime;
         plan.notes = notes;
 
         await plan.save();
 
-        if (dosage && String(dosage) !== String(oldDosage)) {
+        if ((dosage && String(dosage) !== String(oldDosage)) || String(nextWeeklyDosage || '') !== String(oldWeeklyDosage || '')) {
             await MedicationAdjustment.create({
                 adjustmentDate: new Date().toISOString().split('T')[0],
                 medicineName: medicineName || oldMedicineName,

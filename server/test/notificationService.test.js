@@ -6,7 +6,7 @@ const {
   sortNotifications
 } = require('../services/NotificationService');
 
-test('buildMedicationNotices returns upcoming reminder within one hour', () => {
+test('buildMedicationNotices skips reminders before scheduled time', () => {
   const now = new Date('2026-03-28T08:15:00+08:00');
   const notices = buildMedicationNotices([
     {
@@ -20,13 +20,10 @@ test('buildMedicationNotices returns upcoming reminder within one hour', () => {
     }
   ], now);
 
-  assert.equal(notices.length, 1);
-  assert.equal(notices[0].type, 'medication');
-  assert.equal(notices[0].isRead, false);
-  assert.match(notices[0].content, /09:00/);
+  assert.equal(notices.length, 0);
 });
 
-test('buildMedicationNotices skips plans already taken today or too far away', () => {
+test('buildMedicationNotices skips plans already taken today and future untaken plans', () => {
   const now = new Date('2026-03-28T08:15:00+08:00');
   const notices = buildMedicationNotices([
     {
@@ -66,6 +63,55 @@ test('buildMedicationNotices returns overdue reminder after scheduled time', () 
   assert.equal(notices.length, 1);
   assert.equal(notices[0].title, '待服药提醒');
   assert.equal(notices[0].isRead, false);
+});
+
+test('buildMedicationNotices keeps same medicine plans separate by plan id and dose', () => {
+  const now = new Date('2026-03-28T21:00:00+08:00');
+  const notices = buildMedicationNotices([
+    {
+      id: 1,
+      medicineName: '优甲乐',
+      dosage: '1片',
+      takeTime: '06:30:00',
+      isActive: true,
+      lastTakenDate: null
+    },
+    {
+      id: 2,
+      medicineName: '优甲乐',
+      dosage: '半片',
+      takeTime: '20:00:00',
+      isActive: true,
+      lastTakenDate: null
+    }
+  ], now);
+
+  assert.equal(notices.length, 2);
+  assert.deepEqual(notices.map(item => item.id), [
+    'medication_1_2026-03-28',
+    'medication_2_2026-03-28'
+  ]);
+  assert.match(notices[0].content, /1片/);
+  assert.match(notices[1].content, /半片/);
+});
+
+test('buildMedicationNotices uses weekday-specific dosage for the reminder day', () => {
+  const now = new Date('2026-03-30T08:00:00+08:00');
+  const notices = buildMedicationNotices([
+    {
+      id: 1,
+      medicineName: '优甲乐',
+      dosage: '1片',
+      weeklyDosage: JSON.stringify({ 1: '半片' }),
+      takeTime: '06:30:00',
+      isActive: true,
+      lastTakenDate: null
+    }
+  ], now);
+
+  assert.equal(notices.length, 1);
+  assert.match(notices[0].content, /半片/);
+  assert.doesNotMatch(notices[0].content, /1片/);
 });
 
 test('buildCheckupNotice marks only near-term checkups as unread', () => {

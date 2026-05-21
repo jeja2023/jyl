@@ -75,7 +75,7 @@
         </view>
         <view class="header-right" @click="openAdd">
           <u-icon name="plus" color="#3c9cff" size="16"></u-icon>
-          <text class="add-text">新增时刻</text>
+          <text class="add-text">新增服药计划</text>
         </view>
       </view>
 
@@ -141,19 +141,22 @@
             <view class="card-footer">
               <view class="dosage-tag">
                 <text class="label">剂量：</text>
-                <text class="val">{{ item.dosage }}</text>
+                <text class="val">{{ getTodayDosage(item) }}</text>
               </view>
               <view class="note-box" v-if="item.notes">
                 <u-icon name="info-circle" color="#86909C" size="14"></u-icon>
                 <text class="note-text">{{ item.notes }}</text>
               </view>
             </view>
+            <view class="weekly-dosage-summary" v-if="formatWeeklyDosage(item.weeklyDosage)">
+              <text>{{ formatWeeklyDosage(item.weeklyDosage) }}</text>
+            </view>
           </view>
 
           <!-- 空状态 -->
           <view class="empty-state" v-if="plans.length === 0">
             <u-icon name="clock" size="64" color="#e0e0e0"></u-icon>
-            <text class="empty-text">暂无用药提醒，点击右上角添加</text>
+            <text class="empty-text">暂无服药计划，点击右上角添加</text>
           </view>
           
           <!-- 底部占位 -->
@@ -191,7 +194,7 @@
     <u-popup :show="showAdd" @close="closePopup" mode="bottom" round="24" :lockScroll="true">
       <view class="popup-container">
         <view class="popup-header">
-          <text class="popup-title">{{ editingId ? '编辑用药提醒' : '添加用药提醒' }}</text>
+          <text class="popup-title">{{ editingId ? '编辑服药计划' : '新增服药计划' }}</text>
           <view class="close-icon" @click="closePopup">
             <u-icon name="close" size="20" color="#999"></u-icon>
           </view>
@@ -226,6 +229,39 @@
               </view>
             </view>
           </view>
+          <view class="form-item">
+            <text class="label">按剂量选择服药日</text>
+            <view class="weekly-dosage-editor">
+              <view class="weekly-dose-group" v-for="(group, index) in dosageGroups" :key="index">
+                <view class="weekly-dose-head">
+                  <u--input
+                    v-model="group.dosage"
+                    placeholder="剂量，如 半片"
+                    border="surround"
+                    shape="circle"
+                  ></u--input>
+                  <view class="remove-dose-group" v-if="dosageGroups.length > 1" @click="removeDosageGroup(index)">
+                    <u-icon name="trash" size="16" color="#F53F3F"></u-icon>
+                  </view>
+                </view>
+                <view class="weekday-chip-list">
+                  <view
+                    v-for="day in weekdayOptions"
+                    :key="day.key"
+                    class="weekday-chip"
+                    :class="{ active: group.days.includes(day.key) }"
+                    @click="toggleDosageGroupDay(index, day.key)"
+                  >
+                    {{ day.short }}
+                  </view>
+                </view>
+              </view>
+              <view class="add-dose-group" @click="addDosageGroup">
+                <u-icon name="plus" size="14" color="#3E7BFF"></u-icon>
+                <text>添加一组剂量</text>
+              </view>
+            </view>
+          </view>
           
           <view class="form-item">
             <text class="label">备注说明</text>
@@ -246,11 +282,13 @@
             ></u--input>
           </view>
 
-          <u-button 
-            type="primary" 
-            text="保存设置" 
-            shape="circle" 
-            customStyle="margin-top: 40rpx; height: 88rpx; box-shadow: 0 8rpx 16rpx rgba(60, 156, 255, 0.25);"
+        </view>
+        <view class="popup-actions">
+          <u-button
+            type="primary"
+            text="保存设置"
+            shape="circle"
+            customStyle="height: 88rpx; box-shadow: 0 8rpx 16rpx rgba(60, 156, 255, 0.25);"
             @click="savePlan"
           ></u-button>
         </view>
@@ -276,8 +314,11 @@
                 :class="{ active: makeupForm.id === item.id }"
                 @click="makeupForm.id = item.id"
               >
-                <text>{{ item.medicineName }}</text>
-                <text>{{ item.dosage }}</text>
+                <view class="plan-select-main">
+                  <text>{{ item.medicineName }}</text>
+                  <text class="plan-select-time">{{ formatTime(item.takeTime) }}</text>
+                </view>
+                <text class="plan-select-dose">{{ item.dosage }}</text>
               </view>
             </view>
           </view>
@@ -406,11 +447,21 @@ const makeupDateValue = ref(Date.now());
 const makeupMaxDate = Date.now();
 const editingId = ref(null);
 const tipContent = ref('加载中...');
+const weekdayOptions = [
+  { key: '1', label: '周一', short: '一' },
+  { key: '2', label: '周二', short: '二' },
+  { key: '3', label: '周三', short: '三' },
+  { key: '4', label: '周四', short: '四' },
+  { key: '5', label: '周五', short: '五' },
+  { key: '6', label: '周六', short: '六' },
+  { key: '0', label: '周日', short: '日' }
+];
 // 立即尝试从缓存恢复，实现“秒开”体验
 const stats = ref(getCache('medication_stats'));
 const plans = ref(getCache('medication_plans') || []);
 const adjustments = ref(getCache('medication_adjustments') || []);
 const medicationLogs = ref(getCache('medication_logs') || []);
+const dosageGroups = ref([{ dosage: '', days: [] }]);
 
 const newPlan = reactive({
   medicineName: '',
@@ -436,6 +487,96 @@ const activePlans = computed(() => plans.value.filter(p => p.isActive));
 
 const dateToStr = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const todayStr = () => dateToStr(new Date());
+
+const parseWeeklyDosage = (value) => {
+  if (!value) return {};
+  if (typeof value === 'object' && !Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch (e) {
+    return {};
+  }
+};
+
+const sanitizeWeeklyDosage = (value) => {
+  const parsed = parseWeeklyDosage(value);
+  const result = {};
+  weekdayOptions.forEach(day => {
+    const dosage = typeof parsed[day.key] === 'string' ? parsed[day.key].trim() : '';
+    if (dosage) result[day.key] = dosage;
+  });
+  return result;
+};
+
+const resetWeeklyDosage = (value = {}) => {
+  const parsed = sanitizeWeeklyDosage(value);
+  const grouped = {};
+
+  weekdayOptions.forEach(day => {
+    const dosage = parsed[day.key];
+    if (!dosage) return;
+    if (!grouped[dosage]) grouped[dosage] = [];
+    grouped[dosage].push(day.key);
+  });
+
+  const groups = Object.entries(grouped).map(([dosage, days]) => ({ dosage, days }));
+  dosageGroups.value = groups.length ? groups : [{ dosage: '', days: [] }];
+};
+
+const weeklyDosageFromGroups = () => {
+  const result = {};
+  dosageGroups.value.forEach(group => {
+    const dosage = typeof group.dosage === 'string' ? group.dosage.trim() : '';
+    if (!dosage) return;
+    (group.days || []).forEach(dayKey => {
+      result[dayKey] = dosage;
+    });
+  });
+  return sanitizeWeeklyDosage(result);
+};
+
+const addDosageGroup = () => {
+  dosageGroups.value.push({ dosage: '', days: [] });
+};
+
+const removeDosageGroup = (index) => {
+  if (dosageGroups.value.length <= 1) {
+    dosageGroups.value = [{ dosage: '', days: [] }];
+    return;
+  }
+  dosageGroups.value.splice(index, 1);
+};
+
+const toggleDosageGroupDay = (groupIndex, dayKey) => {
+  dosageGroups.value.forEach((group, index) => {
+    const days = group.days || [];
+    if (index === groupIndex) {
+      group.days = days.includes(dayKey)
+        ? days.filter(item => item !== dayKey)
+        : [...days, dayKey];
+    } else {
+      group.days = days.filter(item => item !== dayKey);
+    }
+  });
+};
+
+const getDosageForDate = (plan, date = new Date()) => {
+  const weeklyDosage = parseWeeklyDosage(plan?.weeklyDosage);
+  const dayKey = String(date.getDay());
+  const dosage = typeof weeklyDosage[dayKey] === 'string' ? weeklyDosage[dayKey].trim() : '';
+  return dosage || plan?.dosage || '';
+};
+
+const getTodayDosage = (plan) => getDosageForDate(plan, new Date());
+
+const formatWeeklyDosage = (weeklyDosage) => {
+  const parsed = parseWeeklyDosage(weeklyDosage);
+  return weekdayOptions
+    .filter(day => typeof parsed[day.key] === 'string' && parsed[day.key].trim())
+    .map(day => `${day.label}${parsed[day.key].trim()}`)
+    .join('，');
+};
 
 const logsByDate = computed(() => {
   const grouped = {};
@@ -630,6 +771,7 @@ const openAdd = () => {
     editingId.value = null;
     newPlan.medicineName = '';
     newPlan.dosage = '';
+    resetWeeklyDosage();
     newPlan.notes = '';
     newPlan.adjustReason = '';
     newPlan.takeTime = '06:30';
@@ -654,16 +796,20 @@ const confirmTime = (e) => {
 
 const savePlan = async () => {
   if (!newPlan.medicineName || !newPlan.dosage) return uni.$u.toast('请填写完整信息');
+  const payload = {
+    ...newPlan,
+    weeklyDosage: weeklyDosageFromGroups()
+  };
   
   try {
     if (editingId.value) {
         await http.post('/api/medication/update', {
             id: editingId.value,
-            ...newPlan
+            ...payload
         });
         uni.$u.toast('修改成功');
     } else {
-        await http.post('/api/medication/add', newPlan);
+        await http.post('/api/medication/add', payload);
         uni.$u.toast('添加成功');
     }
     
@@ -679,6 +825,7 @@ const editPlan = (item) => {
     editingId.value = item.id;
     newPlan.medicineName = item.medicineName;
     newPlan.dosage = item.dosage;
+    resetWeeklyDosage(item.weeklyDosage);
     newPlan.takeTime = item.takeTime;
     newPlan.notes = item.notes;
     newPlan.adjustReason = '';
@@ -693,6 +840,7 @@ const closePopup = () => {
         editingId.value = null;
         newPlan.medicineName = '';
         newPlan.dosage = '';
+        resetWeeklyDosage();
         newPlan.notes = '';
         newPlan.adjustReason = '';
         newPlan.takeTime = '06:30';
@@ -741,7 +889,7 @@ const isTakenToday = (item) => {
 const openMakeup = (date = '', plan = null) => {
   const targetPlan = plan || activePlans.value[0] || plans.value[0];
   if (!targetPlan) {
-    uni.$u.toast('请先添加用药提醒');
+    uni.$u.toast('请先添加服药计划');
     return;
   }
   makeupForm.id = targetPlan.id;
@@ -1378,6 +1526,16 @@ onMounted(() => {
       }
     }
   }
+
+  .weekly-dosage-summary {
+    margin-top: 16rpx;
+    padding: 14rpx 18rpx;
+    background: #F8FAFF;
+    border-radius: 14rpx;
+    color: #4E5969;
+    font-size: 22rpx;
+    line-height: 1.5;
+  }
 }
 
 .empty-state {
@@ -1400,6 +1558,10 @@ onMounted(() => {
   padding: 60rpx 48rpx;
   background: #FFFFFF;
   border-radius: 50rpx 50rpx 0 0;
+  max-height: 88vh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
 }
 
 .popup-header {
@@ -1407,6 +1569,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 48rpx;
+  flex-shrink: 0;
   
   .popup-title {
     font-size: 40rpx;
@@ -1416,6 +1579,13 @@ onMounted(() => {
 }
 
 .form-container {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 8rpx;
+    padding-bottom: 20rpx;
+    -webkit-overflow-scrolling: touch;
+
     .form-item {
         margin-bottom: 40rpx;
         
@@ -1431,6 +1601,87 @@ onMounted(() => {
     }
     
     .form-row { display: flex; gap: 32rpx; }
+}
+
+.popup-actions {
+  flex-shrink: 0;
+  padding-top: 24rpx;
+  background: #FFFFFF;
+}
+
+.makeup-popup .form-container {
+  overflow-y: visible;
+  padding-right: 0;
+}
+
+.weekly-dosage-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.weekly-dose-group {
+  padding: 20rpx;
+  background: #F8FAFF;
+  border: 1px solid #E5E6EB;
+  border-radius: 20rpx;
+}
+
+.weekly-dose-head {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 18rpx;
+}
+
+.remove-dose-group {
+  width: 64rpx;
+  height: 64rpx;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #FFF1F0;
+  border-radius: 50%;
+}
+
+.weekday-chip-list {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10rpx;
+}
+
+.weekday-chip {
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4E5969;
+  background: #FFFFFF;
+  border: 1px solid #E5E6EB;
+  border-radius: 18rpx;
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.weekday-chip.active {
+  color: #FFFFFF;
+  background: #3E7BFF;
+  border-color: #3E7BFF;
+}
+
+.add-dose-group {
+  height: 72rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  color: #3E7BFF;
+  background: #EEF4FF;
+  border: 1px dashed #8DB3FF;
+  border-radius: 20rpx;
+  font-size: 24rpx;
+  font-weight: 800;
 }
 
 .makeup-popup {
@@ -1457,6 +1708,23 @@ onMounted(() => {
   border-radius: 20rpx;
   font-size: 26rpx;
   font-weight: 800;
+}
+
+.plan-select-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.plan-select-time,
+.plan-select-dose {
+  font-size: 22rpx;
+  font-weight: 700;
+  color: #86909C;
+}
+
+.plan-select-dose {
+  flex-shrink: 0;
 }
 
 .plan-select.active {

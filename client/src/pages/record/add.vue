@@ -702,6 +702,18 @@ const removeImage = (type, index) => {
   else ultrasoundImages.value.splice(index, 1);
 };
 
+const appendUploadedImage = (type, path) => {
+  if (!path) return;
+  const imageList = type === 'ultrasound' ? ultrasoundImages.value : reportImages.value;
+  if (!imageList.includes(path)) imageList.push(path);
+
+  const review = ocrReview[type];
+  if (review) {
+    if (!review.images) review.images = [];
+    if (!review.images.includes(path)) review.images.push(path);
+  }
+};
+
 const hasValue = (val) => val !== undefined && val !== null && val !== '';
 
 const normalizeOcrIndicators = (indicators = {}) => {
@@ -907,10 +919,72 @@ const chooseImage = (type) => {
     sourceType: ['album', 'camera'],
     success: async (res) => {
       for (const path of res.tempFilePaths) {
-        await processImageData(path, type);
+        await processUploadedImage(path, type);
       }
     }
   });
+};
+
+const processUploadedImage = async (filePath, type) => {
+  const isUltrasound = type === 'ultrasound';
+  if (isUltrasound) ultrasoundLoading.value = true;
+  else ocrLoading.value = true;
+
+  let base64 = '';
+  const getBase64 = async () => {
+    if (!base64) base64 = await fileToBase64(filePath);
+    return base64;
+  };
+  let uploadedPath = '';
+
+  try {
+    if (import.meta.env.DEV) console.debug('[Upload] uploading image...');
+    let uploadResult;
+    try {
+      uploadResult = await uploadReportFile(filePath, type);
+    } catch (uploadErr) {
+      if (import.meta.env.DEV) console.warn('uploadFile failed, falling back to base64 upload', uploadErr);
+      uploadResult = await http.post('/api/upload/report', { image: await getBase64(), type });
+    }
+
+    if (!uploadResult?.path) throw new Error('No image path returned from upload');
+    uploadedPath = uploadResult.path;
+    appendUploadedImage(type, uploadResult.path);
+  } catch (err) {
+    console.error('Image upload failed:', err);
+    uni.$u.toast('图片上传失败，请重试');
+    if (isUltrasound) ultrasoundLoading.value = false;
+    else ocrLoading.value = false;
+    return;
+  }
+
+  try {
+    if (import.meta.env.DEV) console.debug('[OCR] recognizing image...');
+    const ocrResult = await http.post('/api/ocr/recognize', { image: await getBase64(), type });
+
+    if (ocrResult && ocrResult.indicators && Object.keys(ocrResult.indicators).length) {
+      const { normalized, units } = normalizeOcrIndicators(ocrResult.indicators);
+      const review = mergeOcrReview(type, normalized, units, ocrResult.rawText);
+      appendUploadedImage(type, uploadedPath);
+      openOcrReview(type);
+
+      if (optionalFields.value.some(item => normalized[item.key])) showMore.value = true;
+      if (calciumOptionalFields.value.some(item => normalized[item.key])) showCalcium.value = true;
+      if (isUltrasound) activeTab.value = 'ultrasound';
+
+      if (review && review.pendingCount > 0) {
+        uni.$u.toast(`已识别 ${review.pendingCount} 项待复核`);
+      }
+    } else {
+      uni.$u.toast('图片已上传，未识别到指标，可手动录入');
+    }
+  } catch (err) {
+    console.error('OCR recognition failed:', err);
+    uni.$u.toast('图片已上传，OCR识别失败，可手动录入');
+  } finally {
+    if (isUltrasound) ultrasoundLoading.value = false;
+    else ocrLoading.value = false;
+  }
 };
 
 const processImageData = async (filePath, type) => {
@@ -1012,7 +1086,7 @@ const fileToBase64 = (filePath) => {
     const fs = uni.getFileSystemManager();
     fs.readFile({
       filePath, encoding: 'base64',
-      success: (res) => resolve('data:image/jpeg;base64,' + res.data),
+      success: (res) => resolve(`data:${getImageMimeFromPath(filePath)};base64,${res.data}`),
       fail: (err) => {
         uni.$u.toast('文件读取失败');
         reject(err);
@@ -1020,6 +1094,13 @@ const fileToBase64 = (filePath) => {
     });
     // #endif
   });
+};
+
+const getImageMimeFromPath = (filePath = '') => {
+  const cleanPath = String(filePath).split('?')[0].toLowerCase();
+  if (cleanPath.endsWith('.png')) return 'image/png';
+  if (cleanPath.endsWith('.webp')) return 'image/webp';
+  return 'image/jpeg';
 };
 
 const submit = async () => {

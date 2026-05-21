@@ -6,16 +6,16 @@
 
 ## 当前版本
 
-当前版本：`1.8.0`
+当前版本：`1.8.2`
 
-本版本重点完成 Android APK 首包发布与后续热更新链路，适用于“不上架应用商店，直接让用户下载安装 APK”的场景。
+本版本重点修复用药提醒、服药计划和拍照上传识别链路，让提醒规则更符合真实服药场景，也让 OCR 异常不再阻断图片上传。
 
-- Android 正式打包：支持 HBuilderX 云打包与 Linux HBuilderX CLI，已纳入 DCloud AppID、正式包名、自有签名证书和 `arm64-v8a` 发布流程。
-- 生产接口地址：App 构建使用 `https://jyl.880301.xyz`，避免移动端误连 `localhost:3000`。
-- 一次安装，后续热更新：新增 wgt 更新检查、下载、安装和重启机制；普通前端更新无需重新安装 APK。
-- APK 下载入口：H5 登录页提供“下载安卓版”，默认下载 `/storage/app-releases/jyl.apk`。
-- 打包稳定性：生成标准 Android PNG 图标，移除中文文件名静态资源，修复 HBuilderX 图标与文件名校验问题。
-- 发布文档：详见 `ANDROID_APK_BUILD.md` 和 `APP_RELEASE_CHECKLIST.md`。
+- 用药提醒：早于计划时间不提醒，晚于计划时间且当天未打卡时持续提醒，不再只在设置时间点短暂提示。
+- 周剂量计划：同一种药支持按周一至周日配置不同剂量，并在打卡、补签、提醒文案和监测方案中使用当日有效剂量。
+- 服药计划体验：新增入口改为“新增服药计划”，支持按剂量选择服药日，长表单弹窗可滚动。
+- 拍照上传识别：图片先上传再 OCR，识别失败时图片保留在记录中，可继续手动录入。
+- 迁移与校验：新增 `MedicationPlans.weeklyDosage` 迁移，修复历史分享链接迁移幂等性，并补充迁移检查。
+- 发布文档：详见 `更新日志.md`、`ANDROID_APK_BUILD.md` 和 `APP_RELEASE_CHECKLIST.md`。
 
 ## 核心功能
 
@@ -195,8 +195,8 @@ npm run release:app
 ```text
 AppID: __UNI__F18FC4D
 包名: com.jiayoule.app
-versionName: 1.8.0
-versionCode: 180
+versionName: 1.8.2
+versionCode: 182
 生产 API: https://jyl.880301.xyz
 ```
 
@@ -228,7 +228,7 @@ APK_DOWNLOAD_URL=https://your-domain/path/to/jyl.apk
 
 ```bash
 cd server
-npm run app:update:publish -- ..\client\dist\release\jyl-1.8.0-180.wgt 1.8.0 180 "发布说明"
+npm run app:update:publish -- ..\client\dist\release\jyl-1.8.2-182.wgt 1.8.2 182 "发布说明"
 ```
 
 以下变更需要重新打 APK：

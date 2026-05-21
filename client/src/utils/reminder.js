@@ -3,7 +3,9 @@ import { useUserStore } from '@/store/index.js';
 import { getCache, setCache } from '@/utils/cache.js';
 
 const CHECK_INTERVAL_MS = 60 * 1000;
+const SNOOZE_SECONDS = 10 * 60;
 const POPUP_CACHE_PREFIX = 'reminder_popup_';
+const SNOOZE_CACHE_PREFIX = 'reminder_snooze_';
 const SKIP_ROUTES = new Set([
   'pages/login',
   'pages/login/index',
@@ -42,17 +44,30 @@ const rememberPopup = (id) => {
   setCache(`${POPUP_CACHE_PREFIX}${id}`, true, getTodayEndTtl());
 };
 
+const isSnoozed = (id) => {
+  return !!getCache(`${SNOOZE_CACHE_PREFIX}${id}`);
+};
+
+const snoozePopup = (id) => {
+  setCache(`${SNOOZE_CACHE_PREFIX}${id}`, true, SNOOZE_SECONDS);
+};
+
 const parseTime = (value) => {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
 };
+
+const isMedicationReminder = (item) => item?.type === 'medication';
 
 const pickDueReminder = (list) => {
   const now = Date.now();
   const candidates = (list || []).filter((item) => {
     if (!item || item.isRead) return false;
     if (!['medication', 'checkup'].includes(item.type)) return false;
-    if (!item.id || hasShownPopup(item.id)) return false;
+    if (!item.id || isSnoozed(item.id)) return false;
+
+    if (isMedicationReminder(item)) return true;
+    if (hasShownPopup(item.id)) return false;
 
     const remindAt = parseTime(item.remindAt || item.targetDate || item.createdAt);
     if (!remindAt) return false;
@@ -73,7 +88,6 @@ const showReminderModal = (item) => {
   if (modalVisible) return;
 
   modalVisible = true;
-  rememberPopup(item.id);
 
   uni.showModal({
     title: item.title || '提醒',
@@ -81,8 +95,15 @@ const showReminderModal = (item) => {
     confirmText: '立即查看',
     cancelText: '稍后',
     success: (res) => {
-      if (res.confirm && item.actionUrl) {
-        uni.navigateTo({ url: item.actionUrl });
+      if (res.confirm) {
+        if (!isMedicationReminder(item)) {
+          rememberPopup(item.id);
+        }
+        if (item.actionUrl) {
+          uni.navigateTo({ url: item.actionUrl });
+        }
+      } else {
+        snoozePopup(item.id);
       }
     },
     complete: () => {

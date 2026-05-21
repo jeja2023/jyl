@@ -1,5 +1,5 @@
-const UPCOMING_MEDICATION_MINUTES = 60;
 const CHECKUP_UNREAD_DAYS = 3;
+const { getPlanDosageForDate } = require('../utils/medicationDosage');
 
 const toDateKey = (date) => {
     const year = date.getFullYear();
@@ -39,17 +39,18 @@ const buildMedicationNotice = (plan, now = new Date()) => {
     const remindAt = withTimeToday(plan.takeTime, now);
     const diffMinutes = Math.ceil((remindAt.getTime() - now.getTime()) / 60000);
 
-    if (diffMinutes > UPCOMING_MEDICATION_MINUTES) {
+    if (diffMinutes > 0) {
         return null;
     }
 
     const timeText = normalizeTime(plan.takeTime);
+    const dosageText = getPlanDosageForDate(plan, now);
     if (diffMinutes >= 0) {
         return {
             id: `medication_${plan.id}_${today}`,
             type: 'medication',
             title: '用药提醒',
-            content: `${plan.medicineName} ${plan.dosage} 将在 ${timeText} 服用，请提前准备${appendNote(plan.notes)}`,
+            content: `${plan.medicineName} ${dosageText} 将在 ${timeText} 服用，请提前准备${appendNote(plan.notes)}`,
             createdAt: remindAt,
             remindAt,
             targetDate: remindAt,
@@ -62,7 +63,7 @@ const buildMedicationNotice = (plan, now = new Date()) => {
         id: `medication_${plan.id}_${today}`,
         type: 'medication',
         title: '待服药提醒',
-        content: `今天 ${timeText} 的 ${plan.medicineName} ${plan.dosage} 还未打卡，请及时确认服药${appendNote(plan.notes)}`,
+        content: `今天 ${timeText} 的 ${plan.medicineName} ${dosageText} 还未打卡，请及时确认服药${appendNote(plan.notes)}`,
         createdAt: remindAt,
         remindAt,
         targetDate: remindAt,

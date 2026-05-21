@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { computeAdherence } = require('../services/MedicationService');
+const { getPlanDosageForDate, stringifyWeeklyDosage } = require('../utils/medicationDosage');
 
 test('computeAdherence calculates rate and streak', () => {
   const logs = [
@@ -40,4 +41,19 @@ test('computeAdherence handles zero plans', () => {
   assert.equal(taken, 0);
   assert.equal(adherence, 0);
   assert.equal(streak, 0);
+});
+
+test('getPlanDosageForDate applies weekday-specific dosage with default fallback', () => {
+  const plan = {
+    dosage: '1片',
+    weeklyDosage: JSON.stringify({ 1: '半片' })
+  };
+
+  assert.equal(getPlanDosageForDate(plan, new Date('2026-03-30T08:00:00+08:00')), '半片');
+  assert.equal(getPlanDosageForDate(plan, new Date('2026-03-31T08:00:00+08:00')), '1片');
+});
+
+test('stringifyWeeklyDosage removes blank weekday overrides', () => {
+  assert.equal(stringifyWeeklyDosage({ 1: '半片', 2: '   ' }), '{"1":"半片"}');
+  assert.equal(stringifyWeeklyDosage({ 1: '' }), null);
 });
