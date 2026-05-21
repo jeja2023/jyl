@@ -6,6 +6,7 @@ const AppUpdateController = require('../controllers/AppUpdateController');
 
 const updateDir = path.join(__dirname, '../../storage/app-updates');
 const manifestPath = path.join(updateDir, 'manifest.json');
+const backupDir = path.join(__dirname, '../../storage/.app-updates-test-backup');
 
 const createCtx = (query = {}) => ({
   query,
@@ -17,11 +18,33 @@ const createCtx = (query = {}) => ({
   body: null
 });
 
+const backupPublishedUpdates = () => {
+  if (fs.existsSync(backupDir)) {
+    fs.rmSync(backupDir, { recursive: true, force: true });
+  }
+  if (fs.existsSync(updateDir)) {
+    fs.cpSync(updateDir, backupDir, { recursive: true });
+  }
+};
+
+const restorePublishedUpdates = () => {
+  if (fs.existsSync(updateDir)) {
+    fs.rmSync(updateDir, { recursive: true, force: true });
+  }
+  if (fs.existsSync(backupDir)) {
+    fs.cpSync(backupDir, updateDir, { recursive: true });
+    fs.rmSync(backupDir, { recursive: true, force: true });
+  }
+};
+
 const cleanup = () => {
   if (fs.existsSync(updateDir)) {
     fs.rmSync(updateDir, { recursive: true, force: true });
   }
 };
+
+backupPublishedUpdates();
+process.on('exit', restorePublishedUpdates);
 
 test('app update check returns no update without manifest', async () => {
   cleanup();
@@ -94,4 +117,35 @@ test('app update check uses forwarded https origin behind proxy', async () => {
   assert.equal(ctx.body.data.downloadUrl, 'https://jyl.880301.xyz/storage/app-updates/jyl-1.8.2-182.wgt');
 
   cleanup();
+});
+
+test('app update check defaults to https for production public host without forwarded proto', async () => {
+  cleanup();
+  fs.mkdirSync(updateDir, { recursive: true });
+  fs.writeFileSync(manifestPath, JSON.stringify({
+    enabled: true,
+    platforms: ['android'],
+    versionName: '1.8.5',
+    versionCode: 185,
+    wgtUrl: '/storage/app-updates/jyl-1.8.5-185.wgt'
+  }));
+
+  const oldNodeEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'production';
+  const ctx = {
+    ...createCtx({ platform: 'android', versionCode: '184', versionName: '1.8.4' }),
+    origin: 'http://jyl.880301.xyz',
+    protocol: 'http',
+    host: 'jyl.880301.xyz',
+    get: () => ''
+  };
+
+  try {
+    await AppUpdateController.check(ctx);
+    assert.equal(ctx.body.data.hasUpdate, true);
+    assert.equal(ctx.body.data.downloadUrl, 'https://jyl.880301.xyz/storage/app-updates/jyl-1.8.5-185.wgt');
+  } finally {
+    process.env.NODE_ENV = oldNodeEnv;
+    cleanup();
+  }
 });

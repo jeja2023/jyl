@@ -17,6 +17,17 @@ const clientPkg = readJson(path.join(rootDir, 'client/package.json'));
 const clientManifest = readJson(path.join(rootDir, 'client/src/manifest.json'));
 const updateManifestPath = path.join(rootDir, 'storage/app-updates/manifest.json');
 
+const packageUrlToLocalPath = (value) => {
+    if (!value) return '';
+    let packagePath = value;
+    try {
+        packagePath = new URL(value).pathname;
+    } catch (e) {
+        packagePath = value;
+    }
+    return path.join(rootDir, packagePath.replace(/^\/+/, '').replace(/\//g, path.sep));
+};
+
 const versionName = String(clientManifest.versionName || '');
 const versionCode = parseInt(clientManifest.versionCode, 10);
 
@@ -45,7 +56,7 @@ if (!fs.existsSync(updateManifestPath)) {
     if (!wgtUrl) {
         errors.push('热更新 manifest 缺少 wgtUrl/packageUrl');
     } else {
-        const wgtPath = path.join(rootDir, wgtUrl.replace(/^\/+/, '').replace(/\//g, path.sep));
+        const wgtPath = packageUrlToLocalPath(wgtUrl);
         if (!fs.existsSync(wgtPath)) {
             errors.push(`热更新包不存在：${wgtUrl}`);
         }

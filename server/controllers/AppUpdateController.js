@@ -15,15 +15,18 @@ const normalizeUrl = (ctx, url) => {
     if (!url) return '';
     if (/^https?:\/\//i.test(url)) return url;
 
-    const publicBase = process.env.APP_PUBLIC_BASE_URL || process.env.PUBLIC_BASE_URL;
+    const publicBase = process.env.APP_PUBLIC_BASE_URL
+        || process.env.PUBLIC_BASE_URL
+        || (process.env.NODE_ENV === 'production' ? process.env.VITE_API_BASE : '');
     if (publicBase) {
         return new URL(url, publicBase).toString();
     }
 
     const forwardedProto = String(ctx.get?.('x-forwarded-proto') || '').split(',')[0].trim();
     const forwardedHost = String(ctx.get?.('x-forwarded-host') || '').split(',')[0].trim();
-    const protocol = forwardedProto || ctx.protocol || 'http';
     const host = forwardedHost || ctx.host;
+    const isLocalHost = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)($|:)/i.test(host || '');
+    const protocol = forwardedProto || (process.env.NODE_ENV === 'production' && !isLocalHost ? 'https' : ctx.protocol) || 'http';
     const origin = host ? `${protocol}://${host}` : ctx.origin;
     return new URL(url, origin).toString();
 };
