@@ -71,7 +71,7 @@ fs.mkdirSync(updateDir, { recursive: true });
 if (fs.existsSync(manifestPath)) {
     const previous = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
     const previousVersionCode = parseInt(previous.versionCode, 10) || 0;
-    if (previousVersionCode >= versionCode) {
+    if (!options.force && previousVersionCode >= versionCode) {
         console.error(`Refusing to publish versionCode ${versionCode}; current manifest is ${previousVersionCode}.`);
         process.exit(1);
     }

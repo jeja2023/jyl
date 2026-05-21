@@ -1,7 +1,5 @@
 import { getBaseURL } from './config.js';
 
-const CHECK_INTERVAL = 6 * 60 * 60 * 1000;
-const LAST_CHECK_KEY = 'jyl_app_update_last_check';
 const INSTALLING_KEY = 'jyl_app_update_installing';
 
 const semverToCode = (versionName = '') => {
@@ -75,13 +73,6 @@ const installWgt = (filePath) => new Promise((resolve, reject) => {
   plus.runtime.install(filePath, { force: true }, resolve, reject);
 });
 
-const shouldSkipCheck = (forceCheck) => {
-  if (forceCheck) return false;
-
-  const lastCheck = parseInt(uni.getStorageSync(LAST_CHECK_KEY), 10) || 0;
-  return Date.now() - lastCheck < CHECK_INTERVAL;
-};
-
 const isTrustedUpdateUrl = (downloadUrl, baseURL) => {
   try {
     const parsed = new URL(downloadUrl);
@@ -94,7 +85,6 @@ const isTrustedUpdateUrl = (downloadUrl, baseURL) => {
 
 export const checkAppUpdate = async ({ forceCheck = false } = {}) => {
   // #ifdef APP-PLUS
-  if (shouldSkipCheck(forceCheck)) return;
   if (uni.getStorageSync(INSTALLING_KEY) === '1') return;
 
   try {
@@ -111,7 +101,6 @@ export const checkAppUpdate = async ({ forceCheck = false } = {}) => {
     ].join('&');
 
     const updateInfo = await requestUpdateInfo(`${baseURL}/api/app/update/check?${query}`);
-    uni.setStorageSync(LAST_CHECK_KEY, String(Date.now()));
 
     if (!updateInfo?.hasUpdate || !updateInfo.downloadUrl) return;
     if (!isTrustedUpdateUrl(updateInfo.downloadUrl, baseURL)) {
@@ -147,13 +136,11 @@ export const checkAppUpdate = async ({ forceCheck = false } = {}) => {
     };
 
     if (updateInfo.force) {
-      uni.showModal({
-        title: '发现新版本',
-        content: '需要更新后继续使用',
-        showCancel: false,
-        confirmText: '立即更新',
-        success: () => startUpdate()
+      uni.showToast({
+        title: `发现新版本 ${updateInfo.versionName || ''}，正在更新`,
+        icon: 'none'
       });
+      startUpdate();
       return;
     }
 
