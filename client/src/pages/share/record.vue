@@ -107,6 +107,7 @@
 import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { getBaseURL } from '@/utils/config.js';
+import { buildReportImageUrl } from '@/utils/reportImage.js';
 import { ALL_INDICATORS } from '@/utils/thyroidIndicators.js';
 
 const record = ref(null);
@@ -158,10 +159,7 @@ const activeMetrics = computed(() => {
 });
 
 const getImageUrl = (path) => {
-  if (!path) return '';
-  if (path.startsWith('http') || path.startsWith('blob:')) return path;
-  const baseUrl = getBaseURL();
-  return `${baseUrl}${path}`;
+  return buildReportImageUrl(path, { shareToken: token.value });
 };
 
 const previewImage = (images, currentIdx) => {

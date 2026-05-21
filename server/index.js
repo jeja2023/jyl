@@ -22,6 +22,8 @@ app.proxy = true;
 const port = process.env.PORT || 3000;
 const logger = require('./utils/logger');
 const { startCleanupJobs } = require('./utils/cleanup');
+const isProd = process.env.NODE_ENV === 'production';
+const publicStorageDirs = ['app-updates', 'app-releases'];
 
 // 请求链路 ID
 app.use(async (ctx, next) => {
@@ -37,7 +39,12 @@ app.use(async (ctx, next) => {
     const start = Date.now();
     await next();
     const ms = Date.now() - start;
+    const originalUrl = ctx.url;
+    if (ctx.query?.authToken || ctx.query?.shareToken || ctx.query?.token) {
+        ctx.url = ctx.path;
+    }
     logger.request(ctx, ms);
+    ctx.url = originalUrl;
 });
 
 // 确保存储目录存在 (递归创建，支持 Docker 初始挂载环境)
@@ -45,6 +52,12 @@ const storageDir = path.join(__dirname, '../storage/reports');
 if (!fs.existsSync(storageDir)) {
     fs.mkdirSync(storageDir, { recursive: true });
 }
+publicStorageDirs.forEach((dir) => {
+    const target = path.join(__dirname, '../storage', dir);
+    if (!fs.existsSync(target)) {
+        fs.mkdirSync(target, { recursive: true });
+    }
+});
 
 // 打印库连接诊断信息
 console.log(`[启动] 数据库连接检测: HOST=${process.env.DB_HOST || 'localhost'}, USER=${process.env.DB_USER}`);
@@ -58,10 +71,22 @@ DbService.init().then(() => {
 // 中间件
 const errorHandler = require('./middlewares/errorHandler');
 app.use(errorHandler);
+const contentSecurityPolicy = isProd && process.env.DISABLE_CSP !== 'true'
+    ? {
+        useDefaults: true,
+        directives: {
+            "default-src": ["'self'"],
+            "img-src": ["'self'", "data:", "blob:"],
+            "script-src": ["'self'", "'unsafe-inline'"],
+            "style-src": ["'self'", "'unsafe-inline'"],
+            "connect-src": ["'self'"]
+        }
+    }
+    : false;
 app.use(helmet({
     crossOriginEmbedderPolicy: false,
     crossOriginResourcePolicy: { policy: 'cross-origin' },
-    contentSecurityPolicy: false // 禁用默认的 CSP，防止前端请求不同端口的 API 被拦截
+    contentSecurityPolicy
 }));
 app.use(compress({
     filter: (content_type) => {
@@ -86,6 +111,10 @@ if (process.env.NODE_ENV === 'production' && process.env.CORS_ORIGINS) {
     };
     corsOptions.credentials = true;
 }
+if (isProd && !process.env.CORS_ORIGINS) {
+    logger.warn('生产环境未配置 CORS_ORIGINS，将拒绝带 Origin 的跨域请求');
+    corsOptions.origin = (ctx) => ctx.get('Origin') ? false : '*';
+}
 app.use(cors(corsOptions));
 const largeBodyPaths = new Set(['/api/ocr/recognize', '/api/upload/report']);
 const defaultBodyParser = bodyParser({ jsonLimit: '2mb', formLimit: '1mb' });
@@ -98,7 +127,7 @@ app.use(async (ctx, next) => {
 });
 
 // 静态文件服务 - 使用 koa-static 替换手动流式读取，提升性能
-const staticPath = path.join(__dirname, '../storage');
+const storageRoot = path.join(__dirname, '../storage');
 app.use(async (ctx, next) => {
     await next();
     if (ctx.status < 400 && ctx.body && ctx.path.endsWith('.apk')) {
@@ -106,10 +135,12 @@ app.use(async (ctx, next) => {
         ctx.set('Content-Disposition', `attachment; filename="${path.basename(ctx.path)}"`);
     }
 });
-app.use(mount('/storage', serve(staticPath, {
-    maxage: 86400000, // 缓存一天
-    gzip: true
-})));
+publicStorageDirs.forEach((dir) => {
+    app.use(mount(`/storage/${dir}`, serve(path.join(storageRoot, dir), {
+        maxage: 86400000, // 缓存一天
+        gzip: true
+    })));
+});
 
 // 路由
 const apiRouter = require('./routes/index');

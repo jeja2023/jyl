@@ -1,6 +1,6 @@
 # Android APK 与热更新发布指南
 
-当前版本：`1.8.3`（`versionCode: 183`）
+当前版本：`1.8.5`（`versionCode: 185`）
 
 目标：用户首次安装 APK 后，后续普通前端更新通过 wgt 热更新完成，用户无需反复卸载或重新安装 APK。
 
@@ -27,6 +27,7 @@ VITE_API_BASE=https://jyl.880301.xyz
 - 前端页面、样式、交互逻辑
 - JS 工具函数、接口调用逻辑
 - 普通静态资源
+- 不涉及原生壳的安全访问策略调整，例如报告图片改为后端鉴权接口
 
 必须重新发布 APK：
 
@@ -45,8 +46,8 @@ VITE_API_BASE=https://jyl.880301.xyz
 
 - `appid` 已配置 DCloud AppID
 - `name` 是正式应用名
-- `versionName` 为 `1.8.3`
-- `versionCode` 为 `183`
+- `versionName` 为 `1.8.5`
+- `versionCode` 为 `185`
 - Android 包名稳定，例如 `com.jiayoule.app`
 - Android 只保留 `arm64-v8a`
 - 权限只保留业务真实需要的最小集合
@@ -95,15 +96,15 @@ npm run release:app
 输出文件示例：
 
 ```text
-client/dist/release/jyl-1.8.3-183.wgt
-client/dist/release/jyl-1.8.3-183.wgt.json
+client/dist/release/jyl-1.8.5-185.wgt
+client/dist/release/jyl-1.8.5-185.wgt.json
 ```
 
 3. 发布到后端：
 
 ```bash
 cd server
-npm run app:update:publish -- ..\client\dist\release\jyl-1.8.3-183.wgt 1.8.3 183 "修复 App 页面重复导航栏"
+npm run app:update:publish -- ..\client\dist\release\jyl-1.8.5-185.wgt 1.8.5 185 "Security hardening and OCR stability"
 ```
 
 强制更新示例：
@@ -118,14 +119,48 @@ npm run app:update:publish -- ..\client\dist\release\jyl-1.8.1-181.wgt 1.8.1 181
 - 计算 size、md5、sha256
 - 写入 `storage/app-updates/manifest.json`
 - 阻止 `versionCode` 倒退或重复发布
-- 通过现有 `/storage` 静态服务提供下载
+- 通过受限的 `/storage/app-updates` 静态服务提供下载
+
+4. 发布自检：
+
+```bash
+cd server
+npm run release:check
+```
+
+发布自检会检查：
+
+- `server/package.json`、`client/package.json` 与 `client/src/manifest.json` 版本一致
+- `storage/app-updates/manifest.json` 存在且版本号正确
+- manifest 指向的 wgt 包真实存在
+- 依赖版本未使用容易漂移的 `latest`
+
+## 存储与隐私边界
+
+后端只允许公开以下运行期目录：
+
+- `/storage/app-updates`：wgt 热更新包与 manifest
+- `/storage/app-releases`：APK 首次安装包
+
+以下目录不得通过静态服务、Nginx、CDN 或对象存储直接公开：
+
+- `storage/reports`：用户上传的化验单、B 超等健康报告图片
+- `storage/logs`：服务端运行日志
+
+报告图片统一通过后端鉴权接口访问：
+
+```text
+GET /api/report/image/:filename
+```
+
+登录用户访问时需要本人 token；分享页访问时需要有效分享 token，且分享未过期、未撤销、未隐藏图片。
 
 ## 热更新用户体验
 
 App 启动后会请求：
 
 ```text
-GET /api/app/update/check?platform=android&versionName=1.8.2&versionCode=182
+GET /api/app/update/check?platform=android&versionName=1.8.4&versionCode=184
 ```
 
 客户端策略：
@@ -144,4 +179,5 @@ GET /api/app/update/check?platform=android&versionName=1.8.2&versionCode=182
 - `npm run build:h5` 仍按原流程构建 Web
 - 后端部署、Docker、数据库迁移流程保持不变
 - `.env.production` 用于生产 App 构建
-- wgt 热更新包通过后端现有 `/storage` 静态服务分发
+- wgt 热更新包通过后端 `/storage/app-updates` 静态服务分发
+- 报告图片不再通过 `/storage/reports` 直接分发，必须走 `/api/report/image/:filename`

@@ -6,15 +6,17 @@
 
 ## 当前版本
 
-当前版本：`1.8.3`
+当前版本：`1.8.5`
 
-本版本重点修复用药提醒、服药计划和拍照上传识别链路，让提醒规则更符合真实服药场景，也让 OCR 异常不再阻断图片上传。
+本版本重点修复用药提醒、服药计划和拍照上传识别链路，并完成报告图片访问安全加固与发布自检补强，让提醒规则更符合真实服药场景，也让部分手机上传成功但 OCR 识别失败的问题得到规避。
 
 - 用药提醒：早于计划时间不提醒，晚于计划时间且当天未打卡时持续提醒，不再只在设置时间点短暂提示。
-- 周剂量计划：同一种药支持按周一至周日配置不同剂量，并在打卡、补签、提醒文案和监测方案中使用当日有效剂量。
-- 服药计划体验：新增入口改为“新增服药计划”，支持按剂量选择服药日，长表单弹窗可滚动。
-- 拍照上传识别：图片先上传再 OCR，识别失败时图片保留在记录中，可继续手动录入。
-- 迁移与校验：新增 `MedicationPlans.weeklyDosage` 迁移，修复历史分享链接迁移幂等性，并补充迁移检查。
+- 服药规则：支持按星期配置不同剂量，也支持从开始日期起每 N 天一次的间隔服药；计划开始日期前不再计入漏服。
+- 服药计划体验：新增入口改为“新增服药计划”，支持按剂量选择服药日、间隔服药设置和长表单弹窗独立滚动。
+- 拍照上传识别：图片先上传再 OCR；OCR 优先识别服务端已保存图片，减少 App 端临时文件读取失败导致的识别失败。
+- 安全加固：报告图片不再通过 `/storage/reports` 直接公开，改为 `/api/report/image/:filename` 鉴权访问；`/storage` 仅公开热更新包和 APK。
+- 迁移与校验：新增 `MedicationPlans.weeklyDosage` 与服药规则字段迁移，修复历史分享链接迁移幂等性，并补充迁移检查。
+- 发布治理：新增 `npm run release:check`，校验版本号、热更新 manifest 和 wgt 包一致性；`uview-plus` 锁定为 `3.6.29`。
 - 发布文档：详见 `更新日志.md`、`ANDROID_APK_BUILD.md` 和 `APP_RELEASE_CHECKLIST.md`。
 
 ## 核心功能
@@ -195,8 +197,8 @@ npm run release:app
 ```text
 AppID: __UNI__F18FC4D
 包名: com.jiayoule.app
-versionName: 1.8.3
-versionCode: 183
+versionName: 1.8.5
+versionCode: 185
 生产 API: https://jyl.880301.xyz
 ```
 
@@ -228,7 +230,14 @@ APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.2.apk
 
 ```bash
 cd server
-npm run app:update:publish -- ..\client\dist\release\jyl-1.8.3-183.wgt 1.8.3 183 "发布说明"
+npm run app:update:publish -- ..\client\dist\release\jyl-1.8.5-185.wgt 1.8.5 185 "发布说明"
+```
+
+发布前自检：
+
+```bash
+cd server
+npm run release:check
 ```
 
 以下变更需要重新打 APK：
@@ -249,6 +258,20 @@ npm run app:update:publish -- ..\client\dist\release\jyl-1.8.3-183.wgt 1.8.3 183
 ```bash
 cd server
 npm test
+```
+
+数据库迁移自检：
+
+```bash
+cd server
+npm run migrate:check
+```
+
+发布自检：
+
+```bash
+cd server
+npm run release:check
 ```
 
 前端构建校验：

@@ -1,16 +1,25 @@
 const MedicationLog = require('../models/MedicationLog');
 const MedicationPlan = require('../models/MedicationPlan');
 const { Op } = require('sequelize');
+const { getPlanDosageForDate } = require('../utils/medicationDosage');
 
 const dateToStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-const computeAdherence = (activeCount, logs, days, today = new Date()) => {
-    const expected = activeCount * days;
+const getExpectedCountForDate = (activePlansOrCount, date) => {
+    if (typeof activePlansOrCount === 'number') return activePlansOrCount;
+
+    return (activePlansOrCount || []).filter((plan) => {
+        if (!plan || plan.isActive === false) return false;
+        return Boolean(getPlanDosageForDate(plan, date));
+    }).length;
+};
+
+const computeAdherence = (activePlansOrCount, logs, days, today = new Date()) => {
     const taken = logs.length;
     const makeupTaken = logs.filter(l => l.source === 'makeup').length;
-    const adherence = expected > 0 ? Math.round((taken / expected) * 100) : 0;
     
     let streak = 0;
+    let expected = 0;
     const missedDates = [];
     const base = new Date(today);
     
@@ -19,11 +28,13 @@ const computeAdherence = (activeCount, logs, days, today = new Date()) => {
     for (let i = 0; i < days; i++) {
         const d = new Date(base.getTime() - i * 24 * 3600 * 1000);
         const ds = dateToStr(d);
+        const expectedToday = getExpectedCountForDate(activePlansOrCount, d);
+        expected += expectedToday;
         
-        // 只有当前有激活计划时才检查
-        if (activeCount > 0) {
+        // 只有当天有应服计划时才检查
+        if (expectedToday > 0) {
             const dayTaken = logs.filter(l => l.date === ds).length;
-            if (dayTaken >= activeCount) {
+            if (dayTaken >= expectedToday) {
                 if (!streakBroken) {
                     streak += 1;
                 }
@@ -40,6 +51,7 @@ const computeAdherence = (activeCount, logs, days, today = new Date()) => {
         }
     }
 
+    const adherence = expected > 0 ? Math.round((taken / expected) * 100) : 0;
     return { expected, taken, makeupTaken, adherence, streak, missedDates };
 };
 
@@ -99,7 +111,7 @@ const calculateStats = async (userId, daysInput = 0) => {
         where: { UserId: userId, source: 'makeup' }
     });
 
-    const { adherence, streak, missedDates } = computeAdherence(activeCount, logs, totalDays, today);
+    const { adherence, streak, missedDates } = computeAdherence(activePlans, logs, totalDays, today);
 
     return {
         days: totalDays,
@@ -113,4 +125,4 @@ const calculateStats = async (userId, daysInput = 0) => {
     };
 };
 
-module.exports = { calculateStats, computeAdherence };
+module.exports = { calculateStats, computeAdherence, getExpectedCountForDate };

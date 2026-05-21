@@ -159,6 +159,7 @@ import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 import { getBaseURL } from '@/utils/config.js';
+import { buildReportImageUrl } from '@/utils/reportImage.js';
 import { buildRecordExportUrl, downloadExportFile } from '@/utils/exportFile.js';
 import { getIndicatorInfoFromRef, getIndicatorAdvice } from '@/utils/indicator.js';
 import { setCache, getCache } from '@/utils/cache.js';
@@ -327,10 +328,7 @@ const getAdvice = (item) => {
 };
 
 const getImageUrl = (path) => {
-  if (!path) return '';
-  if (path.startsWith('http')) return path;
-  const base = getBaseURL();
-  return `${base}${path}`;
+  return buildReportImageUrl(path, { authToken: userStore.token });
 };
 
 const previewImage = (images, current) => {

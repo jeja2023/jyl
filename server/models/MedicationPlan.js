@@ -24,6 +24,22 @@ const MedicationPlan = sequelize.define('MedicationPlan', {
         allowNull: true,
         comment: '按星期覆盖剂量，JSON对象，键为0-6（周日-周六）'
     },
+    scheduleType: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        defaultValue: 'weekly',
+        comment: '服药规则：weekly-按星期，interval-按间隔天数'
+    },
+    intervalDays: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: '间隔服药天数'
+    },
+    startDate: {
+        type: DataTypes.DATEONLY,
+        allowNull: true,
+        comment: '服药计划开始日期'
+    },
     takeTime: {
         type: DataTypes.TIME,
         allowNull: false,

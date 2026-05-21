@@ -48,7 +48,7 @@ class NotificationController {
                     UserId: userId,
                     isActive: true
                 },
-                attributes: ['id', 'medicineName', 'dosage', 'weeklyDosage', 'takeTime', 'lastTakenDate', 'createdAt'],
+                attributes: ['id', 'medicineName', 'dosage', 'weeklyDosage', 'scheduleType', 'intervalDays', 'startDate', 'takeTime', 'lastTakenDate', 'createdAt'],
                 order: [['takeTime', 'ASC']]
             })
         ]);

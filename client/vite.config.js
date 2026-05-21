@@ -4,7 +4,7 @@ import fs from 'fs'
 import path from 'path'
 
 // 优先从根目录“更新日志.md”中自动提取最新的版本号，以确保与更新日志完全同步；若失败则回退读取 manifest.json
-let appVersion = '1.8.3'
+let appVersion = '1.8.5'
 try {
   const changelogPath = path.resolve(__dirname, '../更新日志.md')
   let found = false
@@ -20,7 +20,7 @@ try {
     const manifestPath = path.resolve(__dirname, 'src/manifest.json')
     if (fs.existsSync(manifestPath)) {
       const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
-      appVersion = manifest.versionName || '1.8.3'
+      appVersion = manifest.versionName || '1.8.5'
     }
   }
 } catch (e) {

@@ -114,6 +114,44 @@ test('buildMedicationNotices uses weekday-specific dosage for the reminder day',
   assert.doesNotMatch(notices[0].content, /1片/);
 });
 
+test('buildMedicationNotices skips unconfigured weekdays when weekly dosage exists', () => {
+  const now = new Date('2026-03-31T08:00:00+08:00');
+  const notices = buildMedicationNotices([
+    {
+      id: 1,
+      medicineName: '优甲乐',
+      dosage: '半片',
+      weeklyDosage: JSON.stringify({ 1: '半片', 3: '1片' }),
+      takeTime: '06:30:00',
+      isActive: true,
+      lastTakenDate: null
+    }
+  ], now);
+
+  assert.equal(notices.length, 0);
+});
+
+test('buildMedicationNotices supports interval schedule', () => {
+  const plans = [
+    {
+      id: 1,
+      medicineName: '维生素D',
+      dosage: '1粒',
+      scheduleType: 'interval',
+      intervalDays: 2,
+      startDate: '2026-03-30',
+      takeTime: '06:30:00',
+      isActive: true,
+      lastTakenDate: null
+    }
+  ];
+
+  assert.equal(buildMedicationNotices(plans, new Date('2026-03-31T08:00:00+08:00')).length, 0);
+  const notices = buildMedicationNotices(plans, new Date('2026-04-01T08:00:00+08:00'));
+  assert.equal(notices.length, 1);
+  assert.match(notices[0].content, /1粒/);
+});
+
 test('buildCheckupNotice marks only near-term checkups as unread', () => {
   const now = new Date('2026-03-28T10:00:00+08:00');
   const nearNotice = buildCheckupNotice({

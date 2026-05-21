@@ -75,6 +75,10 @@
 <script setup>
 import { ref, reactive } from 'vue';
 import http from '@/utils/request.js';
+import { buildReportImageUrl } from '@/utils/reportImage.js';
+import { useUserStore } from '@/store/index.js';
+
+const userStore = useUserStore();
 
 const form = reactive({
   title: '',
@@ -140,7 +144,7 @@ const uploadFilePromise = (url) => {
                 // 调用后端接口
                 const result = await http.post('/api/upload/report', { 
                     image: base64,
-                    type: 'wiki' // 标记类型为百科
+                    type: 'lab'
                 });
                 // 后端返回的是 { path: '/storage/reports/xxx.jpg', filename: '...' }
                 // 需要拼接完整的 URL 供前端展示
@@ -150,7 +154,7 @@ const uploadFilePromise = (url) => {
                 // 但要注意后端返回的 path 是否包含开头的 /
                 
                 // 假设后端返回 path: "/storage/reports/..."
-                let fullUrl = http.config.baseURL + result.path;
+                let fullUrl = buildReportImageUrl(result.path, { authToken: userStore.token });
                 resolve(fullUrl);
             } catch (err) {
                 uni.showToast({ title: '上传失败', icon: 'none' });

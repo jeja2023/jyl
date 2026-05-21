@@ -1,9 +1,13 @@
 const crypto = require('crypto');
+const fsPromises = require('fs').promises;
 const https = require('https');
+const path = require('path');
 const Response = require('../utils/response');
 const { logAction } = require('../utils/actionLog');
-const { parseBase64Image } = require('../utils/imageValidation');
+const { parseBase64Image, validateImageBuffer } = require('../utils/imageValidation');
 const logger = require('../utils/logger');
+
+const REPORT_STORAGE_DIR = path.join(__dirname, '../../storage/reports');
 
 /**
  * OCR控制器 - 用于化验单图片识别
@@ -13,13 +17,13 @@ class OcrController {
     /**
      * 识别化验单/B超报告图片
      * POST /api/ocr/recognize
-     * Body: { image: base64图片数据, type: 'lab'|'ultrasound' }
+     * Body: { image: base64图片数据, imagePath: 已上传图片路径, type: 'lab'|'ultrasound' }
      */
     static async recognize(ctx) {
-        const { image, type = 'lab' } = ctx.request.body;
+        const { image, imagePath, type = 'lab' } = ctx.request.body;
         const allowedTypes = new Set(['lab', 'ultrasound']);
 
-        if (!image) {
+        if (!image && !imagePath) {
             throw new Error('请上传报告图片');
         }
 
@@ -27,9 +31,14 @@ class OcrController {
         if (!allowedTypes.has(type)) {
             return Response.error(ctx, '无效的报告类型', 400);
         }
-        parseBase64Image(image);
 
-        const ocrResult = await OcrController.callTencentOCR(image);
+        const imageBase64 = imagePath
+            ? await OcrController.loadUploadedImageAsBase64(imagePath, ctx.state.user.id)
+            : image;
+
+        parseBase64Image(imageBase64);
+
+        const ocrResult = await OcrController.callTencentOCR(imageBase64);
 
         // 根据类型解析OCR结果
         let result;
@@ -41,6 +50,30 @@ class OcrController {
 
         Response.success(ctx, result, '识别成功');
         logAction(ctx, '图片识别', 'AI服务', `用户使用了 ${type === 'lab' ? '化验单' : 'B超'}识别，识别到 ${result.count} 项数据`);
+    }
+
+    static async loadUploadedImageAsBase64(imagePath, userId) {
+        const cleanPath = String(imagePath || '').split('?')[0];
+        if (!cleanPath.startsWith('/storage/reports/')) {
+            throw new Error('无效的图片路径');
+        }
+
+        const filename = path.basename(cleanPath);
+        if (!filename || !filename.startsWith(`${userId}_`)) {
+            throw new Error('无权识别该图片');
+        }
+
+        const filepath = path.join(REPORT_STORAGE_DIR, filename);
+        const resolved = path.resolve(filepath);
+        const storageRoot = path.resolve(REPORT_STORAGE_DIR);
+        if (!resolved.startsWith(`${storageRoot}${path.sep}`)) {
+            throw new Error('无效的图片路径');
+        }
+
+        const buffer = await fsPromises.readFile(resolved);
+        const ext = path.extname(filename).replace('.', '');
+        const detected = validateImageBuffer(buffer, ext);
+        return `data:${detected.mime};base64,${buffer.toString('base64')}`;
     }
 
     /**
@@ -100,11 +133,14 @@ class OcrController {
 
         const authorization = `${algorithm} Credential=${secretId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
 
+        const timeoutMs = parseInt(process.env.OCR_TIMEOUT_MS || '10000', 10);
+
         // 发起请求
         return new Promise((resolve, reject) => {
             const req = https.request({
                 hostname: host,
                 method: 'POST',
+                timeout: timeoutMs,
                 headers: {
                     'Content-Type': 'application/json; charset=utf-8',
                     'Host': host,
@@ -131,6 +167,10 @@ class OcrController {
                         reject(new Error('解析OCR响应失败'));
                     }
                 });
+            });
+
+            req.setTimeout(timeoutMs, () => {
+                req.destroy(new Error('OCR request timeout'));
             });
 
             req.on('error', (e) => reject(new Error(`网络请求失败: ${e.message}`)));

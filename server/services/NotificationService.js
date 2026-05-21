@@ -45,6 +45,10 @@ const buildMedicationNotice = (plan, now = new Date()) => {
 
     const timeText = normalizeTime(plan.takeTime);
     const dosageText = getPlanDosageForDate(plan, now);
+    if (!dosageText) {
+        return null;
+    }
+
     if (diffMinutes >= 0) {
         return {
             id: `medication_${plan.id}_${today}`,

@@ -6,10 +6,24 @@ const { logAction } = require('../utils/actionLog');
 const { calculateStats } = require('../services/MedicationService');
 const { Op } = require('sequelize');
 const logger = require('../utils/logger');
-const { getPlanDosageForDate, stringifyWeeklyDosage } = require('../utils/medicationDosage');
+const { getPlanDosageForDate, getPlanStartDate, isPlanDoseDate, stringifyWeeklyDosage } = require('../utils/medicationDosage');
 
 const dateToStr = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const isDateOnly = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
+const normalizeScheduleType = (value) => (value === 'interval' ? 'interval' : 'weekly');
+const normalizeIntervalDays = (value) => {
+    const parsed = parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 365) : 1;
+};
+const normalizeStartDate = (value) => (isDateOnly(value) ? value : dateToStr(new Date()));
+const firstWeeklyDosage = (weeklyDosage) => {
+    const parsed = typeof weeklyDosage === 'string'
+        ? JSON.parse(weeklyDosage || '{}')
+        : (weeklyDosage || {});
+    const weekdays = ['1', '2', '3', '4', '5', '6', '0'];
+    const key = weekdays.find(day => typeof parsed[day] === 'string' && parsed[day].trim());
+    return key ? parsed[key].trim() : '';
+};
 const combineDateTime = (date, time) => {
     const safeTime = /^\d{2}:\d{2}/.test(String(time || '')) ? String(time).slice(0, 5) : '08:00';
     return new Date(`${date}T${safeTime}:00`);
@@ -22,9 +36,15 @@ class MedicationController {
         const userId = ctx.state.user.id;
 
         const { weeklyDosage, ...planData } = data;
+        const scheduleType = normalizeScheduleType(data.scheduleType);
+        const weeklyDosageText = stringifyWeeklyDosage(weeklyDosage);
         const plan = await MedicationPlan.create({
             ...planData,
-            weeklyDosage: stringifyWeeklyDosage(weeklyDosage),
+            dosage: scheduleType === 'interval' ? String(planData.dosage || '').trim() : (planData.dosage || firstWeeklyDosage(weeklyDosageText)),
+            weeklyDosage: scheduleType === 'weekly' ? weeklyDosageText : null,
+            scheduleType,
+            intervalDays: scheduleType === 'interval' ? normalizeIntervalDays(data.intervalDays) : null,
+            startDate: normalizeStartDate(data.startDate),
             UserId: userId
         });
         await MedicationAdjustment.create({
@@ -47,7 +67,7 @@ class MedicationController {
 
         const list = await MedicationPlan.findAll({
             where: { UserId: userId },
-            attributes: ['id', 'medicineName', 'dosage', 'weeklyDosage', 'takeTime', 'isActive', 'notes', 'lastTakenDate', 'createdAt', 'updatedAt'],
+            attributes: ['id', 'medicineName', 'dosage', 'weeklyDosage', 'scheduleType', 'intervalDays', 'startDate', 'takeTime', 'isActive', 'notes', 'lastTakenDate', 'createdAt', 'updatedAt'],
             order: [['takeTime', 'ASC']]
         });
 
@@ -97,6 +117,9 @@ class MedicationController {
         if (!plan) {
             return Response.error(ctx, '计划不存在', 404);
         }
+        if (!isPlanDoseDate(plan, new Date())) {
+            return Response.error(ctx, '今天不是此计划的服药日', 400);
+        }
 
         plan.lastTakenDate = today;
         await plan.save();
@@ -140,10 +163,12 @@ class MedicationController {
             return Response.error(ctx, '计划不存在', 404);
         }
 
-        const planCreated = new Date(plan.createdAt);
-        planCreated.setHours(0, 0, 0, 0);
-        if (makeupDate < planCreated) {
-            return Response.error(ctx, '补签日期早于该用药计划创建时间', 400);
+        const planStart = getPlanStartDate(plan);
+        if (planStart && makeupDate < planStart) {
+            return Response.error(ctx, '补签日期早于该用药计划开始日期', 400);
+        }
+        if (!isPlanDoseDate(plan, makeupDate)) {
+            return Response.error(ctx, '该日期不是此计划的服药日', 400);
         }
 
         const takenAt = combineDateTime(date, takenTime || plan.takeTime);
@@ -206,7 +231,7 @@ class MedicationController {
 
     // 更新计划信息
     static async update(ctx) {
-        const { id, medicineName, dosage, weeklyDosage, takeTime, notes, adjustReason } = ctx.request.body;
+        const { id, medicineName, dosage, weeklyDosage, scheduleType: rawScheduleType, intervalDays, startDate, takeTime, notes, adjustReason } = ctx.request.body;
         const userId = ctx.state.user.id;
 
         const plan = await MedicationPlan.findOne({ where: { id, UserId: userId } });
@@ -216,22 +241,35 @@ class MedicationController {
 
         const oldDosage = plan.dosage;
         const oldWeeklyDosage = plan.weeklyDosage || null;
+        const oldScheduleType = plan.scheduleType || 'weekly';
+        const oldIntervalDays = plan.intervalDays || null;
+        const oldStartDate = plan.startDate || null;
         const oldMedicineName = plan.medicineName;
+        const scheduleType = normalizeScheduleType(rawScheduleType);
         const nextWeeklyDosage = stringifyWeeklyDosage(weeklyDosage);
         plan.medicineName = medicineName;
-        plan.dosage = dosage;
-        plan.weeklyDosage = nextWeeklyDosage;
+        plan.dosage = scheduleType === 'interval' ? String(dosage || '').trim() : (dosage || firstWeeklyDosage(nextWeeklyDosage));
+        plan.weeklyDosage = scheduleType === 'weekly' ? nextWeeklyDosage : null;
+        plan.scheduleType = scheduleType;
+        plan.intervalDays = scheduleType === 'interval' ? normalizeIntervalDays(intervalDays) : null;
+        plan.startDate = normalizeStartDate(startDate || plan.startDate);
         plan.takeTime = takeTime;
         plan.notes = notes;
 
         await plan.save();
 
-        if ((dosage && String(dosage) !== String(oldDosage)) || String(nextWeeklyDosage || '') !== String(oldWeeklyDosage || '')) {
+        if (
+            String(plan.dosage || '') !== String(oldDosage || '') ||
+            String(nextWeeklyDosage || '') !== String(oldWeeklyDosage || '') ||
+            String(scheduleType || '') !== String(oldScheduleType || '') ||
+            String(plan.intervalDays || '') !== String(oldIntervalDays || '') ||
+            String(plan.startDate || '') !== String(oldStartDate || '')
+        ) {
             await MedicationAdjustment.create({
                 adjustmentDate: new Date().toISOString().split('T')[0],
                 medicineName: medicineName || oldMedicineName,
                 fromDosage: oldDosage,
-                toDosage: dosage,
+                toDosage: plan.dosage,
                 reason: adjustReason || '修改用药剂量',
                 UserId: userId,
                 MedicationPlanId: plan.id

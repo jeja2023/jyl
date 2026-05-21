@@ -6,7 +6,7 @@ const REQUIRED_COLUMNS = {
   HealthRecords: ['TSI', 'TBAb', 'CEA', 'VitaminD', 'Albumin', 'ALP', 'ALT', 'AST', 'GGT', 'Bilirubin', 'WBC', 'Neutrophils', 'TC', 'LDL', 'HDL', 'Triglyceride', 'CK', 'ESR', 'CRP'],
   ShareLinks: ['tokenHash', 'expiresAt', 'revokedAt', 'accessCount', 'options'],
   VerifySendLocks: ['targetKey'],
-  MedicationPlans: ['weeklyDosage'],
+  MedicationPlans: ['weeklyDosage', 'scheduleType', 'intervalDays', 'startDate'],
   MedicationAdjustments: ['adjustmentDate', 'medicineName', 'fromDosage', 'toDosage', 'reason'],
   MedicationLogs: ['date', 'takenAt', 'source', 'note', 'medicineNameSnapshot', 'dosageSnapshot']
 };

@@ -316,6 +316,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 import { getBaseURL } from '@/utils/config.js';
+import { buildReportImageUrl } from '@/utils/reportImage.js';
 import { saveDraft, loadDraft, clearDraft, enqueueSync } from '@/utils/offlineDraft.js';
 import { ALL_INDICATORS, getDiseaseIndicatorProfile } from '@/utils/thyroidIndicators.js';
 import { onLoad } from '@dcloudio/uni-app';
@@ -686,10 +687,7 @@ const onMemberSelect = (e) => {
 };
 
 const getImageUrl = (path) => {
-  if (!path) return '';
-  if (path.startsWith('http')) return path;
-  const base = getBaseURL();
-  return `${base}${path}`;
+  return buildReportImageUrl(path, { authToken: userStore.token });
 };
 
 const previewImage = (images, index) => {
@@ -960,7 +958,10 @@ const processUploadedImage = async (filePath, type) => {
 
   try {
     if (import.meta.env.DEV) console.debug('[OCR] recognizing image...');
-    const ocrResult = await http.post('/api/ocr/recognize', { image: await getBase64(), type });
+    const ocrPayload = uploadedPath
+      ? { imagePath: uploadedPath, type }
+      : { image: await getBase64(), type };
+    const ocrResult = await http.post('/api/ocr/recognize', ocrPayload);
 
     if (ocrResult && ocrResult.indicators && Object.keys(ocrResult.indicators).length) {
       const { normalized, units } = normalizeOcrIndicators(ocrResult.indicators);

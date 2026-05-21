@@ -86,7 +86,7 @@ const parseTrendIndicators = (raw) => {
 };
 
 const medicationTextFromPlans = (plans) => plans
-    .map(plan => [plan.medicineName, plan.dosage, plan.weeklyDosage, plan.notes].filter(Boolean).join(' '))
+    .map(plan => [plan.medicineName, plan.dosage, plan.weeklyDosage, plan.scheduleType, plan.intervalDays, plan.notes].filter(Boolean).join(' '))
     .join(' ');
 
 const buildMonitoringPlan = async (userId, memberId = null) => {

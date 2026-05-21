@@ -17,6 +17,7 @@ const WikiController = require('../controllers/WikiController');
 const InsightController = require('../controllers/InsightController');
 const OcrReviewController = require('../controllers/OcrReviewController');
 const AppUpdateController = require('../controllers/AppUpdateController');
+const ReportImageController = require('../controllers/ReportImageController');
 const auth = require('../middlewares/auth');
 const admin = require('../middlewares/auth').admin;
 const optional = require('../middlewares/auth').optional;
@@ -170,5 +171,6 @@ router.get('/admin/logs', auth, admin, AdminController.listLogs);
 
 router.get('/wiki/:id', optional, WikiController.detail);
 router.get('/share/record/:token', ShareController.getRecordShare);
+router.get('/report/image/:filename', ReportImageController.serve);
 
 module.exports = router;

@@ -1,6 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
+const path = require('node:path');
 const OcrController = require('../controllers/OcrController');
+
+const tinyPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/l6Q0WQAAAABJRU5ErkJggg==';
 
 test('parseIndicators extracts date, values, and units', () => {
   const detections = [
@@ -54,4 +58,23 @@ test('parseUltrasound extracts findings and conclusion', () => {
   assert.ok(result.indicators['超声所见'].includes('甲状腺'));
   assert.equal(result.indicators['TIRADS分类'], '4A');
   assert.ok(result.indicators['超声提示'].includes('结节性病变'));
+});
+
+test('loadUploadedImageAsBase64 loads only current user report image', async () => {
+  const reportsDir = path.join(__dirname, '../../storage/reports');
+  await fs.mkdir(reportsDir, { recursive: true });
+  const filename = `999_lab_${Date.now()}_ocrtest.png`;
+  const filepath = path.join(reportsDir, filename);
+  await fs.writeFile(filepath, Buffer.from(tinyPngBase64, 'base64'));
+
+  try {
+    const dataUrl = await OcrController.loadUploadedImageAsBase64(`/storage/reports/${filename}`, 999);
+    assert.match(dataUrl, /^data:image\/png;base64,/);
+    await assert.rejects(
+      () => OcrController.loadUploadedImageAsBase64(`/storage/reports/${filename}`, 1000),
+      /无权识别/
+    );
+  } finally {
+    await fs.unlink(filepath).catch(() => {});
+  }
 });
