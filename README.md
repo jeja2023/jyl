@@ -205,19 +205,19 @@ APK 首次安装包通过 HBuilderX 或 Linux HBuilderX CLI 打包。正式发�
 登录页 APK 下载入口默认指向：
 
 ```text
-/storage/app-releases/jyl.apk
+/storage/app-releases/jyl-1.8.2.apk
 ```
 
 本地测试时会使用当前本地域名，例如：
 
 ```text
-http://localhost:3000/storage/app-releases/jyl.apk
+http://localhost:3000/storage/app-releases/jyl-1.8.2.apk
 ```
 
 生产环境默认使用同源路径。如果需要使用 CDN 或对象存储，可在后端环境变量中设置：
 
 ```text
-APK_DOWNLOAD_URL=https://your-domain/path/to/jyl.apk
+APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.2.apk
 ```
 
 ## App 热更新

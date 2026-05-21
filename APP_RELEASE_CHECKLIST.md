@@ -14,7 +14,7 @@
 - Android 图标均为英文文件名 PNG
 - `npm run build:app` 构建成功
 - HBuilderX 或 Linux HBuilderX CLI 正式 APK 打包成功
-- APK 已上传或同步到 `storage/app-releases/jyl.apk`
+- APK 已上传或同步到 `storage/app-releases/jyl-1.8.2.apk`
 - 登录页“下载安卓版”入口可访问并能下载 APK
 - 真机完成核心流程验收
 - 热更新检查接口可访问
