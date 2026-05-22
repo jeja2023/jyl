@@ -38,7 +38,5 @@ storage/*
 !storage/app-updates/
 storage/app-updates/*
 !storage/app-updates/manifest.json
-!storage/app-updates/*.wgt
-!storage/app-releases/
-storage/app-releases/*
-!storage/app-releases/*.apk
+storage/app-updates/*.wgt
+storage/app-releases/
