@@ -3,16 +3,16 @@
   "platforms": [
     "android"
   ],
-  "versionName": "1.8.5",
-  "versionCode": 185,
-  "minVersionCode": 183,
+  "versionName": "1.8.6",
+  "versionCode": 186,
+  "minVersionCode": 0,
   "force": true,
-  "wgtUrl": "https://jyl.880301.xyz/storage/app-updates/jyl-1.8.5-185.wgt",
-  "size": 5434803,
-  "md5": "9b24938001335cebc12bba341eba4f70",
-  "sha256": "fba26a7a01d2ebb601dcc27ab4b9b792ce80c74e5d4b8838a1955360056b9035",
+  "wgtUrl": "/storage/app-updates/jyl-1.8.6-186.wgt",
+  "size": 5435126,
+  "md5": "4705f5c51c6f25cf8c597422dd3604e8",
+  "sha256": "f492e344fceea0c3901ae8ba8f89c9a11cf948f81a109673655d40215826e68e",
   "releaseNotes": [
-    "Security hardening: authenticated report images, release checks, production config tightening"
+    "修复 APP 运行环境下由于 URL 兼容性问题导致的热更新死锁"
   ],
-  "publishedAt": "2026-05-21T23:07:50.657Z"
+  "publishedAt": "2026-05-22T00:00:14.824Z"
 }
