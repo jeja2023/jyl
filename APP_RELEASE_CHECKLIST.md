@@ -1,6 +1,6 @@
 # App 发布检查清单
 
-当前版本：`1.8.5`（`versionCode: 185`）
+当前版本：`1.8.6`（`versionCode: 186`）
 
 ## 首次 APK
 
@@ -8,13 +8,13 @@
 - `client/.env.production` 已配置正式 `VITE_API_BASE`
 - `client/src/manifest.json` 已配置 DCloud AppID
 - Android 包名已确定且不会随意变更
-- `versionName` / `versionCode` 已递增到 `1.8.5 / 185`
+- `versionName` / `versionCode` 已递增到 `1.8.6 / 186`
 - Android 签名证书已备份
 - 权限列表已按最小权限原则检查
 - Android 图标均为英文文件名 PNG
 - `npm run build:app` 构建成功
 - HBuilderX 或 Linux HBuilderX CLI 正式 APK 打包成功
-- APK 已上传或同步到 `storage/app-releases/jyl-1.8.2.apk`
+- APK 已上传或同步到 `storage/app-releases/jyl-1.8.6.apk`
 - 登录页“下载安卓版”入口可访问并能下载 APK
 - 真机完成核心流程验收
 - 热更新检查接口可访问
@@ -39,6 +39,12 @@
 - 请求日志不记录 `authToken`、`shareToken`、`token` 查询参数
 - 生产环境已配置 `CORS_ORIGINS`，或明确接受拒绝带 Origin 的跨域请求
 - 生产环境未通过 Nginx、CDN 或对象存储额外公开 `storage/logs` 与 `storage/reports`
+
+## 1.8.6 发布重点
+
+- 重新打包 APK 并将默认下载路径更新为 `jyl-1.8.6.apk`，彻底打破 URL 兼容性错误引起的热更新死锁问题
+- App 热更新已发布 `jyl-1.8.6-186.wgt`
+- 已执行后端单元测试和 H5 页面构建验证，且已全部通过
 
 ## 1.8.5 发布重点
 

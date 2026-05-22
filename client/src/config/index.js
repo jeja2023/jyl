@@ -33,7 +33,7 @@ const config = {
     SUPPORT_EMAIL: 'support@jiayoule.com',
     WECHAT_SUPPORT: 'JYL_Support',
     VERSION: '1.8.6',
-    APK_DOWNLOAD_URL: '/storage/app-releases/jyl-1.8.2.apk',
+    APK_DOWNLOAD_URL: '/storage/app-releases/jyl-1.8.6.apk',
 
     /**
      * 从后端同步最新配置

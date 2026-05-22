@@ -69,7 +69,7 @@ npm run build:app
 
 6. 发布 APK 下载入口：
 
-- 将正式 APK 同步到 `storage/app-releases/jyl-1.8.2.apk`
+- 将正式 APK 同步到 `storage/app-releases/jyl-1.8.6.apk`
 - 登录页 H5 会显示“下载安卓版”，用户可直接下载安装包
 - 如果使用独立 CDN 或对象存储，可通过 `APK_DOWNLOAD_URL` 环境变量覆盖下载地址
 

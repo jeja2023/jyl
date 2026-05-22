@@ -1,4 +1,4 @@
-﻿# 甲友乐 JYL
+# 甲友乐 JYL
 
 甲友乐是一款面向甲状腺病友的指标管理与健康监测工具，帮助用户记录检查指标、观察趋势、管理用药、复查提醒、家庭成员档案和健康资料分享。
 
@@ -6,7 +6,7 @@
 
 ## 当前版本
 
-当前版本：`1.8.5`
+当前版本：`1.8.6`
 
 本版本重点修复用药提醒、服药计划和拍照上传识别链路，并完成报告图片访问安全加固与发布自检补强，让提醒规则更符合真实服药场景，也让部分手机上传成功但 OCR 识别失败的问题得到规避。
 
@@ -197,8 +197,8 @@ npm run release:app
 ```text
 AppID: __UNI__F18FC4D
 包名: com.jiayoule.app
-versionName: 1.8.5
-versionCode: 185
+versionName: 1.8.6
+versionCode: 186
 生产 API: https://jyl.880301.xyz
 ```
 
@@ -207,19 +207,19 @@ APK 首次安装包通过 HBuilderX 或 Linux HBuilderX CLI 打包。正式发�
 登录页 APK 下载入口默认指向：
 
 ```text
-/storage/app-releases/jyl-1.8.2.apk
+/storage/app-releases/jyl-1.8.6.apk
 ```
 
 本地测试时会使用当前本地域名，例如：
 
 ```text
-http://localhost:3000/storage/app-releases/jyl-1.8.2.apk
+http://localhost:3000/storage/app-releases/jyl-1.8.6.apk
 ```
 
 生产环境默认使用同源路径。如果需要使用 CDN 或对象存储，可在后端环境变量中设置：
 
 ```text
-APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.2.apk
+APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.6.apk
 ```
 
 ## App 热更新
@@ -230,7 +230,7 @@ APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.2.apk
 
 ```bash
 cd server
-npm run app:update:publish -- ..\client\dist\release\jyl-1.8.5-185.wgt 1.8.5 185 "发布说明"
+npm run app:update:publish -- ..\client\dist\release\jyl-1.8.6-186.wgt 1.8.6 186 "发布说明"
 ```
 
 发布前自检：
