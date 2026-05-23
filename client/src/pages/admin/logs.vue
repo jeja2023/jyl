@@ -21,57 +21,60 @@
       </view>
     </view>
 
-    <scroll-view 
-      scroll-y 
-      class="list-container" 
-      @scrolltolower="loadMore"
-      lower-threshold="120"
-      :show-scrollbar="false"
-      :enhanced="true"
-      refresher-enabled
-      :refresher-triggered="refreshing"
-      @refresherrefresh="onRefresh"
-    >
-      <view class="list-content">
-      <view class="log-card" v-for="log in logList" :key="log.id" @click="showDetail(log)">
-        <view class="log-meta">
-          <view class="user-info">
-             <view class="user-avatar">{{ log.username?.slice(0,1) || '统' }}</view>
-             <text class="username">{{ log.username || '系统' }}</text>
+    <view class="list-scroll-host">
+      <scroll-view
+        scroll-y
+        class="list-container"
+        :style="{ height: listHeight }"
+        @scrolltolower="loadMore"
+        lower-threshold="120"
+        :show-scrollbar="false"
+        :enhanced="true"
+        refresher-enabled
+        :refresher-triggered="refreshing"
+        @refresherrefresh="onRefresh"
+      >
+        <view class="list-content">
+          <view class="log-card" v-for="log in logList" :key="log.id" @click="showDetail(log)">
+            <view class="log-meta">
+              <view class="user-info">
+                 <view class="user-avatar">{{ log.username?.slice(0,1) || '统' }}</view>
+                 <text class="username">{{ log.username || '系统' }}</text>
+              </view>
+              <text class="log-time">{{ formatTime(log.createdAt) }}</text>
+            </view>
+
+            <view class="log-main">
+              <view class="action-tag" :class="log.status">{{ log.action }}</view>
+              <text class="log-desc u-line-1">{{ log.content }}</text>
+            </view>
+
+            <view class="log-footer">
+              <view class="footer-left">
+                <u-tag :text="log.module" size="mini" plain type="info" shape="circle"></u-tag>
+                <text class="ip-addr">{{ log.ip }}</text>
+              </view>
+              <view class="status-indicator" :class="log.status">
+                <u-icon :name="log.status === 'success' ? 'checkmark-circle-fill' : 'close-circle-fill'" size="14"></u-icon>
+                <text>{{ log.status === 'success' ? '执行成功' : '执行失败' }}</text>
+              </view>
+            </view>
           </view>
-          <text class="log-time">{{ formatTime(log.createdAt) }}</text>
+
+          <u-empty v-if="!logList.length && loadStatus !== 'loading'" mode="list" text="暂无日志"></u-empty>
+          <u-loadmore
+            v-else
+            :status="loadStatus"
+            loadmoreText="继续上滑加载"
+            loadingText="正在加载日志..."
+            nomoreText="没有更多日志"
+            marginTop="30"
+            marginBottom="30"
+          ></u-loadmore>
+          <view class="safe-bottom"></view>
         </view>
-        
-        <view class="log-main">
-          <view class="action-tag" :class="log.status">{{ log.action }}</view>
-          <text class="log-desc u-line-1">{{ log.content }}</text>
-        </view>
-        
-        <view class="log-footer">
-          <view class="footer-left">
-            <u-tag :text="log.module" size="mini" plain type="info" shape="circle"></u-tag>
-            <text class="ip-addr">{{ log.ip }}</text>
-          </view>
-          <view class="status-indicator" :class="log.status">
-            <u-icon :name="log.status === 'success' ? 'checkmark-circle-fill' : 'close-circle-fill'" size="14"></u-icon>
-            <text>{{ log.status === 'success' ? '执行成功' : '执行失败' }}</text>
-          </view>
-        </view>
-      </view>
-      
-      <u-empty v-if="!logList.length && loadStatus !== 'loading'" mode="list" text="暂无日志"></u-empty>
-      <u-loadmore
-        v-else-if="loadStatus === 'loading' || logList.length >= pageSize"
-        :status="loadStatus"
-        loadmoreText="继续上滑加载"
-        loadingText="正在加载日志..."
-        nomoreText="没有更多日志"
-        marginTop="30"
-        marginBottom="30"
-      ></u-loadmore>
-      <view class="safe-bottom"></view>
-      </view>
-    </scroll-view>
+      </scroll-view>
+    </view>
 
     <!-- 详情弹窗 -->
     <u-modal :show="detailShow" title="日志审计详情" @confirm="detailShow = false" confirmColor="#3E7BFF">
@@ -111,6 +114,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { onReady, onResize } from '@dcloudio/uni-app';
 import http from '@/utils/request.js';
 import dayjs from 'dayjs';
 
@@ -121,9 +125,22 @@ const pageSize = 20;
 const loadStatus = ref('loadmore');
 const refreshing = ref(false);
 const fetching = ref(false);
+const listHeight = ref('calc(100vh - 220rpx)');
 
 const detailShow = ref(false);
 const currentLog = ref(null);
+
+const updateListHeight = () => {
+  const query = uni.createSelectorQuery();
+  query.select('.list-scroll-host').boundingClientRect((rect) => {
+    if (!rect) return;
+
+    const { windowHeight, safeArea } = uni.getSystemInfoSync();
+    const safeBottom = safeArea ? Math.max(0, windowHeight - safeArea.bottom) : 0;
+    const height = Math.max(0, windowHeight - rect.top - safeBottom);
+    listHeight.value = `${height}px`;
+  }).exec();
+};
 
 const fetchLogs = async (isRefresh = false) => {
   // 避免翻页请求并发，防止列表重复拼接或页码错乱
@@ -205,6 +222,14 @@ const showDetail = (log) => {
 onMounted(() => {
   fetchLogs(true);
 });
+
+onReady(() => {
+  updateListHeight();
+});
+
+onResize(() => {
+  updateListHeight();
+});
 </script>
 
 <style lang="scss" scoped>
@@ -219,11 +244,18 @@ onMounted(() => {
   background: #FFFFFF;
   padding: 20rpx 32rpx;
   border-bottom: 1rpx solid #F2F3F5;
+  flex-shrink: 0;
+}
+
+.list-scroll-host {
+  flex: 1;
+  min-height: 0;
+  background: #F8FAFF;
 }
 
 .list-container {
-  flex: 1;
-  height: 0;
+  display: block;
+  width: 100%;
   min-height: 0;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
