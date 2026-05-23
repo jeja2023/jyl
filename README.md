@@ -6,7 +6,9 @@
 
 ## 当前版本
 
-当前版本：`1.8.6`
+当前版本：`1.8.7`
+
+本版本重点修复后台操作日志页面的滚动与分页体验：日志列表下滑后再上滑更顺畅，分页请求增加并发保护，底部加载状态会准确显示“继续上滑加载 / 正在加载日志 / 没有更多日志”，避免没有更多数据时仍误导用户继续加载。
 
 本版本重点修复用药提醒、服药计划和拍照上传识别链路，并完成报告图片访问安全加固与发布自检补强，让提醒规则更符合真实服药场景，也让部分手机上传成功但 OCR 识别失败的问题得到规避。
 
@@ -197,8 +199,8 @@ npm run release:app
 ```text
 AppID: __UNI__F18FC4D
 包名: com.jiayoule.app
-versionName: 1.8.6
-versionCode: 186
+versionName: 1.8.7
+versionCode: 187
 生产 API: https://jyl.880301.xyz
 ```
 
@@ -207,19 +209,19 @@ APK 首次安装包通过 HBuilderX 或 Linux HBuilderX CLI 打包。正式发�
 登录页 APK 下载入口默认指向：
 
 ```text
-/storage/app-releases/jyl-1.8.6.apk
+/storage/app-releases/jyl-1.8.7.apk
 ```
 
 本地测试时会使用当前本地域名，例如：
 
 ```text
-http://localhost:3000/storage/app-releases/jyl-1.8.6.apk
+http://localhost:3000/storage/app-releases/jyl-1.8.7.apk
 ```
 
 生产环境默认使用同源路径。如果需要使用 CDN 或对象存储，可在后端环境变量中设置：
 
 ```text
-APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.6.apk
+APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.7.apk
 ```
 
 ## App 热更新
@@ -230,7 +232,7 @@ APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.6.apk
 
 ```bash
 cd server
-npm run app:update:publish -- ..\client\dist\release\jyl-1.8.6-186.wgt 1.8.6 186 "发布说明"
+npm run app:update:publish -- ..\client\dist\release\jyl-1.8.7-187.wgt 1.8.7 187 "修复后台操作日志滚动与分页状态"
 ```
 
 发布前自检：

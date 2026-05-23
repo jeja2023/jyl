@@ -3,16 +3,16 @@
   "platforms": [
     "android"
   ],
-  "versionName": "1.8.6",
-  "versionCode": 186,
+  "versionName": "1.8.7",
+  "versionCode": 187,
   "minVersionCode": 0,
   "force": true,
-  "wgtUrl": "/storage/app-updates/jyl-1.8.6-186.wgt",
-  "size": 5435126,
-  "md5": "4705f5c51c6f25cf8c597422dd3604e8",
-  "sha256": "f492e344fceea0c3901ae8ba8f89c9a11cf948f81a109673655d40215826e68e",
+  "wgtUrl": "/storage/app-updates/jyl-1.8.7-187.wgt",
+  "size": 5435124,
+  "md5": "b73a9a26c71e25791a3e10fd0a8a10eb",
+  "sha256": "b76e5f3012ec29755a9d48e46b56703d3fa30fb9799551e5a394dd22f544747e",
   "releaseNotes": [
-    "修复 APP 运行环境下由于 URL 兼容性问题导致的热更新死锁"
+    "修复后台操作日志页滚动手感、分页状态和底部加载提示"
   ],
-  "publishedAt": "2026-05-22T00:00:14.824Z"
+  "publishedAt": "2026-05-23T16:32:41.5699741+08:00"
 }

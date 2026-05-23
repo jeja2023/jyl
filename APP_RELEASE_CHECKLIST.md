@@ -1,6 +1,6 @@
 # App 发布检查清单
 
-当前版本：`1.8.6`（`versionCode: 186`）
+当前版本：`1.8.7`（`versionCode: 187`）
 
 ## 首次 APK
 
@@ -8,13 +8,13 @@
 - `client/.env.production` 已配置正式 `VITE_API_BASE`
 - `client/src/manifest.json` 已配置 DCloud AppID
 - Android 包名已确定且不会随意变更
-- `versionName` / `versionCode` 已递增到 `1.8.6 / 186`
+- `versionName` / `versionCode` 已递增到 `1.8.7 / 187`
 - Android 签名证书已备份
 - 权限列表已按最小权限原则检查
 - Android 图标均为英文文件名 PNG
 - `npm run build:app` 构建成功
 - HBuilderX 或 Linux HBuilderX CLI 正式 APK 打包成功
-- APK 已上传或同步到 `storage/app-releases/jyl-1.8.6.apk`
+- APK 已上传或同步到 `storage/app-releases/jyl-1.8.7.apk`
 - 登录页“下载安卓版”入口可访问并能下载 APK
 - 真机完成核心流程验收
 - 热更新检查接口可访问
@@ -39,6 +39,13 @@
 - 请求日志不记录 `authToken`、`shareToken`、`token` 查询参数
 - 生产环境已配置 `CORS_ORIGINS`，或明确接受拒绝带 Origin 的跨域请求
 - 生产环境未通过 Nginx、CDN 或对象存储额外公开 `storage/logs` 与 `storage/reports`
+
+## 1.8.7 发布重点
+
+- 后台操作日志页滚动容器启用增强滚动并固定剩余高度，改善下滑后再上滑吃力的问题
+- 操作日志分页增加请求并发保护，避免重复触底时列表重复拼接或页码错乱
+- 底部加载状态改为按实际分页结果显示“继续上滑加载”“正在加载日志”“没有更多日志”，不足一页或无数据时不再误导继续加载
+- App 热更新版本升级为 `1.8.7 / 187`，用于发布后台日志页体验修复
 
 ## 1.8.6 发布重点
 

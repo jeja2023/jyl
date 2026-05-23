@@ -25,10 +25,14 @@
       scroll-y 
       class="list-container" 
       @scrolltolower="loadMore"
+      lower-threshold="120"
+      :show-scrollbar="false"
+      :enhanced="true"
       refresher-enabled
       :refresher-triggered="refreshing"
       @refresherrefresh="onRefresh"
     >
+      <view class="list-content">
       <view class="log-card" v-for="log in logList" :key="log.id" @click="showDetail(log)">
         <view class="log-meta">
           <view class="user-info">
@@ -55,8 +59,18 @@
         </view>
       </view>
       
-      <u-loadmore :status="loadStatus" marginTop="30" marginBottom="30"></u-loadmore>
+      <u-empty v-if="!logList.length && loadStatus !== 'loading'" mode="list" text="暂无日志"></u-empty>
+      <u-loadmore
+        v-else-if="loadStatus === 'loading' || logList.length >= pageSize"
+        :status="loadStatus"
+        loadmoreText="继续上滑加载"
+        loadingText="正在加载日志..."
+        nomoreText="没有更多日志"
+        marginTop="30"
+        marginBottom="30"
+      ></u-loadmore>
       <view class="safe-bottom"></view>
+      </view>
     </scroll-view>
 
     <!-- 详情弹窗 -->
@@ -103,44 +117,61 @@ import dayjs from 'dayjs';
 const keyword = ref('');
 const logList = ref([]);
 const page = ref(1);
+const pageSize = 20;
 const loadStatus = ref('loadmore');
 const refreshing = ref(false);
+const fetching = ref(false);
 
 const detailShow = ref(false);
 const currentLog = ref(null);
 
 const fetchLogs = async (isRefresh = false) => {
+  // 避免翻页请求并发，防止列表重复拼接或页码错乱
+  if (fetching.value) {
+    if (isRefresh) refreshing.value = false;
+    return;
+  }
+
   if (isRefresh) {
     page.value = 1;
     loadStatus.value = 'loadmore';
   }
   
   if (loadStatus.value === 'nomore' && !isRefresh) return;
+  fetching.value = true;
   loadStatus.value = 'loading';
+  const currentPage = isRefresh ? 1 : page.value;
 
   try {
     const res = await http.get('/api/admin/logs', {
-      page: page.value,
-      pageSize: 20,
+      page: currentPage,
+      pageSize,
       username: keyword.value,
     });
+    const list = Array.isArray(res?.list) ? res.list : [];
+    const nextTotal = Number(res?.total) || 0;
 
     if (isRefresh) {
-      logList.value = res.list;
+      logList.value = list;
     } else {
-      logList.value = [...logList.value, ...res.list];
+      logList.value = [...logList.value, ...list];
     }
 
-    if (logList.value.length >= res.total) {
-      loadStatus.value = 'nomore';
-    } else {
+    const loadedCount = logList.value.length;
+    // 只有本次刚好返回一页数据，并且总数还没读完时，才认为后面还有更多
+    const hasMore = list.length >= pageSize && (!nextTotal || loadedCount < nextTotal);
+
+    if (hasMore) {
       loadStatus.value = 'loadmore';
-      page.value++;
+      page.value = currentPage + 1;
+    } else {
+      loadStatus.value = 'nomore';
     }
   } catch (err) {
     uni.$u.toast('获取日志失败');
     loadStatus.value = 'loadmore';
   } finally {
+    fetching.value = false;
     refreshing.value = false;
   }
 };
@@ -192,6 +223,13 @@ onMounted(() => {
 
 .list-container {
   flex: 1;
+  height: 0;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.list-content {
   padding: 24rpx 28rpx;
   box-sizing: border-box;
 }

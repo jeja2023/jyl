@@ -1,6 +1,6 @@
 # Android APK 与热更新发布指南
 
-当前版本：`1.8.6`（`versionCode: 186`）
+当前版本：`1.8.7`（`versionCode: 187`）
 
 目标：用户首次安装 APK 后，后续普通前端更新通过 wgt 热更新完成，用户无需反复卸载或重新安装 APK。
 
@@ -46,8 +46,8 @@ VITE_API_BASE=https://jyl.880301.xyz
 
 - `appid` 已配置 DCloud AppID
 - `name` 是正式应用名
-- `versionName` 为 `1.8.5`
-- `versionCode` 为 `185`
+- `versionName` 为 `1.8.7`
+- `versionCode` 为 `187`
 - Android 包名稳定，例如 `com.jiayoule.app`
 - Android 只保留 `arm64-v8a`
 - 权限只保留业务真实需要的最小集合
@@ -69,7 +69,7 @@ npm run build:app
 
 6. 发布 APK 下载入口：
 
-- 将正式 APK 同步到 `storage/app-releases/jyl-1.8.6.apk`
+- 将正式 APK 同步到 `storage/app-releases/jyl-1.8.7.apk`
 - 登录页 H5 会显示“下载安卓版”，用户可直接下载安装包
 - 如果使用独立 CDN 或对象存储，可通过 `APK_DOWNLOAD_URL` 环境变量覆盖下载地址
 
@@ -96,15 +96,15 @@ npm run release:app
 输出文件示例：
 
 ```text
-client/dist/release/jyl-1.8.5-185.wgt
-client/dist/release/jyl-1.8.5-185.wgt.json
+client/dist/release/jyl-1.8.7-187.wgt
+client/dist/release/jyl-1.8.7-187.wgt.json
 ```
 
 3. 发布到后端：
 
 ```bash
 cd server
-npm run app:update:publish -- ..\client\dist\release\jyl-1.8.5-185.wgt 1.8.5 185 "Security hardening and OCR stability"
+npm run app:update:publish -- ..\client\dist\release\jyl-1.8.7-187.wgt 1.8.7 187 "修复后台操作日志滚动与分页状态"
 ```
 
 强制更新示例：
