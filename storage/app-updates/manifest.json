@@ -3,16 +3,16 @@
   "platforms": [
     "android"
   ],
-  "versionName": "1.8.7",
-  "versionCode": 187,
+  "versionName": "1.8.8",
+  "versionCode": 188,
   "minVersionCode": 0,
   "force": true,
-  "wgtUrl": "/storage/app-updates/jyl-1.8.7-187.wgt",
-  "size": 5435512,
-  "md5": "a8fe7f1ca29215290ab4e0f8cd13ad90",
-  "sha256": "b46ff979edc065c4226d9f48d373debb84c9fd71c376a8c60042bca84f828bbf",
+  "wgtUrl": "/storage/app-updates/jyl-1.8.8-188.wgt",
+  "size": 5435732,
+  "md5": "cd673ff7c2646fe69af0d64120cd70bb",
+  "sha256": "4e812d5d9fe8a4b55e5a0ed3f15ae44ca462cd530f4fb2be1baf3b0596b67cfc",
   "releaseNotes": [
-    "修复后台操作日志页滚动手感、分页状态和底部加载提示"
+    "修复后台操作日志容器高度显示异常"
   ],
-  "publishedAt": "2026-05-23T12:11:45.660Z"
+  "publishedAt": "2026-05-23T13:23:08.301Z"
 }

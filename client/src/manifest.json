@@ -2,8 +2,8 @@
     "name" : "甲友乐",
     "appid" : "__UNI__F18FC4D",
     "description" : "甲状腺健康管理工具",
-    "versionName" : "1.8.7",
-    "versionCode" : "187",
+    "versionName" : "1.8.8",
+    "versionCode" : "188",
     "transformPx" : false,
     "app-plus" : {
         "usingComponents" : true,
