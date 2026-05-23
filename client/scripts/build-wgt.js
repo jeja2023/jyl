@@ -18,6 +18,26 @@ const versionName = String(manifest.versionName || '0.0.0');
 const versionCode = String(manifest.versionCode || '0');
 const fileName = `jyl-${versionName}-${versionCode}.wgt`;
 const outputPath = path.join(releaseDir, fileName);
+const appManifestPath = path.join(appDir, 'manifest.json');
+
+if (!fs.existsSync(appManifestPath)) {
+  console.error('App build manifest was not found. Run npm run build:app again.');
+  process.exit(1);
+}
+
+const appManifest = JSON.parse(fs.readFileSync(appManifestPath, 'utf8'));
+const builtAppId = String(appManifest.id || '');
+const builtVersionName = String(appManifest.version?.name || '');
+const builtVersionCode = String(appManifest.version?.code || '');
+const sourceAppId = String(manifest.appid || '');
+
+if (builtAppId !== sourceAppId || builtVersionName !== versionName || builtVersionCode !== versionCode) {
+  console.error('App build output manifest does not match src/manifest.json.');
+  console.error(`Expected: ${sourceAppId} ${versionName} (${versionCode})`);
+  console.error(`Actual:   ${builtAppId} ${builtVersionName} (${builtVersionCode})`);
+  console.error('Run npm run build:app before creating the WGT package.');
+  process.exit(1);
+}
 
 fs.mkdirSync(releaseDir, { recursive: true });
 

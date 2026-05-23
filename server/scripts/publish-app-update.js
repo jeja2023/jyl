@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const zlib = require('zlib');
 
 const args = process.argv.slice(2);
 const positional = [];
@@ -37,6 +38,68 @@ for (let i = 0; i < args.length; i += 1) {
 
 const [wgtPathArg, versionName, versionCodeArg, ...notes] = positional;
 
+const readWgtManifest = (filePath) => {
+    const bytes = fs.readFileSync(filePath);
+    const eocdSignature = 0x06054b50;
+    const centralSignature = 0x02014b50;
+    const localSignature = 0x04034b50;
+    let eocdOffset = -1;
+
+    for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 66000); i -= 1) {
+        if (bytes.readUInt32LE(i) === eocdSignature) {
+            eocdOffset = i;
+            break;
+        }
+    }
+
+    if (eocdOffset === -1) {
+        throw new Error('Invalid WGT package: ZIP footer was not found.');
+    }
+
+    const entryCount = bytes.readUInt16LE(eocdOffset + 10);
+    let cursor = bytes.readUInt32LE(eocdOffset + 16);
+
+    for (let index = 0; index < entryCount; index += 1) {
+        if (bytes.readUInt32LE(cursor) !== centralSignature) {
+            throw new Error('Invalid WGT package: ZIP directory is corrupt.');
+        }
+
+        const method = bytes.readUInt16LE(cursor + 10);
+        const compressedSize = bytes.readUInt32LE(cursor + 20);
+        const nameLength = bytes.readUInt16LE(cursor + 28);
+        const extraLength = bytes.readUInt16LE(cursor + 30);
+        const commentLength = bytes.readUInt16LE(cursor + 32);
+        const localOffset = bytes.readUInt32LE(cursor + 42);
+        const entryName = bytes.toString('utf8', cursor + 46, cursor + 46 + nameLength);
+
+        if (entryName === 'manifest.json') {
+            if (bytes.readUInt32LE(localOffset) !== localSignature) {
+                throw new Error('Invalid WGT package: manifest local header is corrupt.');
+            }
+
+            const localNameLength = bytes.readUInt16LE(localOffset + 26);
+            const localExtraLength = bytes.readUInt16LE(localOffset + 28);
+            const dataStart = localOffset + 30 + localNameLength + localExtraLength;
+            const data = bytes.subarray(dataStart, dataStart + compressedSize);
+            const manifestBytes = method === 0
+                ? data
+                : method === 8
+                    ? zlib.inflateRawSync(data)
+                    : null;
+
+            if (!manifestBytes) {
+                throw new Error(`Unsupported ZIP compression method: ${method}`);
+            }
+
+            return JSON.parse(manifestBytes.toString('utf8'));
+        }
+
+        cursor += 46 + nameLength + extraLength + commentLength;
+    }
+
+    throw new Error('manifest.json not found in WGT package.');
+};
+
 if (!wgtPathArg || !versionName || !versionCodeArg) {
     console.error('Usage: npm run app:update:publish -- <path-to-wgt> <versionName> <versionCode> [release notes...] [--force] [--min-version-code 166]');
     process.exit(1);
@@ -51,6 +114,23 @@ if (!fs.existsSync(sourcePath) || !sourcePath.toLowerCase().endsWith('.wgt')) {
 const versionCode = parseInt(versionCodeArg, 10);
 if (!Number.isFinite(versionCode) || versionCode <= 0) {
     console.error('versionCode must be a positive integer.');
+    process.exit(1);
+}
+
+let wgtManifest;
+try {
+    wgtManifest = readWgtManifest(sourcePath);
+} catch (err) {
+    console.error(`Unable to inspect WGT manifest: ${err.message}`);
+    process.exit(1);
+}
+
+const wgtVersionName = String(wgtManifest.version?.name || '');
+const wgtVersionCode = parseInt(wgtManifest.version?.code, 10);
+if (wgtVersionName !== versionName || wgtVersionCode !== versionCode) {
+    console.error('WGT manifest version does not match publish arguments.');
+    console.error(`Expected: ${versionName} (${versionCode})`);
+    console.error(`Actual:   ${wgtVersionName} (${wgtManifest.version?.code || ''})`);
     process.exit(1);
 }
 
