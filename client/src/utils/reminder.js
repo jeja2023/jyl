@@ -36,17 +36,13 @@ const getTodayEndTtl = () => {
   return Math.max(60, Math.ceil((end.getTime() - now.getTime()) / 1000));
 };
 
-const hasShownPopup = (id) => {
-  return !!getCache(`${POPUP_CACHE_PREFIX}${id}`);
-};
+const hasShownPopup = (id) => !!getCache(`${POPUP_CACHE_PREFIX}${id}`);
 
 const rememberPopup = (id) => {
   setCache(`${POPUP_CACHE_PREFIX}${id}`, true, getTodayEndTtl());
 };
 
-const isSnoozed = (id) => {
-  return !!getCache(`${SNOOZE_CACHE_PREFIX}${id}`);
-};
+const isSnoozed = (id) => !!getCache(`${SNOOZE_CACHE_PREFIX}${id}`);
 
 const snoozePopup = (id) => {
   setCache(`${SNOOZE_CACHE_PREFIX}${id}`, true, SNOOZE_SECONDS);
@@ -64,10 +60,9 @@ const pickDueReminder = (list) => {
   const candidates = (list || []).filter((item) => {
     if (!item || item.isRead) return false;
     if (!['medication', 'checkup'].includes(item.type)) return false;
-    if (!item.id || isSnoozed(item.id)) return false;
+    if (!item.id || isSnoozed(item.id) || hasShownPopup(item.id)) return false;
 
     if (isMedicationReminder(item)) return true;
-    if (hasShownPopup(item.id)) return false;
 
     const remindAt = parseTime(item.remindAt || item.targetDate || item.createdAt);
     if (!remindAt) return false;
@@ -96,9 +91,7 @@ const showReminderModal = (item) => {
     cancelText: '稍后',
     success: (res) => {
       if (res.confirm) {
-        if (!isMedicationReminder(item)) {
-          rememberPopup(item.id);
-        }
+        rememberPopup(item.id);
         if (item.actionUrl) {
           uni.navigateTo({ url: item.actionUrl });
         }
@@ -126,7 +119,7 @@ export const checkDueReminders = async () => {
       showReminderModal(item);
     }
   } catch (e) {
-    // Quietly ignore reminder polling failures to avoid disturbing the user.
+    // 静默忽略提醒轮询失败，避免打扰用户。
   } finally {
     checking = false;
   }
