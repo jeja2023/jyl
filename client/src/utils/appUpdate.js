@@ -176,10 +176,12 @@ export const checkAppUpdate = async ({ forceCheck = false } = {}) => {
     });
   } catch (err) {
     const message = getErrorMessage(err);
-    uni.showToast({
-      title: `更新检查失败：${message}`.slice(0, 60),
-      icon: 'none'
-    });
+    if (forceCheck) {
+      uni.showToast({
+        title: `更新检查失败：${message}`.slice(0, 60),
+        icon: 'none'
+      });
+    }
     if (import.meta.env.DEV) console.warn('App update check skipped:', err);
   }
   // #endif
