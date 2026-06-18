@@ -1,6 +1,6 @@
 # App 发布检查清单
 
-当前版本：`1.8.7`（`versionCode: 187`）
+当前版本：`1.8.8`（`versionCode: 188`）
 
 ## 首次 APK
 
@@ -8,13 +8,13 @@
 - `client/.env.production` 已配置正式 `VITE_API_BASE`
 - `client/src/manifest.json` 已配置 DCloud AppID
 - Android 包名已确定且不会随意变更
-- `versionName` / `versionCode` 已递增到 `1.8.7 / 187`
+- `versionName` / `versionCode` 已递增到 `1.8.8 / 188`
 - Android 签名证书已备份
 - 权限列表已按最小权限原则检查
 - Android 图标均为英文文件名 PNG
 - `npm run build:app` 构建成功
 - HBuilderX 或 Linux HBuilderX CLI 正式 APK 打包成功
-- APK 已上传或同步到 `storage/app-releases/jyl-1.8.7.apk`
+- APK 已上传或同步到 `storage/app-releases/jyl-1.8.8.apk`
 - 登录页“下载安卓版”入口可访问并能下载 APK
 - 真机完成核心流程验收
 - 热更新检查接口可访问
@@ -39,6 +39,14 @@
 - 请求日志不记录 `authToken`、`shareToken`、`token` 查询参数
 - 生产环境已配置 `CORS_ORIGINS`，或明确接受拒绝带 Origin 的跨域请求
 - 生产环境未通过 Nginx、CDN 或对象存储额外公开 `storage/logs` 与 `storage/reports`
+
+## 1.8.8 发布重点
+
+- 趋势页新增当前指标参考范围和单位编辑入口
+- 本人档案新增 `referenceRanges`，家庭成员范围随记录带回并优先参与趋势判定
+- 趋势图参考带、最新值异常状态和相关记录状态统一优先使用自定义范围
+- 首页移除独立 OCR 复核台入口，保留录入页内 OCR 识别与复核闭环
+- App 热更新版本升级为 `1.8.8 / 188`
 
 ## 1.8.7 发布重点
 

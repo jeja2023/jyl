@@ -101,6 +101,11 @@ const User = sequelize.define('User', {
         type: DataTypes.TEXT,
         allowNull: true,
         comment: '用户自定义趋势指标(JSON数组)'
+    },
+    referenceRanges: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: '用户自定义指标参考范围(JSON)'
     }
 }, {
     timestamps: true,

@@ -100,14 +100,53 @@
       </view>
       
       <!-- 参考范围 -->
-      <view class="ref-card" v-if="currentRefRange">
-        <text class="ref-title">参考范围</text>
-        <view class="ref-range">
-          <text>{{ currentRefRange }} <text class="ref-unit">{{ currentUnit }}</text></text>
+      <view class="ref-card" v-if="currentTabItem">
+        <view class="ref-main">
+          <text class="ref-title">参考范围</text>
+          <view class="ref-range">
+            <text>{{ currentRefRange || '未设置' }} <text class="ref-unit">{{ currentUnit }}</text></text>
+          </view>
+          <text class="ref-mid" v-if="refMidValue">参考中值：{{ refMidValue }}</text>
+          <text class="ref-mid" v-else>{{ currentRangeSource }}</text>
         </view>
-        <text class="ref-mid" v-if="refMidValue">参考中值：{{ refMidValue }}</text>
+        <button class="ref-edit-btn" @click.stop="openRangeEditor">
+          <u-icon name="edit-pen" size="13" color="#3E7BFF"></u-icon>
+          <text>编辑</text>
+        </button>
       </view>
     </view>
+
+    <u-popup :show="showRangeEditor" mode="bottom" round="24" @close="closeRangeEditor">
+      <view class="range-editor">
+        <view class="range-editor-head">
+          <view>
+            <text class="range-editor-title">{{ currentTabName }} 参考设置</text>
+            <text class="range-editor-sub">{{ editingRangeOwnerName }}</text>
+          </view>
+          <view class="picker-close" @click="closeRangeEditor">
+            <u-icon name="close" size="18" color="#4E5969"></u-icon>
+          </view>
+        </view>
+        <view class="range-field-grid">
+          <view class="range-field">
+            <text class="range-label">下限</text>
+            <u--input v-model="rangeForm.min" type="number" placeholder="可留空" border="surround"></u--input>
+          </view>
+          <view class="range-field">
+            <text class="range-label">上限</text>
+            <u--input v-model="rangeForm.max" type="number" placeholder="可留空" border="surround"></u--input>
+          </view>
+        </view>
+        <view class="range-field">
+          <text class="range-label">单位</text>
+          <u--input v-model="rangeForm.unit" placeholder="例如 mIU/L" border="surround"></u--input>
+        </view>
+        <view class="range-editor-actions">
+          <button class="range-action ghost" @click.stop="resetRangeEditor">填入默认</button>
+          <button class="range-action primary" @click.stop="saveRangeEditor">保存</button>
+        </view>
+      </view>
+    </u-popup>
 
     <!-- 当前指标相关记录 -->
     <view class="history-section">
@@ -148,12 +187,12 @@
               <!-- 血检数据部分 -->
               <view class="blood-metrics" v-if="hasBloodData(item)">
                 <view class="val-item" v-for="metricKey in visibleListMetrics" :key="metricKey" v-show="item[metricKey] !== undefined && item[metricKey] !== null && item[metricKey] !== ''">
-                  <text class="val" :class="'color-' + getIndicatorInfo(item[metricKey], getRefRange(metricKey)).color">{{ item[metricKey] }}</text>
+                  <text class="val" :class="'color-' + getIndicatorInfoFromRef(item[metricKey], getEffectiveRefRange(metricKey, item)).color">{{ item[metricKey] }}</text>
                   <view class="label-row">
                     <text class="label" :class="{ 'active-tab-text': metricKey === currentTab }">{{ metricKey }}</text>
-                    <text class="mini-unit" v-if="item.units?.[metricKey]">{{ item.units[metricKey] }}</text>
+                    <text class="mini-unit" v-if="getDisplayUnit(metricKey, item)">{{ getDisplayUnit(metricKey, item) }}</text>
                   </view>
-                  <u-icon v-if="getIndicatorInfo(item[metricKey], getRefRange(metricKey)).icon" :name="getIndicatorInfo(item[metricKey], getRefRange(metricKey)).icon" size="8" :color="getIndicatorInfo(item[metricKey], getRefRange(metricKey)).color === 'error' ? '#F53F3F' : '#FF7D00'" class="mini-arrow"></u-icon>
+                  <u-icon v-if="getIndicatorInfoFromRef(item[metricKey], getEffectiveRefRange(metricKey, item)).icon" :name="getIndicatorInfoFromRef(item[metricKey], getEffectiveRefRange(metricKey, item)).icon" size="8" :color="getIndicatorInfoFromRef(item[metricKey], getEffectiveRefRange(metricKey, item)).color === 'error' ? '#F53F3F' : '#FF7D00'" class="mini-arrow"></u-icon>
                 </view>
               </view>
 
@@ -183,12 +222,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, watch, nextTick, reactive } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 import { buildRecordExportUrl, downloadExportFile } from '@/utils/exportFile.js';
-import { getIndicatorInfo, getIndicatorInfoFromRef } from '@/utils/indicator.js';
+import { getIndicatorInfoFromRef } from '@/utils/indicator.js';
 import { setCache, getCache } from '@/utils/cache.js';
 import { TREND_INDICATORS, getDefaultTrendKeys, getDiseaseIndicatorProfile, normalizeTrendKeys } from '@/utils/thyroidIndicators.js';
 
@@ -200,6 +239,8 @@ const displayCount = ref(6);
 const selectedTrendKeys = ref([]);
 const draftTrendKeys = ref([]);
 const showTrendPicker = ref(false);
+const showRangeEditor = ref(false);
+const rangeForm = reactive({ min: '', max: '', unit: '' });
 const allIndicators = TREND_INDICATORS;
 const TREND_KEY_STORAGE = 'trend_indicator_keys';
 
@@ -212,6 +253,63 @@ const parseStoredTrendKeys = (value) => {
   } catch (e) {
     return [];
   }
+};
+
+const parseReferenceRanges = (value) => {
+  if (!value) return {};
+  if (typeof value === 'object') return value;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (e) {
+    return {};
+  }
+};
+
+const toRangeNumber = (value) => {
+  if (value === '' || value === null || value === undefined) return undefined;
+  const next = Number(value);
+  return Number.isNaN(next) ? undefined : next;
+};
+
+const cleanRange = (range = {}) => {
+  const next = {};
+  const min = toRangeNumber(range.min);
+  const max = toRangeNumber(range.max);
+  if (min !== undefined) next.min = min;
+  if (max !== undefined) next.max = max;
+  if (range.unit !== undefined && range.unit !== null && String(range.unit).trim()) {
+    next.unit = String(range.unit).trim();
+  }
+  return next;
+};
+
+const formatRange = (range = {}) => {
+  const min = toRangeNumber(range.min);
+  const max = toRangeNumber(range.max);
+  if (min !== undefined && max !== undefined) return `${min} - ${max}`;
+  if (max !== undefined) return `< ${max}`;
+  if (min !== undefined) return `> ${min}`;
+  return '';
+};
+
+const getDefaultRangeFromIndicator = (key) => {
+  const indicator = allIndicators.find(item => item.key === key);
+  return {
+    ...cleanRange(parseRangeString(indicator?.ref || '')),
+    unit: indicator?.unit || ''
+  };
+};
+
+const parseRangeString = (ref = '') => {
+  if (!ref || typeof ref !== 'string') return {};
+  const rangeMatch = ref.match(/([\d.]+)\s*-\s*([\d.]+)/);
+  if (rangeMatch) return { min: Number(rangeMatch[1]), max: Number(rangeMatch[2]) };
+  const upperMatch = ref.match(/^<\s*([\d.]+)/);
+  if (upperMatch) return { max: Number(upperMatch[1]) };
+  const lowerMatch = ref.match(/^>\s*([\d.]+)/);
+  if (lowerMatch) return { min: Number(lowerMatch[1]) };
+  return {};
 };
 
 const patientType = computed(() => userStore.userInfo?.patientType || '其他');
@@ -314,9 +412,30 @@ const uploadImportData = async (base64) => {
 const currentTabItem = computed(() => tabs.value.find(t => t.key === currentTab.value) || allIndicators.find(t => t.key === currentTab.value));
 const currentTabName = computed(() => currentTabItem.value?.name || '');
 const currentFullName = computed(() => currentTabItem.value?.fullName || '');
-const currentUnit = computed(() => currentTabItem.value?.unit || '');
-const currentRefRange = computed(() => currentTabItem.value?.ref || '');
 const currentThemeColor = computed(() => currentTabItem.value?.color || '#3E7BFF');
+const userReferenceRanges = computed(() => parseReferenceRanges(userStore.userInfo?.referenceRanges));
+const currentRangeOwner = computed(() => {
+  const record = filteredList.value[0];
+  if (record?.FamilyMember?.id) {
+    return {
+      type: 'member',
+      id: record.FamilyMember.id,
+      name: formatMember(record.FamilyMember),
+      ranges: parseReferenceRanges(record.FamilyMember.referenceRanges)
+    };
+  }
+  return {
+    type: 'user',
+    id: userStore.userInfo?.id,
+    name: userStore.userInfo?.nickname || '本人',
+    ranges: userReferenceRanges.value
+  };
+});
+const currentCustomRange = computed(() => cleanRange(currentRangeOwner.value.ranges?.[currentTab.value] || {}));
+const currentUnit = computed(() => currentCustomRange.value.unit || currentTabItem.value?.unit || '');
+const currentRefRange = computed(() => formatRange(currentCustomRange.value) || currentTabItem.value?.ref || '');
+const currentRangeSource = computed(() => Object.keys(currentCustomRange.value).length ? '已使用自定义设置' : '使用系统默认设置');
+const editingRangeOwnerName = computed(() => `保存到：${currentRangeOwner.value.name || '本人'}`);
 
 const refMidValue = computed(() => {
   const ref = currentRefRange.value;
@@ -352,7 +471,7 @@ const chartData = computed(() => {
 
 const latestRecordWithTab = computed(() => filteredList.value[0] || null);
 const latestValue = computed(() => latestRecordWithTab.value ? latestRecordWithTab.value[currentTab.value] : null);
-const latestUnit = computed(() => latestRecordWithTab.value?.units?.[currentTab.value] || currentUnit.value);
+const latestUnit = computed(() => currentCustomRange.value.unit || latestRecordWithTab.value?.units?.[currentTab.value] || currentUnit.value);
 
 const valueStatusInfo = computed(() => {
   if (latestValue.value === null) return {};
@@ -370,10 +489,90 @@ const visibleListMetrics = computed(() => {
     return merged.filter(key => allIndicators.some(item => item.key === key)).slice(0, 4);
 });
 
-const getRefRange = (key) => allIndicators.find(t => t.key === key)?.ref || '';
+const getEffectiveRangeMeta = (key, record = null) => {
+  const ownerRanges = record?.FamilyMember?.id
+    ? parseReferenceRanges(record.FamilyMember.referenceRanges)
+    : userReferenceRanges.value;
+  const custom = cleanRange(ownerRanges?.[key] || {});
+  const fallback = allIndicators.find(t => t.key === key) || {};
+  return {
+    ref: formatRange(custom) || fallback.ref || '',
+    unit: custom.unit || record?.units?.[key] || fallback.unit || ''
+  };
+};
+
+const getEffectiveRefRange = (key, record = null) => getEffectiveRangeMeta(key, record).ref;
+const getDisplayUnit = (key, record = null) => getEffectiveRangeMeta(key, record).unit;
 
 const hasBloodData = (item) => {
     return visibleListMetrics.value.some(k => item[k] !== undefined && item[k] !== null && item[k] !== '');
+};
+
+const openRangeEditor = () => {
+  const range = Object.keys(currentCustomRange.value).length
+    ? currentCustomRange.value
+    : getDefaultRangeFromIndicator(currentTab.value);
+  rangeForm.min = range.min ?? '';
+  rangeForm.max = range.max ?? '';
+  rangeForm.unit = range.unit || currentUnit.value || '';
+  showRangeEditor.value = true;
+};
+
+const closeRangeEditor = () => {
+  showRangeEditor.value = false;
+};
+
+const resetRangeEditor = () => {
+  const range = getDefaultRangeFromIndicator(currentTab.value);
+  rangeForm.min = range.min ?? '';
+  rangeForm.max = range.max ?? '';
+  rangeForm.unit = range.unit || '';
+};
+
+const saveRangeEditor = async () => {
+  const min = toRangeNumber(rangeForm.min);
+  const max = toRangeNumber(rangeForm.max);
+  if (min !== undefined && max !== undefined && min > max) {
+    uni.$u.toast('下限不能大于上限');
+    return;
+  }
+
+  const owner = currentRangeOwner.value;
+  const nextRanges = { ...(owner.ranges || {}) };
+  const nextRange = cleanRange({
+    min: rangeForm.min,
+    max: rangeForm.max,
+    unit: rangeForm.unit
+  });
+
+  if (Object.keys(nextRange).length) {
+    nextRanges[currentTab.value] = nextRange;
+  } else {
+    delete nextRanges[currentTab.value];
+  }
+
+  try {
+    if (owner.type === 'member') {
+      await http.post('/api/family/update', {
+        id: owner.id,
+        referenceRanges: JSON.stringify(nextRanges)
+      });
+    } else {
+      const res = await http.post('/api/auth/profile/update', {
+        referenceRanges: nextRanges
+      });
+      const nextInfo = res?.user || res || {};
+      userStore.setUserInfo({ ...(userStore.userInfo || {}), ...nextInfo, referenceRanges: nextRanges });
+    }
+
+    uni.$u.toast('参考设置已保存');
+    closeRangeEditor();
+    await fetchList();
+    await nextTick();
+    drawChart();
+  } catch (e) {
+    uni.$u.toast(e.message || '保存失败');
+  }
 };
 
 const persistTrendKeys = async () => {
@@ -1037,7 +1236,15 @@ onShow(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 20rpx;
   border: 1px solid rgba(62, 123, 255, 0.05);
+
+  .ref-main {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+  }
   
   .ref-title {
     font-size: 26rpx;
@@ -1053,11 +1260,104 @@ onShow(() => {
   }
 }
 
+.ref-edit-btn {
+  margin: 0;
+  width: 132rpx;
+  height: 60rpx;
+  line-height: 60rpx;
+  padding: 0 18rpx;
+  border-radius: 999rpx;
+  background: #FFFFFF;
+  border: 1px solid rgba(62, 123, 255, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
+  flex-shrink: 0;
+
+  text {
+    color: #3E7BFF;
+    font-size: 24rpx;
+    font-weight: 800;
+  }
+}
+
 .ref-mid {
-  margin-top: 8rpx;
   font-size: 22rpx;
   color: #86909C;
   font-weight: 600;
+}
+
+.range-editor {
+  padding: 34rpx;
+  background: #FFFFFF;
+}
+
+.range-editor-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-bottom: 28rpx;
+}
+
+.range-editor-title {
+  display: block;
+  color: #1D2129;
+  font-size: 34rpx;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.range-editor-sub {
+  display: block;
+  margin-top: 8rpx;
+  color: #86909C;
+  font-size: 24rpx;
+}
+
+.range-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16rpx;
+}
+
+.range-field {
+  margin-bottom: 22rpx;
+}
+
+.range-label {
+  display: block;
+  color: #4E5969;
+  font-size: 24rpx;
+  font-weight: 800;
+  margin-bottom: 12rpx;
+}
+
+.range-editor-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18rpx;
+  margin-top: 8rpx;
+}
+
+.range-action {
+  margin: 0;
+  height: 84rpx;
+  line-height: 84rpx;
+  border-radius: 24rpx;
+  font-size: 28rpx;
+  font-weight: 900;
+
+  &.ghost {
+    color: #3E7BFF;
+    background: #EEF4FF;
+  }
+
+  &.primary {
+    color: #FFFFFF;
+    background: #3E7BFF;
+  }
 }
 
 .value-box {

@@ -36,7 +36,6 @@
 		{ "path": "pages/share/manage", "style": { "navigationBarTitleText": "分享管理", "navigationStyle": "custom" } },
 		{ "path": "pages/share/record", "style": { "navigationBarTitleText": "报告分享", "navigationStyle": "custom" } },
 		{ "path": "pages/insight/dashboard", "style": { "navigationBarTitleText": "智能洞察", "navigationStyle": "custom" } },
-		{ "path": "pages/ocr/review", "style": { "navigationBarTitleText": "OCR复核台", "navigationStyle": "custom" } },
 		{ "path": "pages/my/family-profile", "style": { "navigationBarTitleText": "健康档案增强", "navigationStyle": "custom" } }
 	],
 	"globalStyle": {

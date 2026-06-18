@@ -66,6 +66,37 @@ const parseTrendIndicators = (raw, patientType = '其他') => {
     return valid.length ? [...new Set(valid)] : getDefaultTrendKeys(patientType);
 };
 
+const normalizeReferenceRanges = (raw) => {
+    if (!raw) return {};
+    let value = raw;
+    if (typeof raw === 'string') {
+        try {
+            value = JSON.parse(raw);
+        } catch (e) {
+            value = {};
+        }
+    }
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+
+    return Object.entries(value).reduce((acc, [key, range]) => {
+        if (!TREND_KEYS.includes(key) || !range || typeof range !== 'object') return acc;
+        const next = {};
+        if (range.min !== undefined && range.min !== null && range.min !== '') {
+            const min = Number(range.min);
+            if (!Number.isNaN(min)) next.min = min;
+        }
+        if (range.max !== undefined && range.max !== null && range.max !== '') {
+            const max = Number(range.max);
+            if (!Number.isNaN(max)) next.max = max;
+        }
+        if (range.unit !== undefined && range.unit !== null) {
+            next.unit = String(range.unit).trim();
+        }
+        if (Object.keys(next).length) acc[key] = next;
+        return acc;
+    }, {});
+};
+
 class AuthController {
 
 
@@ -137,6 +168,7 @@ class AuthController {
             patientType,
             treatmentStage: user.treatmentStage || '日常随访',
             trendIndicators: parseTrendIndicators(user.trendIndicators, patientType),
+            referenceRanges: normalizeReferenceRanges(user.referenceRanges),
             diseaseIndicatorProfile: getDiseaseIndicatorProfile(patientType),
             role: user.role,
             hasPassword: !!user.password
@@ -645,7 +677,7 @@ class AuthController {
      */
     static async updateProfile(ctx) {
         const { id } = ctx.state.user;
-        const { nickname, avatar, patientType, treatmentStage, diagnosisDate, birthDate, gender, trendIndicators } = ctx.request.body;
+        const { nickname, avatar, patientType, treatmentStage, diagnosisDate, birthDate, gender, trendIndicators, referenceRanges } = ctx.request.body;
 
         const user = await User.findByPk(id);
         if (!user) {
@@ -665,6 +697,10 @@ class AuthController {
 
         if (Object.prototype.hasOwnProperty.call(ctx.request.body, 'trendIndicators')) {
             updateData.trendIndicators = JSON.stringify(parseTrendIndicators(trendIndicators, nextPatientType));
+        }
+
+        if (Object.prototype.hasOwnProperty.call(ctx.request.body, 'referenceRanges')) {
+            updateData.referenceRanges = JSON.stringify(normalizeReferenceRanges(referenceRanges));
         }
 
         await user.update(updateData);

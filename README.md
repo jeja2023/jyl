@@ -6,18 +6,17 @@
 
 ## 当前版本
 
-当前版本：`1.8.7`
+当前版本：`1.8.8`
 
-本版本重点修复后台操作日志页面的滚动与分页体验：日志列表下滑后再上滑更顺畅，分页请求增加并发保护，底部加载状态会准确显示“继续上滑加载 / 正在加载日志 / 没有更多日志”，避免没有更多数据时仍误导用户继续加载。
+本版本重点优化趋势页参考范围与单位自定义：用户可在趋势页直接编辑当前指标的参考下限、上限和单位，趋势图参考带、异常状态和相关记录均优先使用本人或家庭成员的自定义设置。
 
-本版本重点修复用药提醒、服药计划和拍照上传识别链路，并完成报告图片访问安全加固与发布自检补强，让提醒规则更符合真实服药场景，也让部分手机上传成功但 OCR 识别失败的问题得到规避。
+本版本同时收敛独立 OCR 复核台入口，保留指标录入页内的 OCR 识别、修正和应用流程，避免用户进入不能编辑回写的独立复核列表。
 
-- 用药提醒：早于计划时间不提醒，晚于计划时间且当天未打卡时持续提醒，不再只在设置时间点短暂提示。
-- 服药规则：支持按星期配置不同剂量，也支持从开始日期起每 N 天一次的间隔服药；计划开始日期前不再计入漏服。
-- 服药计划体验：新增入口改为“新增服药计划”，支持按剂量选择服药日、间隔服药设置和长表单弹窗独立滚动。
-- 拍照上传识别：图片先上传再 OCR；OCR 优先识别服务端已保存图片，减少 App 端临时文件读取失败导致的识别失败。
-- 安全加固：报告图片不再通过 `/storage/reports` 直接公开，改为 `/api/report/image/:filename` 鉴权访问；`/storage` 仅公开热更新包和 APK。
-- 迁移与校验：新增 `MedicationPlans.weeklyDosage` 与服药规则字段迁移，修复历史分享链接迁移幂等性，并补充迁移检查。
+- 趋势设置：支持在趋势页编辑当前指标参考范围和单位。
+- 成员档案：本人和家庭成员分别维护自定义参考范围，当前记录会优先使用对应对象的设置。
+- 趋势判定：参考带、最新值异常状态和记录小卡片状态统一走自定义范围。
+- OCR 入口：移除首页独立 OCR 复核台入口，保留录入页内复核闭环。
+- 迁移与校验：新增 `Users.referenceRanges` 字段迁移，并纳入数据库迁移自检。
 - 发布治理：新增 `npm run release:check`，校验版本号、热更新 manifest 和 wgt 包一致性；`uview-plus` 锁定为 `3.6.29`。
 - 发布文档：详见 `更新日志.md`、`ANDROID_APK_BUILD.md` 和 `APP_RELEASE_CHECKLIST.md`。
 
@@ -199,8 +198,8 @@ npm run release:app
 ```text
 AppID: __UNI__F18FC4D
 包名: com.jiayoule.app
-versionName: 1.8.7
-versionCode: 187
+versionName: 1.8.8
+versionCode: 188
 生产 API: https://jyl.880301.xyz
 ```
 
@@ -209,19 +208,19 @@ APK 首次安装包通过 HBuilderX 或 Linux HBuilderX CLI 打包。正式发�
 登录页 APK 下载入口默认指向：
 
 ```text
-/storage/app-releases/jyl-1.8.7.apk
+/storage/app-releases/jyl-1.8.8.apk
 ```
 
 本地测试时会使用当前本地域名，例如：
 
 ```text
-http://localhost:3000/storage/app-releases/jyl-1.8.7.apk
+http://localhost:3000/storage/app-releases/jyl-1.8.8.apk
 ```
 
 生产环境默认使用同源路径。如果需要使用 CDN 或对象存储，可在后端环境变量中设置：
 
 ```text
-APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.7.apk
+APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.8.apk
 ```
 
 ## App 热更新
@@ -232,7 +231,7 @@ APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.7.apk
 
 ```bash
 cd server
-npm run app:update:publish -- ..\client\dist\release\jyl-1.8.7-187.wgt 1.8.7 187 "修复后台操作日志滚动与分页状态"
+npm run app:update:publish -- ..\client\dist\release\jyl-1.8.8-188.wgt 1.8.8 188 "优化趋势参考范围与单位设置，移除独立 OCR 复核台入口"
 ```
 
 发布前自检：

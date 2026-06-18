@@ -1,7 +1,7 @@
 const sequelize = require('../db');
 
 const REQUIRED_COLUMNS = {
-  Users: ['patientType', 'treatmentStage', 'trendIndicators'],
+  Users: ['patientType', 'treatmentStage', 'trendIndicators', 'referenceRanges'],
   FamilyMembers: ['patientType', 'treatmentStage', 'referenceRanges', 'checkupIntervalDays'],
   HealthRecords: ['TSI', 'TBAb', 'CEA', 'VitaminD', 'Albumin', 'ALP', 'ALT', 'AST', 'GGT', 'Bilirubin', 'WBC', 'Neutrophils', 'TC', 'LDL', 'HDL', 'Triglyceride', 'CK', 'ESR', 'CRP'],
   ShareLinks: ['tokenHash', 'expiresAt', 'revokedAt', 'accessCount', 'options'],

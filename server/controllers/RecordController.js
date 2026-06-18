@@ -264,7 +264,7 @@ class RecordController {
 
         const { count, rows } = await HealthRecord.findAndCountAll({
             where,
-            include: [{ model: FamilyMember, attributes: ['id', 'name', 'relation', 'patientType'] }],
+            include: [{ model: FamilyMember, attributes: ['id', 'name', 'relation', 'patientType', 'referenceRanges'] }],
             order: [['recordDate', 'DESC']],
             limit,
             offset
@@ -287,7 +287,7 @@ class RecordController {
         const userId = ctx.state.user.id;
         const record = await HealthRecord.findOne({
             where: { id, UserId: userId },
-            include: [{ model: FamilyMember, attributes: ['id', 'name', 'relation', 'patientType'] }]
+            include: [{ model: FamilyMember, attributes: ['id', 'name', 'relation', 'patientType', 'referenceRanges'] }]
         });
 
         if (!record) return Response.error(ctx, '记录不存在', 404);
