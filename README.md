@@ -6,7 +6,7 @@
 
 ## 当前版本
 
-当前版本：`1.8.8`
+当前版本：`1.8.9`
 
 本版本重点优化趋势页参考范围与单位自定义：用户可在趋势页直接编辑当前指标的参考下限、上限和单位，趋势图参考带、异常状态和相关记录均优先使用本人或家庭成员的自定义设置。
 
@@ -198,8 +198,8 @@ npm run release:app
 ```text
 AppID: __UNI__F18FC4D
 包名: com.jiayoule.app
-versionName: 1.8.8
-versionCode: 188
+versionName: 1.8.9
+versionCode: 189
 生产 API: https://jyl.880301.xyz
 ```
 
@@ -208,19 +208,19 @@ APK 首次安装包通过 HBuilderX 或 Linux HBuilderX CLI 打包。正式发�
 登录页 APK 下载入口默认指向：
 
 ```text
-/storage/app-releases/jyl-1.8.8.apk
+/storage/app-releases/jyl-1.8.9.apk
 ```
 
 本地测试时会使用当前本地域名，例如：
 
 ```text
-http://localhost:3000/storage/app-releases/jyl-1.8.8.apk
+http://localhost:3000/storage/app-releases/jyl-1.8.9.apk
 ```
 
 生产环境默认使用同源路径。如果需要使用 CDN 或对象存储，可在后端环境变量中设置：
 
 ```text
-APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.8.apk
+APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.9.apk
 ```
 
 ## App 热更新
@@ -231,7 +231,7 @@ APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.8.apk
 
 ```bash
 cd server
-npm run app:update:publish -- ..\client\dist\release\jyl-1.8.8-188.wgt 1.8.8 188 "优化趋势参考范围与单位设置，移除独立 OCR 复核台入口"
+npm run app:update:publish -- ..\client\dist\release\jyl-1.8.9-189.wgt 1.8.9 189 "发布趋势参考范围与单位设置更新，移除独立 OCR 复核台入口"
 ```
 
 发布前自检：

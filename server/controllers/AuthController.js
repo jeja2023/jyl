@@ -795,7 +795,7 @@ class AuthController {
             supportEmail: process.env.SUPPORT_EMAIL || 'support@jiayoule.com',
             wechatSupport: process.env.WECHAT_SUPPORT || 'JYL_Support',
             version: pkg.version,
-            apkDownloadUrl: normalizePublicUrl(ctx, process.env.APK_DOWNLOAD_URL || '/storage/app-releases/jyl-1.8.6.apk')
+            apkDownloadUrl: normalizePublicUrl(ctx, process.env.APK_DOWNLOAD_URL || `/storage/app-releases/jyl-${pkg.version}.apk`)
         });
     }
 }
