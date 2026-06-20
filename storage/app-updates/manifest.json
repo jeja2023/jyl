@@ -3,16 +3,18 @@
   "platforms": [
     "android"
   ],
-  "versionName": "1.8.9",
-  "versionCode": 189,
+  "versionName": "1.8.10",
+  "versionCode": 190,
   "minVersionCode": 0,
   "force": false,
-  "wgtUrl": "/storage/app-updates/jyl-1.8.9-189.wgt",
-  "size": 5435357,
-  "md5": "853e6f8aea37e934ab857e15b4e30ee1",
-  "sha256": "9627dd7e6475e84a72076fa508980b16a791601748e2f9fc22278f86a3ff6b21",
+  "wgtUrl": "/storage/app-updates/jyl-1.8.10-190.wgt",
+  "size": 5435686,
+  "md5": "c180512bec6b70ed2c7138eab5a7485e",
+  "sha256": "5d8900ead81860b6d0e2c9423ebe3dfe2b34c9b23fb296da21c25e12037aff4c",
   "releaseNotes": [
-    "发布趋势参考范围与单位设置更新，移除独立 OCR 复核台入口"
+    "修复记录详情页自定义参考范围显示、颜色箭头和指标建议判定不一致的问题",
+    "优化趋势页相关记录指标单位字号，改善移动端阅读拥挤",
+    "本次为前端显示修复，Android 通过 1.8.10 / 190 WGT 热更新下发，无需重新打 APK"
   ],
-  "publishedAt": "2026-06-19T02:00:52.636Z"
+  "publishedAt": "2026-06-20T02:03:46.182Z"
 }

@@ -6,18 +6,16 @@
 
 ## 当前版本
 
-当前版本：`1.8.9`
+当前版本：`1.8.10`
 
-本版本重点优化趋势页参考范围与单位自定义：用户可在趋势页直接编辑当前指标的参考下限、上限和单位，趋势图参考带、异常状态和相关记录均优先使用本人或家庭成员的自定义设置。
+本版本修复指标记录详情页没有显示本人或家庭成员自定义参考范围的问题，并优化趋势页相关记录中的单位字号，避免单位文字过大影响阅读。
 
-本版本同时收敛独立 OCR 复核台入口，保留指标录入页内的 OCR 识别、修正和应用流程，避免用户进入不能编辑回写的独立复核列表。
+本次为前端显示层更新，Android 使用 `jyl-1.8.10-190.wgt` 热更新下发；由于后端按 `versionCode` 判断是否需要更新，已安装 `1.8.9 / 189` 的用户必须收到新的 `1.8.10 / 190` 包，不能复用旧 WGT。
 
-- 趋势设置：支持在趋势页编辑当前指标参考范围和单位。
-- 成员档案：本人和家庭成员分别维护自定义参考范围，当前记录会优先使用对应对象的设置。
-- 趋势判定：参考带、最新值异常状态和记录小卡片状态统一走自定义范围。
-- OCR 入口：移除首页独立 OCR 复核台入口，保留录入页内复核闭环。
-- 迁移与校验：新增 `Users.referenceRanges` 字段迁移，并纳入数据库迁移自检。
-- 发布治理：新增 `npm run release:check`，校验版本号、热更新 manifest 和 wgt 包一致性；`uview-plus` 锁定为 `3.6.29`。
+- 记录详情：参考范围、颜色、上下箭头和指标建议统一使用本人或家庭成员的自定义范围。
+- 单位显示：优先使用自定义单位，其次使用报告原始单位，最后回退系统默认单位。
+- 趋势展示：相关记录里的单位字号已缩小，并保留自定义单位高亮。
+- 自动更新：`client/src/manifest.json` 已同步为 `1.8.10 / 190`，`storage/app-updates/manifest.json` 已指向 `jyl-1.8.10-190.wgt`。
 - 发布文档：详见 `更新日志.md`、`ANDROID_APK_BUILD.md` 和 `APP_RELEASE_CHECKLIST.md`。
 
 ## 核心功能
@@ -198,8 +196,8 @@ npm run release:app
 ```text
 AppID: __UNI__F18FC4D
 包名: com.jiayoule.app
-versionName: 1.8.9
-versionCode: 189
+versionName: 1.8.10
+versionCode: 190
 生产 API: https://jyl.880301.xyz
 ```
 
@@ -208,19 +206,19 @@ APK 首次安装包通过 HBuilderX 或 Linux HBuilderX CLI 打包。正式发�
 登录页 APK 下载入口默认指向：
 
 ```text
-/storage/app-releases/jyl-1.8.9.apk
+/storage/app-releases/jyl-1.8.10.apk
 ```
 
 本地测试时会使用当前本地域名，例如：
 
 ```text
-http://localhost:3000/storage/app-releases/jyl-1.8.9.apk
+http://localhost:3000/storage/app-releases/jyl-1.8.10.apk
 ```
 
 生产环境默认使用同源路径。如果需要使用 CDN 或对象存储，可在后端环境变量中设置：
 
 ```text
-APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.9.apk
+APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.10.apk
 ```
 
 ## App 热更新
@@ -231,7 +229,7 @@ APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.9.apk
 
 ```bash
 cd server
-npm run app:update:publish -- ..\client\dist\release\jyl-1.8.9-189.wgt 1.8.9 189 "发布趋势参考范围与单位设置更新，移除独立 OCR 复核台入口"
+npm run app:update:publish -- ..\client\dist\release\jyl-1.8.10-190.wgt 1.8.10 190 "修复记录详情参考范围显示并优化趋势页单位字号"
 ```
 
 发布前自检：

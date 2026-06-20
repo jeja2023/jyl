@@ -1,6 +1,6 @@
 # App 发布检查清单
 
-当前版本：`1.8.9`（`versionCode: 189`）
+当前版本：`1.8.10`（`versionCode: 190`）
 
 ## 首次 APK
 
@@ -8,13 +8,13 @@
 - `client/.env.production` 已配置正式 `VITE_API_BASE`
 - `client/src/manifest.json` 已配置 DCloud AppID
 - Android 包名已确定且不会随意变更
-- `versionName` / `versionCode` 已递增到 `1.8.9 / 189`
+- `versionName` / `versionCode` 已递增到 `1.8.10 / 190`
 - Android 签名证书已备份
 - 权限列表已按最小权限原则检查
 - Android 图标均为英文文件名 PNG
 - `npm run build:app` 构建成功
 - HBuilderX 或 Linux HBuilderX CLI 正式 APK 打包成功
-- APK 已上传或同步到 `storage/app-releases/jyl-1.8.9.apk`
+- APK 已上传或同步到 `storage/app-releases/jyl-1.8.10.apk`
 - 登录页“下载安卓版”入口可访问并能下载 APK
 - 真机完成核心流程验收
 - 热更新检查接口可访问
@@ -27,6 +27,8 @@
 - `client/dist/release/*.wgt.json` 中 size、md5、sha256 已生成
 - `npm run app:update:publish` 发布成功
 - `storage/app-updates/manifest.json` 的版本号正确
+- `storage/app-updates/manifest.json` 已指向 `jyl-1.8.10-190.wgt`
+- 从 `1.8.9 / 189` 真机检查更新时可发现 `1.8.10 / 190`
 - `npm run release:check` 发布自检通过
 - 真机验证可发现更新、下载、安装并重启
 - 强制更新仅用于兼容性或安全修复
@@ -39,6 +41,16 @@
 - 请求日志不记录 `authToken`、`shareToken`、`token` 查询参数
 - 生产环境已配置 `CORS_ORIGINS`，或明确接受拒绝带 Origin 的跨域请求
 - 生产环境未通过 Nginx、CDN 或对象存储额外公开 `storage/logs` 与 `storage/reports`
+
+## 1.8.10 发布重点
+
+- 记录详情页指标卡片会显示本人或家庭成员自定义参考范围
+- 详情页颜色、上下箭头和指标建议统一使用有效参考范围，避免显示范围和判定范围不一致
+- 指标单位优先使用自定义单位，其次使用报告原始单位，最后回退系统默认单位
+- 趋势页相关记录中的指标单位字号缩小，改善截图中单位文字过大的问题
+- 本次是前端显示修复，不涉及原生权限、模块、包名、证书或生产 API 地址，可通过 WGT 热更新发布，无需重新打 APK
+- App 热更新版本升级为 `1.8.10 / 190`，发布包名为 `jyl-1.8.10-190.wgt`
+- 后端更新接口不会下发小于或等于当前 `versionCode` 的更新，因此不能复用 `1.8.9 / 189`
 
 ## 1.8.9 发布重点
 

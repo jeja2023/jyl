@@ -190,7 +190,7 @@
                   <text class="val" :class="'color-' + getIndicatorInfoFromRef(item[metricKey], getEffectiveRefRange(metricKey, item)).color">{{ item[metricKey] }}</text>
                   <view class="label-row">
                     <text class="label" :class="{ 'active-tab-text': metricKey === currentTab }">{{ metricKey }}</text>
-                    <text class="mini-unit" v-if="getDisplayUnit(metricKey, item)">{{ getDisplayUnit(metricKey, item) }}</text>
+                    <text class="mini-unit" :class="{ detected: isCustomDisplayUnit(metricKey, item) }" v-if="getDisplayUnit(metricKey, item)">{{ getDisplayUnit(metricKey, item) }}</text>
                   </view>
                   <u-icon v-if="getIndicatorInfoFromRef(item[metricKey], getEffectiveRefRange(metricKey, item)).icon" :name="getIndicatorInfoFromRef(item[metricKey], getEffectiveRefRange(metricKey, item)).icon" size="8" :color="getIndicatorInfoFromRef(item[metricKey], getEffectiveRefRange(metricKey, item)).color === 'error' ? '#F53F3F' : '#FF7D00'" class="mini-arrow"></u-icon>
                 </view>
@@ -497,12 +497,14 @@ const getEffectiveRangeMeta = (key, record = null) => {
   const fallback = allIndicators.find(t => t.key === key) || {};
   return {
     ref: formatRange(custom) || fallback.ref || '',
-    unit: custom.unit || record?.units?.[key] || fallback.unit || ''
+    unit: custom.unit || record?.units?.[key] || fallback.unit || '',
+    isCustomUnit: !!custom.unit
   };
 };
 
 const getEffectiveRefRange = (key, record = null) => getEffectiveRangeMeta(key, record).ref;
 const getDisplayUnit = (key, record = null) => getEffectiveRangeMeta(key, record).unit;
+const isCustomDisplayUnit = (key, record = null) => getEffectiveRangeMeta(key, record).isCustomUnit;
 
 const hasBloodData = (item) => {
     return visibleListMetrics.value.some(k => item[k] !== undefined && item[k] !== null && item[k] !== '');
@@ -1515,6 +1517,20 @@ onShow(() => {
         .label {
           font-size: 18rpx;
           color: #C9CDD4;
+        }
+      }
+
+      .mini-unit {
+        font-size: 14rpx;
+        line-height: 1.1;
+        color: #C9CDD4;
+        font-weight: 500;
+        transform: scale(0.92);
+        transform-origin: left center;
+
+        &.detected {
+          color: #3E7BFF;
+          font-weight: 700;
         }
       }
       

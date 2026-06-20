@@ -28,18 +28,17 @@
         <view class="metrics-grid">
           <view class="metric-item" v-for="item in visibleLabMetrics" :key="item.key">
             <view class="val-box">
-              <text class="val" :style="{color: getIndicatorInfo(record[item.key], item.ref).color}">{{ record[item.key] }}</text>
-              <u-icon v-if="getIndicatorInfo(record[item.key], item.ref).icon" :name="getIndicatorInfo(record[item.key], item.ref).icon" size="12" :color="getIndicatorInfo(record[item.key], item.ref).color"></u-icon>
+              <text class="val" :style="{color: getIndicatorInfo(record[item.key], getEffectiveRefRange(item.key)).color}">{{ record[item.key] }}</text>
+              <u-icon v-if="getIndicatorInfo(record[item.key], getEffectiveRefRange(item.key)).icon" :name="getIndicatorInfo(record[item.key], getEffectiveRefRange(item.key)).icon" size="12" :color="getIndicatorInfo(record[item.key], getEffectiveRefRange(item.key)).color"></u-icon>
             </view>
             <view class="label-group">
               <text class="label">{{ item.label }}</text>
               <text class="metric-role" :class="metricRole(item.key)" v-if="metricRoleText(item.key)">
                 {{ metricRoleText(item.key) }}
               </text>
-              <text class="unit" :class="{'detected': record.units && record.units[item.key]}" v-if="record.units && record.units[item.key]">{{ record.units[item.key] }}</text>
-              <text class="unit" v-else-if="item.unit">{{ item.unit }}</text>
+              <text class="unit" :class="{'detected': isDisplayUnitDetected(item.key)}" v-if="getDisplayUnit(item.key)">{{ getDisplayUnit(item.key) }}</text>
             </view>
-            <text class="ref-text" v-if="item.ref">参考: {{ item.ref }}</text>
+            <text class="ref-text" v-if="getEffectiveRefRange(item.key)">参考: {{ getEffectiveRefRange(item.key) }}</text>
             <text class="advice" v-if="getAdvice(item)">{{ getAdvice(item) }}</text>
           </view>
         </view>
@@ -235,8 +234,52 @@ const labMetrics = ALL_INDICATORS.map(item => ({
   ref: item.ref
 }));
 
+const parseReferenceRanges = (value) => {
+  if (!value) return {};
+  if (typeof value === 'object') return value;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (e) {
+    return {};
+  }
+};
+
+const toRangeNumber = (value) => {
+  if (value === '' || value === null || value === undefined) return undefined;
+  const next = Number(value);
+  return Number.isNaN(next) ? undefined : next;
+};
+
+const cleanRange = (range = {}) => {
+  const next = {};
+  const min = toRangeNumber(range.min);
+  const max = toRangeNumber(range.max);
+  if (min !== undefined) next.min = min;
+  if (max !== undefined) next.max = max;
+  if (range.unit !== undefined && range.unit !== null && String(range.unit).trim()) {
+    next.unit = String(range.unit).trim();
+  }
+  return next;
+};
+
+const formatRange = (range = {}) => {
+  const min = toRangeNumber(range.min);
+  const max = toRangeNumber(range.max);
+  if (min !== undefined && max !== undefined) return `${min} - ${max}`;
+  if (max !== undefined) return `< ${max}`;
+  if (min !== undefined) return `> ${min}`;
+  return '';
+};
+
 const detailPatientType = computed(() => record.value?.FamilyMember?.patientType || userStore.userInfo?.patientType || '其他');
 const detailDiseaseProfile = computed(() => getDiseaseIndicatorProfile(detailPatientType.value));
+const detailRangeOwnerRanges = computed(() => {
+  if (record.value?.FamilyMember?.id) {
+    return parseReferenceRanges(record.value.FamilyMember.referenceRanges);
+  }
+  return parseReferenceRanges(userStore.userInfo?.referenceRanges);
+});
 const metricRole = (key) => {
   if (detailDiseaseProfile.value.core.includes(key)) return 'core';
   if (detailDiseaseProfile.value.recommended.includes(key)) return 'recommended';
@@ -262,6 +305,20 @@ const visibleLabMetrics = computed(() => {
 });
 
 // 指标判断方法，转换颜色格式以适配本组件的显示需求
+const getEffectiveRangeMeta = (key) => {
+  const custom = cleanRange(detailRangeOwnerRanges.value?.[key] || {});
+  const fallback = labMetrics.find(item => item.key === key) || {};
+  return {
+    ref: formatRange(custom) || fallback.ref || '',
+    unit: custom.unit || record.value?.units?.[key] || fallback.unit || '',
+    isDisplayUnitDetected: !!custom.unit || !!record.value?.units?.[key]
+  };
+};
+
+const getEffectiveRefRange = (key) => getEffectiveRangeMeta(key).ref;
+const getDisplayUnit = (key) => getEffectiveRangeMeta(key).unit;
+const isDisplayUnitDetected = (key) => getEffectiveRangeMeta(key).isDisplayUnitDetected;
+
 const getIndicatorInfo = (val, refStr) => {
   const result = getIndicatorInfoFromRef(val, refStr);
   // 转换为十六进制颜色值
@@ -324,7 +381,7 @@ const buildSummary = (data) => {
 
 const getAdvice = (item) => {
   const profile = { ...(userStore.userInfo || {}), patientType: detailPatientType.value };
-  return getIndicatorAdvice(item.key, record.value[item.key], item.ref, profile);
+  return getIndicatorAdvice(item.key, record.value[item.key], getEffectiveRefRange(item.key), profile);
 };
 
 const getImageUrl = (path) => {

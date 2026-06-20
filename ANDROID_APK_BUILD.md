@@ -1,6 +1,6 @@
 # Android APK 与热更新发布指南
 
-当前版本：`1.8.9`（`versionCode: 189`）
+当前版本：`1.8.10`（`versionCode: 190`）
 
 目标：用户首次安装 APK 后，后续普通前端更新通过 wgt 热更新完成，用户无需反复卸载或重新安装 APK。
 
@@ -69,7 +69,7 @@ npm run build:app
 
 6. 发布 APK 下载入口：
 
-- 将正式 APK 同步到 `storage/app-releases/jyl-1.8.9.apk`
+- 将正式 APK 同步到 `storage/app-releases/jyl-1.8.10.apk`
 - 登录页 H5 会显示“下载安卓版”，用户可直接下载安装包
 - 如果使用独立 CDN 或对象存储，可通过 `APK_DOWNLOAD_URL` 环境变量覆盖下载地址
 
@@ -80,6 +80,19 @@ npm run build:app
 - 图片上传、OCR、OCR 复核
 - 分享、家庭成员、用药提醒
 - `/api/app/update/check` 热更新检查
+
+## 1.8.10 自动更新设置
+
+本次 `1.8.10 / 190` 只修改前端页面显示、参考范围判定和样式，不涉及原生权限、模块、插件、包名、证书、图标、启动图或生产 API 地址，因此可走 WGT 热更新，不需要重新打 APK。
+
+自动更新必须同时满足：
+
+- `client/src/manifest.json` 已更新为 `versionName: 1.8.10`、`versionCode: 190`
+- 发布后的 `storage/app-updates/manifest.json` 同样为 `1.8.10 / 190`
+- manifest 中 `wgtUrl` 指向 `/storage/app-updates/jyl-1.8.10-190.wgt`
+- 从已安装 `1.8.9 / 189` 的 Android App 发起检查时，后端返回 `hasUpdate: true`
+
+注意：后端更新检查会阻止 `versionCode` 倒退或同版本覆盖。若只是覆盖 `jyl-1.8.9-189.wgt`，已装 `1.8.9 / 189` 的用户不会收到这次修复。
 
 ## wgt 热更新发布
 
@@ -96,15 +109,15 @@ npm run release:app
 输出文件示例：
 
 ```text
-client/dist/release/jyl-1.8.9-189.wgt
-client/dist/release/jyl-1.8.9-189.wgt.json
+client/dist/release/jyl-1.8.10-190.wgt
+client/dist/release/jyl-1.8.10-190.wgt.json
 ```
 
 3. 发布到后端：
 
 ```bash
 cd server
-npm run app:update:publish -- ..\client\dist\release\jyl-1.8.9-189.wgt 1.8.9 189 "发布趋势参考范围与单位设置更新，移除独立 OCR 复核台入口"
+npm run app:update:publish -- ..\client\dist\release\jyl-1.8.10-190.wgt 1.8.10 190 "修复记录详情参考范围显示并优化趋势页单位字号"
 ```
 
 强制更新示例：
@@ -160,7 +173,7 @@ GET /api/report/image/:filename
 App 启动后会请求：
 
 ```text
-GET /api/app/update/check?platform=android&versionName=1.8.4&versionCode=184
+GET /api/app/update/check?platform=android&versionName=1.8.9&versionCode=189
 ```
 
 客户端策略：
