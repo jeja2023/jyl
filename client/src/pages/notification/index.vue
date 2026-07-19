@@ -66,8 +66,9 @@ const handleItemClick = async (item) => {
 
 const deleteMsg = async (item, index) => {
   try {
-    await http.delete('/api/notification/delete', { data: { id: item.id } });
+    await http.delete(`/api/notification/delete?id=${encodeURIComponent(item.id)}`);
     list.value.splice(index, 1);
+    uni.$u.toast('删除成功');
   } catch (e) {
     uni.$u.toast('删除失败');
   }

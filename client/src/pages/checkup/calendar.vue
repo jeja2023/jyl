@@ -186,9 +186,9 @@ const deleteReminder = (item) => {
     success: async (res) => {
       if (res.confirm) {
         try {
-          await http.delete('/api/checkup/delete', { data: { id: item.id } });
+          await http.delete(`/api/checkup/delete?id=${encodeURIComponent(item.id)}`);
           uni.$u.toast('删除成功');
-          loadReminders();
+          await loadReminders();
         } catch (e) {
           console.error(e);
         }

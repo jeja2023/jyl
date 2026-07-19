@@ -6,6 +6,11 @@ const { Op } = require('sequelize');
 const { buildCheckupNotice, buildMedicationNotices, sortNotifications } = require('../services/NotificationService');
 const { getPagination } = require('../utils/pagination');
 
+const resolveRequestId = (ctx) => {
+    const body = ctx.request?.body || {};
+    return body.id ?? body.data?.id ?? ctx.query?.id ?? ctx.params?.id ?? null;
+};
+
 class NotificationController {
     static async list(ctx) {
         const userId = ctx.state.user.id;
@@ -94,13 +99,14 @@ class NotificationController {
     }
 
     static async delete(ctx) {
-        const { id } = ctx.request.body;
+        const id = resolveRequestId(ctx);
         const userId = ctx.state.user.id;
+        if (!id) return Response.error(ctx, '缺少必要的参数 id', 400);
         const result = await Notification.destroy({ where: { id, UserId: userId } });
         if (result) {
             Response.success(ctx, null, '删除成功');
         } else {
-            throw new Error('删除失败或记录不存在');
+            return Response.error(ctx, '记录不存在或无权操作', 404);
         }
     }
 }

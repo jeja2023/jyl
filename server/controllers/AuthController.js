@@ -8,11 +8,15 @@ const Response = require('../utils/response');
 const SmsService = require('../utils/sms');
 const MailService = require('../utils/mail');
 const sequelize = require('../db');
+const fs = require('node:fs');
+const path = require('node:path');
 const { Op, UniqueConstraintError } = require('sequelize');
 const { logAction } = require('../utils/actionLog');
 const { TREND_KEYS, getDiseaseIndicatorProfile, getDefaultTrendKeys } = require('../utils/indicatorAnalysis');
 const logger = require('../utils/logger');
 const pkg = require('../package.json');
+const APP_RELEASES_DIR = path.resolve(__dirname, '..', '..', 'storage', 'app-releases');
+const FALLBACK_APK_DOWNLOAD_URL = '/storage/app-releases/jyl-1.8.6.apk';
 
 const normalizePublicUrl = (ctx, url) => {
     if (!url) return '';
@@ -22,6 +26,51 @@ const normalizePublicUrl = (ctx, url) => {
         const publicBase = process.env.APP_PUBLIC_BASE_URL || process.env.PUBLIC_BASE_URL;
         return publicBase ? new URL(url, publicBase).toString() : url;
     }
+};
+
+const compareSemverParts = (left = '', right = '') => {
+    const leftParts = String(left).split('.').map((part) => parseInt(part, 10) || 0);
+    const rightParts = String(right).split('.').map((part) => parseInt(part, 10) || 0);
+    const maxLength = Math.max(leftParts.length, rightParts.length);
+
+    for (let index = 0; index < maxLength; index += 1) {
+        const diff = (leftParts[index] || 0) - (rightParts[index] || 0);
+        if (diff !== 0) return diff;
+    }
+
+    return 0;
+};
+
+const resolveDefaultApkDownloadUrl = () => {
+    if (process.env.APK_DOWNLOAD_URL) {
+        return process.env.APK_DOWNLOAD_URL;
+    }
+
+    if (!fs.existsSync(APP_RELEASES_DIR)) {
+        return FALLBACK_APK_DOWNLOAD_URL;
+    }
+
+    const apkFiles = fs.readdirSync(APP_RELEASES_DIR, { withFileTypes: true })
+        .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.apk'))
+        .map((entry) => entry.name);
+
+    if (apkFiles.length === 0) {
+        return FALLBACK_APK_DOWNLOAD_URL;
+    }
+
+    const versionedApks = apkFiles
+        .map((name) => {
+            const match = /^jyl-(\d+(?:\.\d+)*)\.apk$/i.exec(name);
+            return match ? { name, version: match[1] } : null;
+        })
+        .filter(Boolean)
+        .sort((left, right) => compareSemverParts(right.version, left.version));
+
+    if (versionedApks.length > 0) {
+        return `/storage/app-releases/${versionedApks[0].name}`;
+    }
+
+    return `/storage/app-releases/${apkFiles[0]}`;
 };
 
 const getSendLockKey = (targetType, target) => `${targetType}:${target}`;
@@ -795,7 +844,7 @@ class AuthController {
             supportEmail: process.env.SUPPORT_EMAIL || 'support@jiayoule.com',
             wechatSupport: process.env.WECHAT_SUPPORT || 'JYL_Support',
             version: pkg.version,
-            apkDownloadUrl: normalizePublicUrl(ctx, process.env.APK_DOWNLOAD_URL || `/storage/app-releases/jyl-${pkg.version}.apk`)
+            apkDownloadUrl: normalizePublicUrl(ctx, resolveDefaultApkDownloadUrl())
         });
     }
 }

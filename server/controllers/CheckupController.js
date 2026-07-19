@@ -2,6 +2,11 @@ const CheckupReminder = require('../models/CheckupReminder');
 const Response = require('../utils/response');
 const { suggestForUser } = require('../services/CheckupService');
 
+const resolveRequestId = (ctx) => {
+    const body = ctx.request?.body || {};
+    return body.id ?? body.data?.id ?? ctx.query?.id ?? ctx.params?.id ?? null;
+};
+
 class CheckupController {
     static async create(ctx) {
         const { date, note } = ctx.request.body;
@@ -39,8 +44,9 @@ class CheckupController {
     }
 
     static async delete(ctx) {
-        const { id } = ctx.request.body;
+        const id = resolveRequestId(ctx);
         const userId = ctx.state.user.id;
+        if (!id) return Response.error(ctx, '缺少必要的参数 id', 400);
         const result = await CheckupReminder.destroy({ where: { id, UserId: userId } });
         if (!result) return Response.error(ctx, '记录不存在或无权操作', 404);
         Response.success(ctx, null, '删除成功');

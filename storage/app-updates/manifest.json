@@ -3,18 +3,16 @@
   "platforms": [
     "android"
   ],
-  "versionName": "1.8.10",
-  "versionCode": 190,
+  "versionName": "1.8.11",
+  "versionCode": 191,
   "minVersionCode": 0,
   "force": false,
-  "wgtUrl": "/storage/app-updates/jyl-1.8.10-190.wgt",
-  "size": 5435686,
-  "md5": "c180512bec6b70ed2c7138eab5a7485e",
-  "sha256": "5d8900ead81860b6d0e2c9423ebe3dfe2b34c9b23fb296da21c25e12037aff4c",
+  "wgtUrl": "/storage/app-updates/jyl-1.8.11-191.wgt",
+  "size": 5435725,
+  "md5": "8ac9e69e6f41f17a72f0aee5c3e74115",
+  "sha256": "4733ed07edf6da7a13e286655e55c54b1afe211d02f4393af2b9a111449aa4d4",
   "releaseNotes": [
-    "修复记录详情页自定义参考范围显示、颜色箭头和指标建议判定不一致的问题",
-    "优化趋势页相关记录指标单位字号，改善移动端阅读拥挤",
-    "本次为前端显示修复，Android 通过 1.8.10 / 190 WGT 热更新下发，无需重新打 APK"
+    "修复登录页下载、复查日历删除与消息删除体验"
   ],
-  "publishedAt": "2026-06-20T02:03:46.182Z"
+  "publishedAt": "2026-07-19T00:56:33.246Z"
 }
