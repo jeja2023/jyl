@@ -1,4 +1,5 @@
 const { Op } = require('sequelize');
+const sequelize = require('../db');
 const HealthRecord = require('../models/HealthRecord');
 const FamilyMember = require('../models/FamilyMember');
 const Response = require('../utils/response');
@@ -7,14 +8,53 @@ const ExcelJS = require('exceljs');
 const { DEFAULT_RANGES, TREND_KEYS } = require('../utils/indicatorAnalysis');
 const logger = require('../utils/logger');
 const { getPagination } = require('../utils/pagination');
+const { anyHasValue } = require('../utils/recordQuery');
 
 const LAB_KEYS = Object.keys(DEFAULT_RANGES);
+
+// 客户端允许写入的字段白名单。UserId、id、时间戳等归属与主键字段一律由服务端决定，
+// 不接受请求体注入，避免记录被改挂到其他账号下。
+const WRITABLE_FIELDS = new Set([
+    'recordDate',
+    ...LAB_KEYS,
+    'weight',
+    'heartRate',
+    'feeling',
+    'ultrasoundDate',
+    'thyroidLeft',
+    'thyroidRight',
+    'isthmus',
+    'noduleCount',
+    'noduleMaxSize',
+    'noduleLocation',
+    'tiradsLevel',
+    'noduleFeatures',
+    'lymphNode',
+    'ultrasoundNote',
+    'conclusion',
+    'reportImage',
+    'ultrasoundImage',
+    'indicatorUnits',
+    'ocrReview',
+    'memberId'
+]);
 
 class RecordController {
     static cleanData(data) {
         for (const key in data) {
             if (data[key] === '') data[key] = null;
         }
+    }
+
+    /**
+     * 按白名单挑出可写字段，丢弃 UserId/id 等客户端不应控制的字段
+     */
+    static pickWritable(data = {}) {
+        const result = {};
+        for (const key of Object.keys(data)) {
+            if (WRITABLE_FIELDS.has(key)) result[key] = data[key];
+        }
+        return result;
     }
 
     static async export(ctx) {
@@ -25,10 +65,13 @@ class RecordController {
         if (id) where.id = id;
         if (memberId) where.memberId = memberId;
 
+        // 导出会把整份结果读进内存生成 Excel，给个上限避免单次请求把进程内存打满
+        const exportLimit = parseInt(process.env.EXPORT_MAX_ROWS || '5000', 10);
         const records = await HealthRecord.findAll({
             where,
             include: [{ model: FamilyMember, attributes: ['name'] }],
-            order: [['recordDate', 'DESC']]
+            order: [['recordDate', 'DESC']],
+            limit: exportLimit
         });
 
         logger.debug('Export records query completed', { userId, count: records?.length || 0 });
@@ -85,6 +128,16 @@ class RecordController {
                 };
             });
         });
+
+        // 达到上限说明还有更早的记录没导出，明确写进文件，不让用户以为导出的是全量
+        if (records.length >= exportLimit) {
+            const noticeRow = sheet.addRow({
+                recordDate: `注意：本次仅导出最近 ${exportLimit} 条记录，更早的记录未包含在内。`
+            });
+            noticeRow.font = { bold: true, color: { argb: 'FFC00000' } };
+            sheet.mergeCells(noticeRow.number, 1, noticeRow.number, sheet.columns.length);
+            logger.warn('Export truncated at row limit', { userId, exportLimit });
+        }
 
         const filename = `Health_Records_${Date.now()}.xlsx`;
         ctx.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -185,7 +238,10 @@ class RecordController {
                 for (const field in colMap) {
                     if (field === 'recordDate' || field === 'memberName') continue;
                     const val = row.getCell(colMap[field]).value;
-                    rowData[field] = val !== null && val !== undefined ? String(val).trim() : null;
+                    const text = val !== null && val !== undefined ? String(val).trim() : '';
+                    // 空单元格统一存 null，不要存空字符串：
+                    // 否则统计化验份数、hasLab 过滤都会把这条当成"填了值"
+                    rowData[field] = text === '' ? null : text;
                 }
 
                 importRecords.push(rowData);
@@ -199,30 +255,51 @@ class RecordController {
                 memberMap[member.name] = member.id;
             });
 
-            let successCount = 0;
-            for (const item of importRecords) {
-                try {
-                    if (item._tempMemberName && memberMap[item._tempMemberName]) {
-                        item.memberId = memberMap[item._tempMemberName];
-                    }
-                    delete item._tempMemberName;
-
-                    const existing = await HealthRecord.findOne({
-                        where: {
-                            UserId: userId,
-                            recordDate: item.recordDate,
-                            memberId: item.memberId || null
-                        }
-                    });
-
-                    if (existing) await existing.update(item);
-                    else await HealthRecord.create(item);
-                    successCount++;
-                } catch (e) {
-                    logger.warn('Import row failed', { message: e.message });
-                    skipCount++;
+            importRecords.forEach(item => {
+                if (item._tempMemberName && memberMap[item._tempMemberName]) {
+                    item.memberId = memberMap[item._tempMemberName];
                 }
-            }
+                delete item._tempMemberName;
+            });
+
+            // 一次取回涉及日期的已有记录，避免每行一条 SELECT。
+            // 键里的日期统一normalize：Excel 来的可能是 '2026-7-6'，
+            // 数据库 DATEONLY 回来的是 '2026-07-06'，不对齐会导致去重失效、插出重复行。
+            const dedupeKey = (recordDate, memberId) => {
+                const normalized = RecordController.normalizeDateKey(recordDate);
+                return `${normalized}#${memberId || 'self'}`;
+            };
+
+            const importDates = [...new Set(importRecords.map(item => item.recordDate))];
+            const existingRecords = await HealthRecord.findAll({
+                where: { UserId: userId, recordDate: { [Op.in]: importDates } }
+            });
+            const existingMap = new Map();
+            existingRecords.forEach(record => {
+                existingMap.set(dedupeKey(record.recordDate, record.memberId), record);
+            });
+
+            // 整批放进一个事务：中途失败不会留下半份导入结果
+            let successCount = 0;
+            await sequelize.transaction(async (transaction) => {
+                for (const item of importRecords) {
+                    try {
+                        const key = dedupeKey(item.recordDate, item.memberId);
+                        const existing = existingMap.get(key);
+
+                        if (existing) {
+                            await existing.update(item, { transaction });
+                        } else {
+                            const created = await HealthRecord.create(item, { transaction });
+                            existingMap.set(key, created);
+                        }
+                        successCount++;
+                    } catch (e) {
+                        logger.warn('Import row failed', { message: e.message });
+                        skipCount++;
+                    }
+                }
+            });
 
             Response.success(ctx, { successCount, skipCount }, `成功导入 ${successCount} 条记录${skipCount > 0 ? `，跳过 ${skipCount} 条` : ''}`);
             logAction(ctx, '导入数据', '健康记录', `用户导入了${successCount}条记录`);
@@ -232,8 +309,25 @@ class RecordController {
         }
     }
 
+    /**
+     * 把日期统一成 YYYY-MM-DD 作为去重键。
+     * Excel 里可能是 '2026-7-6'、Date 对象，数据库 DATEONLY 回来的是 '2026-07-06'，
+     * 不归一化会让同一天被当成两条不同记录。
+     */
+    static normalizeDateKey(value) {
+        if (!value) return '';
+        if (value instanceof Date) return value.toISOString().split('T')[0];
+
+        const text = String(value).trim();
+        const match = text.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+        if (!match) return text;
+
+        const [, year, month, day] = match;
+        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+
     static async create(ctx) {
-        const data = ctx.request.body;
+        const data = RecordController.pickWritable(ctx.request.body);
         const userId = ctx.state.user.id;
         RecordController.cleanData(data);
 
@@ -259,7 +353,7 @@ class RecordController {
 
         const where = { UserId: userId };
         if (hasLab == 1) {
-            where[Op.or] = LAB_KEYS.map(key => ({ [key]: { [Op.ne]: null } }));
+            Object.assign(where, anyHasValue(LAB_KEYS));
         }
 
         const { count, rows } = await HealthRecord.findAndCountAll({
@@ -305,7 +399,7 @@ class RecordController {
         const list = await HealthRecord.findAll({
             where: {
                 UserId: userId,
-                [Op.or]: TREND_KEYS.map(key => ({ [key]: { [Op.ne]: null } }))
+                ...anyHasValue(TREND_KEYS)
             },
             attributes: ['recordDate', ...TREND_KEYS],
             order: [['recordDate', 'DESC']],
@@ -317,7 +411,7 @@ class RecordController {
     static async update(ctx) {
         const { id } = ctx.params;
         const userId = ctx.state.user.id;
-        const data = ctx.request.body;
+        const data = RecordController.pickWritable(ctx.request.body);
         const record = await HealthRecord.findOne({ where: { id, UserId: userId } });
         if (!record) return Response.error(ctx, '记录不存在', 404);
 

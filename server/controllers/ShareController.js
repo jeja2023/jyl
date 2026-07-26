@@ -5,9 +5,15 @@ const ShareLink = require('../models/ShareLink');
 const Response = require('../utils/response');
 const { buildExpiresAt, generateToken, hashToken } = require('../utils/shareToken');
 const { logAction } = require('../utils/actionLog');
+const logger = require('../utils/logger');
 const { DEFAULT_RANGES } = require('../utils/indicatorAnalysis');
 
 const LAB_KEYS = Object.keys(DEFAULT_RANGES);
+
+// 旧版本用 JWT 直接承载分享信息，这类令牌在 share_links 表中没有对应行，
+// 因此无法被撤销接口关闭、也读不到过期时间和分享选项。默认关闭该兼容路径，
+// 仅在确认仍有存量旧链接在流通时临时置为 true。
+const LEGACY_JWT_SHARE_ENABLED = process.env.SHARE_LEGACY_JWT_ENABLED === 'true';
 
 class ShareController {
     static async createRecordShare(ctx) {
@@ -81,6 +87,10 @@ class ShareController {
         if (handled) return;
 
         if (ShareController.isLegacyJwtToken(token)) {
+            if (!LEGACY_JWT_SHARE_ENABLED) {
+                logger.warn('拒绝旧版 JWT 分享令牌访问', { ip: ctx.ip });
+                return Response.error(ctx, '分享链接已失效或不可用', 401);
+            }
             return ShareController.resolveLegacyJwtShare(ctx, token);
         }
 
@@ -147,10 +157,21 @@ class ShareController {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
             if (decoded.type !== 'record') return Response.error(ctx, '无效分享令牌', 400);
 
+            // 无 exp 的旧令牌永久有效且无法撤销，一律拒绝
+            if (!decoded.exp) {
+                logger.warn('拒绝无有效期的旧版分享令牌', { recordId: decoded.id, ip: ctx.ip });
+                return Response.error(ctx, '分享链接已失效或不可用', 401);
+            }
+
             const record = await HealthRecord.findByPk(decoded.id, {
                 include: [{ model: FamilyMember, attributes: ['id', 'name', 'relation'] }]
             });
             if (!record) return Response.error(ctx, '记录不存在', 404);
+
+            logger.warn('旧版分享令牌被访问，建议尽快让用户重新生成分享链接', {
+                recordId: record.id,
+                ip: ctx.ip
+            });
 
             return Response.success(ctx, ShareController.publicRecord(record));
         } catch (e) {

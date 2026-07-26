@@ -76,6 +76,7 @@ import { computed, ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
+import { formatDate as formatDateWith } from '@/utils/date.js';
 
 const userStore = useUserStore();
 const shares = ref([]);
@@ -147,21 +148,9 @@ const openRecord = (item) => {
   uni.navigateTo({ url: `/pages/record/detail?id=${item.resourceId}` });
 };
 
-const formatDate = (value) => {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-};
+const formatDate = (value) => formatDateWith(value, 'YYYY-MM-DD', '-');
 
-const formatDateTime = (value) => {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
-  return `${formatDate(value)} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-};
-
-const pad = (value) => String(value).padStart(2, '0');
+const formatDateTime = (value) => formatDateWith(value, 'YYYY-MM-DD HH:mm', '-');
 
 onShow(fetchShares);
 </script>

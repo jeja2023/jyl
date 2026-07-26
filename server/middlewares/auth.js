@@ -1,6 +1,24 @@
 const jwt = require('jsonwebtoken');
 const Response = require('../utils/response');
-const User = require('../models/User');
+const { getAuthUser } = require('../utils/userCache');
+
+/**
+ * 判断令牌是否早于用户的失效基线（登出、改密会推进该基线）。
+ *
+ * 优先用自带的毫秒级签发戳 iatMs 精确比较：标准 iat 只有秒精度，
+ * 登录后同一秒内登出的话，秒级比较会把已登出的令牌判为有效。
+ * 老令牌没有 iatMs，退回秒级比较，并保留同秒容忍避免误杀。
+ */
+const isTokenRevoked = (decoded, user) => {
+    if (!user?.tokenInvalidBefore) return false;
+
+    if (typeof decoded?.iatMs === 'number') {
+        return decoded.iatMs < user.tokenInvalidBefore;
+    }
+
+    if (!decoded?.iat) return false;
+    return decoded.iat < Math.floor(user.tokenInvalidBefore / 1000);
+};
 
 /**
  * JWT 认证中间件
@@ -17,21 +35,18 @@ const authMiddleware = async (ctx, next) => {
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        // 从数据库获取完整用户信息（包括角色）
-        const user = await User.findByPk(decoded.id, {
-            attributes: ['id', 'username', 'phone', 'role', 'nickname']
-        });
+        // 取用户信息（含角色），带短 TTL 进程内缓存，避免每请求一条 SELECT
+        const user = await getAuthUser(decoded.id);
 
         if (!user) {
             return Response.error(ctx, '用户不存在', 401);
         }
 
-        ctx.state.user = {
-            id: user.id,
-            username: user.username || user.phone,
-            role: user.role,
-            nickname: user.nickname
-        };
+        if (isTokenRevoked(decoded, user)) {
+            return Response.error(ctx, '登录状态已失效，请重新登录', 401);
+        }
+
+        ctx.state.user = user;
     } catch (err) {
         console.error('[认证失败]', err.message);
         if (err.name === 'TokenExpiredError') {
@@ -52,13 +67,18 @@ const adminMiddleware = async (ctx, next) => {
 
 /**
  * 可选认证中间件 (如果带了Token则解析，没带也放行)
+ * 需要连带取出角色：百科详情等接口靠 ctx.state.user.role 判断管理员，
+ * 只放 id 会让管理员分支永远走不到。
  */
 const optionalAuth = async (ctx, next) => {
     const token = ctx.header.authorization ? ctx.header.authorization.split(' ')[1] : null;
     if (token) {
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            ctx.state.user = { id: decoded.id };
+            const user = await getAuthUser(decoded.id);
+            if (user && !isTokenRevoked(decoded, user)) {
+                ctx.state.user = user;
+            }
         } catch (err) { }
     }
     await next();
@@ -67,3 +87,4 @@ const optionalAuth = async (ctx, next) => {
 module.exports = authMiddleware;
 module.exports.admin = adminMiddleware;
 module.exports.optional = optionalAuth;
+module.exports.isTokenRevoked = isTokenRevoked;

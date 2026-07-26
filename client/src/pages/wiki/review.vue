@@ -60,6 +60,7 @@
 import { ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import http from '@/utils/request.js';
+import { toLocaleDateStr } from '@/utils/date.js';
 
 const list = ref([]);
 const loading = ref(true);
@@ -70,10 +71,7 @@ const currentItem = ref(null);
 
 const goBack = () => uni.navigateBack();
 
-const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    return new Date(dateStr).toLocaleDateString();
-};
+const formatDate = (dateStr) => toLocaleDateStr(dateStr);
 
 const fetchList = async () => {
     loading.value = true;

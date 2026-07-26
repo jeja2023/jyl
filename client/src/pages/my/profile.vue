@@ -100,6 +100,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 import { PATIENT_TYPES, TREATMENT_STAGES } from '@/utils/thyroidIndicators.js';
+import { toDateStr } from '@/utils/date.js';
 
 const userStore = useUserStore();
 const userInfo = computed(() => userStore.userInfo);
@@ -210,7 +211,7 @@ const onStageSelect = async (item) => {
 
 const onDateConfirm = async (e) => {
   const date = new Date(e.value);
-  const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  const dateStr = toDateStr(date);
   
   try {
     await http.post('/api/auth/profile/update', { [currentDateField.value]: dateStr });

@@ -57,6 +57,7 @@
     "@dcloudio/uni-mp-weixin": "3.0.0-4080720251210001",
     "@dcloudio/uni-mp-xhs": "3.0.0-4080720251210001",
     "@dcloudio/uni-quickapp-webview": "3.0.0-4080720251210001",
+    "dayjs": "^1.11.19",
     "luch-request": "^3.1.0",
     "pinia": "^2.1.7",
     "uview-plus": "3.6.29",

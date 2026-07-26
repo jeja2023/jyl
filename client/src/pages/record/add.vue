@@ -320,6 +320,7 @@ import { buildReportImageUrl } from '@/utils/reportImage.js';
 import { saveDraft, loadDraft, clearDraft, enqueueSync } from '@/utils/offlineDraft.js';
 import { ALL_INDICATORS, getDiseaseIndicatorProfile } from '@/utils/thyroidIndicators.js';
 import { onLoad } from '@dcloudio/uni-app';
+import { toDateStr } from '@/utils/date.js';
 
 const userStore = useUserStore();
 const loading = ref(false);
@@ -671,13 +672,13 @@ const progress = computed(() => {
 
 const confirmDate = (e) => {
   const date = new Date(e.value);
-  form.recordDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  form.recordDate = toDateStr(date);
   showCalendar.value = false;
 };
 
 const confirmUltrasoundDate = (e) => {
   const date = new Date(e.value);
-  form.ultrasoundDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  form.ultrasoundDate = toDateStr(date);
   showUltrasoundCalendar.value = false;
 };
 

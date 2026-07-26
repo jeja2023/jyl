@@ -39,6 +39,7 @@
 import { ref, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import http from '@/utils/request.js';
+import { toLocaleDateStr } from '@/utils/date.js';
 
 const articles = ref([]);
 const loading = ref(true);
@@ -65,10 +66,7 @@ const getStatusType = (status) => {
   return map[status] || 'info';
 };
 
-const formatDate = (dateStr) => {
-  if (!dateStr) return '';
-  return new Date(dateStr).toLocaleDateString();
-};
+const formatDate = (dateStr) => toLocaleDateStr(dateStr);
 
 const fetchList = async () => {
     loading.value = true;

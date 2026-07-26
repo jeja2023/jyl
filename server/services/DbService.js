@@ -13,6 +13,9 @@ const MedicationAdjustment = require('../models/MedicationAdjustment');
 const SymptomAssessment = require('../models/SymptomAssessment');
 const ShareLink = require('../models/ShareLink');
 const VerifySendLock = require('../models/VerifySendLock');
+// 必须在 sync 之前把所有模型都注册进 sequelize。WikiArticle 过去漏在这里，
+// 建表只是因为 index.js 随后 require 路由时顺带加载了它，属于依赖加载顺序的巧合。
+const WikiArticle = require('../models/WikiArticle');
 const logger = require('../utils/logger');
 
 class DbService {

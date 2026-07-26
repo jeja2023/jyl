@@ -54,49 +54,9 @@ export const getIndicatorInfoFromRef = (val, refStr) => {
     return { status: '未知', color: 'gray', icon: '' };
 };
 
-export const INDICATOR_REFS = {
-    TSH:       { min: 0.27,  max: 4.2,   unit: 'mIU/L',  name: '促甲状腺激素' },
-    FT4:       { min: 12,    max: 22,     unit: 'pmol/L', name: '游离甲状腺素' },
-    FT3:       { min: 3.1,   max: 6.8,   unit: 'pmol/L', name: '游离三碘甲状腺原氨酸' },
-    T3:        { min: 1.3,   max: 3.1,   unit: 'nmol/L', name: '三碘甲状腺原氨酸' },
-    T4:        { min: 66,    max: 181,   unit: 'nmol/L', name: '总甲状腺素' },
-    Tg:        { min: 0,     max: 77,    unit: 'ng/mL',  name: '甲状腺球蛋白' },
-    TPOAb:     { min: 0,     max: 34,    unit: 'IU/mL',  name: '抗甲状腺过氧化物酶抗体' },
-    TGAb:      { min: 0,     max: 115,   unit: 'IU/mL',  name: '抗甲状腺球蛋白抗体' },
-    TRAb:      { min: 0,     max: 1.75,  unit: 'IU/L',   name: '促甲状腺激素受体抗体' },
-    Calcitonin:{ min: 0,     max: 10,    unit: 'pg/mL',  name: '降钙素' },
-    Calcium:   { min: 2.11,  max: 2.52,  unit: 'mmol/L', name: '血钙' },
-    Magnesium: { min: 0.75,  max: 1.02,  unit: 'mmol/L', name: '血镁' },
-    Phosphorus:{ min: 0.85,  max: 1.51,  unit: 'mmol/L', name: '血磷' },
-    PTH:       { min: 15,    max: 65,    unit: 'pg/mL',  name: '甲状旁腺激素' },
-    TSI:       { min: 0,     max: 0.55,  unit: 'IU/L',   name: '甲状腺刺激免疫球蛋白' },
-    TBAb:      { min: 0,     max: 1.75,  unit: 'IU/L',   name: '促甲状腺素受体阻断抗体' },
-    CEA:       { min: 0,     max: 5,     unit: 'ng/mL',  name: '癌胚抗原' },
-    VitaminD:  { min: 30,    max: 100,   unit: 'ng/mL',  name: '25羟维生素D' },
-    Albumin:   { min: 35,    max: 55,    unit: 'g/L',    name: '血清白蛋白' },
-    ALP:       { min: 45,    max: 125,   unit: 'U/L',    name: '碱性磷酸酶' },
-    ALT:       { min: 0,     max: 40,    unit: 'U/L',    name: '丙氨酸氨基转移酶' },
-    AST:       { min: 0,     max: 40,    unit: 'U/L',    name: '天门冬氨酸氨基转移酶' },
-    GGT:       { min: 0,     max: 50,    unit: 'U/L',    name: '谷氨酰转肽酶' },
-    Bilirubin: { min: 3.4,   max: 20.5,  unit: 'umol/L', name: '总胆红素' },
-    WBC:       { min: 3.5,   max: 9.5,   unit: '10^9/L', name: '白细胞计数' },
-    Neutrophils: { min: 1.8, max: 6.3,   unit: '10^9/L', name: '中性粒细胞计数' },
-    TC:        { min: 0,     max: 5.2,   unit: 'mmol/L', name: '总胆固醇' },
-    LDL:       { min: 0,     max: 3.4,   unit: 'mmol/L', name: '低密度脂蛋白胆固醇' },
-    HDL:       { min: 1.0,   max: Infinity, unit: 'mmol/L', name: '高密度脂蛋白胆固醇' },
-    Triglyceride: { min: 0,  max: 1.7,   unit: 'mmol/L', name: '甘油三酯' },
-    CK:        { min: 40,    max: 200,   unit: 'U/L',    name: '肌酸激酶' },
-    ESR:       { min: 0,     max: 20,    unit: 'mm/h',   name: '红细胞沉降率' },
-    CRP:       { min: 0,     max: 10,    unit: 'mg/L',   name: 'C反应蛋白' }
-};
-
-export const checkIndicator = (key, val) => {
-    const ref = INDICATOR_REFS[key];
-    if (!ref) {
-        return { status: '未知', color: 'gray', icon: '' };
-    }
-    return getIndicatorInfo(val, ref.min, ref.max);
-};
+// 参考范围的唯一前端来源是 thyroidIndicators.js 的 ALL_INDICATORS。
+// 这里曾另有一份 INDICATOR_REFS 副本（降钙素上限与后端不一致），且全项目无人引用，已移除，
+// 避免再次出现两套互相矛盾的参考范围。需要按 key 取范围时请从 ALL_INDICATORS 派生。
 
 const DEFAULT_ADVICE = {
     high: '偏高，请结合症状与医生建议调整用药或复查。',

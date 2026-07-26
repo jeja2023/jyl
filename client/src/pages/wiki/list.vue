@@ -116,6 +116,7 @@ import { ref, computed, reactive, onMounted } from 'vue';
 import { onLoad, onReachBottom, onPullDownRefresh } from '@dcloudio/uni-app';
 import http from '@/utils/request.js';
 import { useUserStore } from '@/store/index.js';
+import { toLocaleDateStr } from '@/utils/date.js';
 
 const userStore = useUserStore();
 
@@ -153,10 +154,7 @@ const goBack = () => {
   }
 };
 
-const formatDate = (dateStr) => {
-    if(!dateStr) return '';
-    return new Date(dateStr).toLocaleDateString();
-}
+const formatDate = (dateStr) => toLocaleDateStr(dateStr);
 
 // 获取文章列表
 const fetchList = async (isLoadMore = false) => {

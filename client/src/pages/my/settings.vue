@@ -158,10 +158,15 @@ const handleChangePassword = async () => {
   
   saving.value = true;
   try {
-    await http.post('/api/auth/setPassword', {
+    const res = await http.post('/api/auth/setPassword', {
       oldPassword: passwordForm.value.oldPassword,
       newPassword: passwordForm.value.newPassword
     });
+    // 改密会作废此前签发的所有令牌（含本机当前这个），
+    // 后端会回一个新令牌，换上它本机才不会被自己踢下线。
+    if (res?.token) {
+      userStore.setToken(res.token);
+    }
     uni.$u.toast('密码修改成功');
     // 修改成功后更新用户信息中的密码标志
     if (userStore.userInfo) userStore.userInfo.hasPassword = true;

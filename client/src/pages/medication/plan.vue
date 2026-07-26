@@ -490,6 +490,7 @@ import { onShow, onPullDownRefresh } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 import { setCache, getCache } from '@/utils/cache.js';
+import { toDateStr } from '@/utils/date.js';
 
 const userStore = useUserStore();
 const showAdd = ref(false);
@@ -549,8 +550,7 @@ const activeCount = computed(() => {
 
 const activePlans = computed(() => plans.value.filter(p => p.isActive));
 
-const dateToStr = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-const todayStr = () => dateToStr(new Date());
+const todayStr = () => toDateStr(new Date());
 
 const parseWeeklyDosage = (value) => {
   if (!value) return {};
@@ -575,7 +575,7 @@ const sanitizeWeeklyDosage = (value) => {
 
 const normalizeScheduleType = (value) => value === 'interval' ? 'interval' : 'weekly';
 
-const planStartDate = (plan) => plan?.startDate || (plan?.createdAt ? dateToStr(new Date(plan.createdAt)) : '');
+const planStartDate = (plan) => plan?.startDate || (plan?.createdAt ? toDateStr(new Date(plan.createdAt)) : '');
 
 const parsePlanStartDate = (plan) => {
   const raw = planStartDate(plan);
@@ -759,7 +759,7 @@ const weekDays = computed(() => {
   base.setHours(0, 0, 0, 0);
   for (let i = 6; i >= 0; i--) {
     const date = new Date(base.getTime() - i * 24 * 3600 * 1000);
-    const ds = dateToStr(date);
+    const ds = toDateStr(date);
     const taken = logsByDate.value[ds]?.length || 0;
     const expected = expectedPlansForDate(date).length;
     let status = 'none';
@@ -860,7 +860,8 @@ const calendarDays = computed(() => {
     
     const days = [];
     const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    // 用独立命名，避免遮蔽同名的全局 todayStr() 函数
+    const todayDateStr = toDateStr(today);
     
     // 上月补充
     for (let i = firstDay - 1; i >= 0; i--) {
@@ -875,7 +876,7 @@ const calendarDays = computed(() => {
             date: ds,
             isCurrent: true,
             isMissed: stats.value?.missedDates?.includes(ds),
-            isToday: ds === todayStr
+            isToday: ds === todayDateStr
         });
     }
     
@@ -967,7 +968,7 @@ const confirmTime = (e) => {
 
 const confirmStartDate = (e) => {
   const date = new Date(e.value);
-  newPlan.startDate = dateToStr(date);
+  newPlan.startDate = toDateStr(date);
   startDateValue.value = e.value;
   showStartDate.value = false;
 };
@@ -1067,7 +1068,7 @@ const deletePlan = (id) => {
 const takeMedicine = async (item) => {
     const prevDate = item.lastTakenDate;
     const date = new Date();
-    item.lastTakenDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    item.lastTakenDate = toDateStr(date);
     try {
     await http.post('/api/medication/take', { id: item.id });
     uni.$u.toast('已确认服药');
@@ -1081,7 +1082,7 @@ const takeMedicine = async (item) => {
 const isTakenToday = (item) => {
     if (!item.lastTakenDate) return false;
     const date = new Date();
-    const today = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const today = toDateStr(date);
     return item.lastTakenDate === today;
 };
 
@@ -1106,7 +1107,7 @@ const closeMakeup = () => {
 
 const confirmMakeupDate = (e) => {
   const date = new Date(e.value);
-  makeupForm.date = dateToStr(date);
+  makeupForm.date = toDateStr(date);
   makeupDateValue.value = e.value;
   showMakeupDate.value = false;
 };

@@ -6,16 +6,16 @@
 
 ## 当前版本
 
-当前版本：`1.8.10`
+当前版本：`1.8.11`
 
-本版本修复指标记录详情页没有显示本人或家庭成员自定义参考范围的问题，并优化趋势页相关记录中的单位字号，避免单位文字过大影响阅读。
+本版本修复登录页 APK 下载提示、复查日历删除与消息删除体验。
 
-本次为前端显示层更新，Android 使用 `jyl-1.8.10-190.wgt` 热更新下发；由于后端按 `versionCode` 判断是否需要更新，已安装 `1.8.9 / 189` 的用户必须收到新的 `1.8.10 / 190` 包，不能复用旧 WGT。
+本次为前端与后端联合更新，Android 使用 `jyl-1.8.11-191.wgt` 热更新下发；由于后端按 `versionCode` 判断是否需要更新，已安装 `1.8.10 / 190` 的用户必须收到新的 `1.8.11 / 191` 包，不能复用旧 WGT。
 
-- 记录详情：参考范围、颜色、上下箭头和指标建议统一使用本人或家庭成员的自定义范围。
-- 单位显示：优先使用自定义单位，其次使用报告原始单位，最后回退系统默认单位。
-- 趋势展示：相关记录里的单位字号已缩小，并保留自定义单位高亮。
-- 自动更新：`client/src/manifest.json` 已同步为 `1.8.10 / 190`，`storage/app-updates/manifest.json` 已指向 `jyl-1.8.10-190.wgt`。
+- 登录页下载：未配置 `APK_DOWNLOAD_URL` 时，后端会扫描 `storage/app-releases` 中真实存在的 APK 并选取版本号最高的一个，避免下载按钮报 `not found`。
+- 复查日历删除：删除请求改为通过 query 传 `id`，后端同时兼容 body、query 与 params。
+- 消息删除：同步兼容 query 传参，补充成功提示，缺少 `id` 或记录不存在时返回明确错误。
+- 自动更新：`client/src/manifest.json` 已同步为 `1.8.11 / 191`，`storage/app-updates/manifest.json` 已指向 `jyl-1.8.11-191.wgt`。
 - 发布文档：详见 `更新日志.md`、`ANDROID_APK_BUILD.md` 和 `APP_RELEASE_CHECKLIST.md`。
 
 ## 核心功能
@@ -196,29 +196,31 @@ npm run release:app
 ```text
 AppID: __UNI__F18FC4D
 包名: com.jiayoule.app
-versionName: 1.8.10
-versionCode: 190
+versionName: 1.8.11
+versionCode: 191
 生产 API: https://jyl.880301.xyz
 ```
 
 APK 首次安装包通过 HBuilderX 或 Linux HBuilderX CLI 打包。正式发布必须使用自有签名证书，不使用测试证书。
 
-登录页 APK 下载入口默认指向：
+登录页 APK 下载入口不写死版本号：未配置 `APK_DOWNLOAD_URL` 时，后端扫描 `storage/app-releases` 目录，取其中版本号最高的 APK，例如：
 
 ```text
-/storage/app-releases/jyl-1.8.10.apk
+/storage/app-releases/jyl-<版本号>.apk
 ```
+
+因此新打的 APK 放进该目录即可生效，不需要改代码。目录为空时会回退到内置的默认地址。
 
 本地测试时会使用当前本地域名，例如：
 
 ```text
-http://localhost:3000/storage/app-releases/jyl-1.8.10.apk
+http://localhost:3000/storage/app-releases/jyl-1.8.6.apk
 ```
 
 生产环境默认使用同源路径。如果需要使用 CDN 或对象存储，可在后端环境变量中设置：
 
 ```text
-APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.10.apk
+APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.11.apk
 ```
 
 ## App 热更新
@@ -229,7 +231,7 @@ APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.10.apk
 
 ```bash
 cd server
-npm run app:update:publish -- ..\client\dist\release\jyl-1.8.10-190.wgt 1.8.10 190 "修复记录详情参考范围显示并优化趋势页单位字号"
+npm run app:update:publish -- ..\client\dist\release\jyl-1.8.11-191.wgt 1.8.11 191 "修复登录页下载、复查日历删除与消息删除体验"
 ```
 
 发布前自检：

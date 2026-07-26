@@ -92,6 +92,13 @@ const User = sequelize.define('User', {
         type: DataTypes.DATE,
         comment: '登录锁定截止时间'
     },
+    tokenInvalidBefore: {
+        // DATE(3) 保留毫秒：默认 DATETIME 精度到秒，
+        // 会把登出时刻截成整秒，同一秒内签发的令牌就判不出失效
+        type: DataTypes.DATE(3),
+        allowNull: true,
+        comment: '此时间之前签发的令牌一律失效(登出/改密时更新)'
+    },
     wikiReadCount: {
         type: DataTypes.INTEGER,
         defaultValue: 0,

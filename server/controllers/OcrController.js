@@ -8,6 +8,100 @@ const { parseBase64Image, validateImageBuffer } = require('../utils/imageValidat
 const logger = require('../utils/logger');
 
 const REPORT_STORAGE_DIR = path.join(__dirname, '../../storage/reports');
+const { DEFAULT_RANGES } = require('../utils/indicatorAnalysis');
+
+const escapeRegExp = (str) => String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// OCR 常把中文关键词的字拆开，允许别名内部出现空白
+const spaced = (str) => String(str).split('').map(escapeRegExp).join('\\s*');
+
+const DEFAULT_UNIT_RE = '([a-zA-Z/μ]+)?';
+const COUNT_UNIT_RE = '([a-zA-Z/^]+)?';
+
+/**
+ * 指标别名表。
+ * en  - 英文缩写，生成正则时自动加词边界，避免被更长的词命中
+ *       （例如"总蛋白 TP 72.5"过去会被血磷的 P 匹配成 72.5）
+ * cn  - 中文别名，允许字与字之间出现空格
+ * denyBefore / denyAfter - 排除近似词，例如 FT3 不能算作 T3、抗Tg 不能算作 Tg
+ */
+const INDICATOR_ALIASES = [
+    { key: 'TSH', en: ['TSH'], cn: ['促甲状腺激素', '促甲状腺素'] },
+    { key: 'FT3', en: ['FT3'], cn: ['游离T3', '游离三碘甲状腺原氨酸', '游离三碘'] },
+    { key: 'FT4', en: ['FT4'], cn: ['游离T4', '游离甲状腺素'] },
+    { key: 'T3', en: ['T3'], cn: ['总T3', '三碘甲状腺原氨酸'], denyBefore: ['游离', 'Free\\s*'] },
+    { key: 'T4', en: ['T4'], cn: ['总T4', '甲状腺素'], denyBefore: ['游离', 'Free\\s*', '促'] },
+    { key: 'TPOAb', en: ['TPOAb', 'TPO-Ab'], cn: ['TPO抗体', '抗甲状腺过氧化物酶抗体', '甲状腺过氧化物酶'] },
+    { key: 'TGAb', en: ['TGAb', 'A-TG'], cn: ['TG抗体', '抗甲状腺球蛋白抗体', '甲状腺球蛋白抗体'] },
+    { key: 'TRAb', en: ['TRAb'], cn: ['TR抗体', '促甲状腺激素受体', '促甲状腺素受体'] },
+    { key: 'Tg', en: ['Tg'], cn: ['甲状腺球蛋白'], denyBefore: ['抗', 'Anti\\s*', 'A-'], denyAfter: ['抗'] },
+    { key: 'Calcitonin', en: ['Calcitonin', 'CT'], cn: ['降钙素'] },
+    { key: 'Calcium', en: ['Ca'], cn: ['血清钙', '血钙', '钙'], denyBefore: ['降'] },
+    { key: 'Magnesium', en: ['Mg'], cn: ['血镁', '镁'] },
+    { key: 'Phosphorus', en: ['P'], cn: ['血磷', '磷'] },
+    { key: 'PTH', en: ['PTH'], cn: ['甲状旁腺激素', '甲状旁腺素'] },
+    { key: 'TSI', en: ['TSI'], cn: ['甲状腺刺激免疫球蛋白'] },
+    { key: 'TBAb', en: ['TBAb'], cn: ['促甲状腺素受体阻断抗体', '阻断抗体'] },
+    { key: 'CEA', en: ['CEA'], cn: ['癌胚抗原'] },
+    { key: 'VitaminD', en: ['25-OH-D', '25OHD', '25-OHD'], cn: ['25羟维生素D', '维生素D'] },
+    { key: 'Albumin', en: ['Albumin', 'Alb'], cn: ['血清白蛋白', '白蛋白'] },
+    { key: 'ALP', en: ['ALP'], cn: ['碱性磷酸酶'] },
+    { key: 'ALT', en: ['ALT'], cn: ['丙氨酸氨基转移酶', '谷丙转氨酶'] },
+    { key: 'AST', en: ['AST'], cn: ['天门冬氨酸氨基转移酶', '谷草转氨酶'] },
+    { key: 'GGT', en: ['GGT', 'γ-GT', 'γGT'], cn: ['谷氨酰转肽酶'] },
+    { key: 'Bilirubin', en: ['TBil', 'Bilirubin'], cn: ['总胆红素'] },
+    { key: 'WBC', en: ['WBC'], cn: ['白细胞计数', '白细胞'], unitRe: COUNT_UNIT_RE },
+    { key: 'Neutrophils', en: ['NEUT'], cn: ['中性粒细胞', '中性粒'], unitRe: COUNT_UNIT_RE },
+    { key: 'TC', en: ['TC'], cn: ['总胆固醇'] },
+    { key: 'LDL', en: ['LDL-C', 'LDL'], cn: ['低密度脂蛋白'] },
+    { key: 'HDL', en: ['HDL-C', 'HDL'], cn: ['高密度脂蛋白'] },
+    { key: 'Triglyceride', en: ['Triglyceride'], cn: ['甘油三酯'] },
+    { key: 'CK', en: ['CK'], cn: ['肌酸激酶'] },
+    { key: 'ESR', en: ['ESR'], cn: ['红细胞沉降率', '血沉'] },
+    { key: 'CRP', en: ['CRP'], cn: ['C反应蛋白'] }
+];
+
+// 正则在模块加载时构建一次，避免每次识别都重新编译 33 条规则
+const INDICATOR_PATTERNS = INDICATOR_ALIASES.map((item) => {
+    const { key, en = [], cn = [], denyBefore = [], denyAfter = [], unitRe = DEFAULT_UNIT_RE } = item;
+    const before = denyBefore.map((deny) => `(?<!${deny})`).join('');
+    const after = denyAfter.map((deny) => `(?!${deny})`).join('');
+    const alternatives = [
+        ...en.map((alias) => `(?<![A-Za-z])${escapeRegExp(alias)}(?![A-Za-z])`),
+        ...cn.map((alias) => spaced(alias))
+    ];
+    return {
+        key,
+        regex: new RegExp(
+            `${before}(?:${alternatives.join('|')})${after}[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*${unitRe}`,
+            'i'
+        )
+    };
+});
+
+const INDICATOR_CN_LABELS = {
+    TSH: '促甲状腺激素', FT3: '游离T3', FT4: '游离T4', T3: '总T3', T4: '总T4',
+    TPOAb: 'TPO抗体', TGAb: 'TG抗体', TRAb: 'TR抗体', Tg: '甲状腺球蛋白',
+    Calcitonin: '降钙素', Calcium: '血钙', Magnesium: '血镁', Phosphorus: '血磷', PTH: '甲状旁腺激素',
+    TSI: 'TSI', TBAb: 'TBAb', CEA: '癌胚抗原', VitaminD: '25羟维生素D', Albumin: '白蛋白',
+    ALP: '碱性磷酸酶', ALT: '丙氨酸氨基转移酶', AST: '天门冬氨酸氨基转移酶',
+    GGT: '谷氨酰转肽酶', Bilirubin: '总胆红素', WBC: '白细胞', Neutrophils: '中性粒细胞',
+    TC: '总胆固醇', LDL: '低密度脂蛋白', HDL: '高密度脂蛋白', Triglyceride: '甘油三酯',
+    CK: '肌酸激酶', ESR: '红细胞沉降率', CRP: 'C反应蛋白'
+};
+
+// 偏离参考范围这个倍数以上的读数，很可能是串行误匹配或漏掉小数点，
+// 标记出来供复核界面提示。不直接丢弃：重度甲减的 TSH 等指标确实会远超上限。
+const SUSPICIOUS_RATIO = 20;
+
+const isSuspiciousReading = (key, rawValue) => {
+    const range = DEFAULT_RANGES[key];
+    if (!range) return false;
+    const numeric = Number(String(rawValue).replace(/[<>]/g, ''));
+    if (!Number.isFinite(numeric)) return false;
+    if (typeof range.max === 'number' && range.max > 0 && numeric > range.max * SUSPICIOUS_RATIO) return true;
+    if (typeof range.min === 'number' && range.min > 0 && numeric < range.min / SUSPICIOUS_RATIO) return true;
+    return false;
+};
 
 /**
  * OCR控制器 - 用于化验单图片识别
@@ -204,61 +298,13 @@ class OcrController {
             }
         }
 
-        // 指标匹配规则：指标名 + 可选空格/符号 + 数值
-        // Helper: 允许中文关键词中间出现空格
-        const k = (str) => str.split('').join('\\s*');
+        // 指标匹配规则见模块顶部 INDICATOR_ALIASES / INDICATOR_PATTERNS
+        const suspicious = [];
 
-        // 指标匹配规则：指标名 + 可选空格/符号 + 数值 (包含可能的前缀 < 或 >)
-        const patterns = [
-            { key: 'TSH', regex: new RegExp(`(?:TSH|${k('促甲状腺激素')}|${k('促甲状腺素')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'FT3', regex: new RegExp(`(?:FT3|${k('游离T3')}|${k('游离三碘')}|${k('游离三碘甲状腺原氨酸')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'FT4', regex: new RegExp(`(?:FT4|${k('游离T4')}|${k('游离甲状腺素')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'T3', regex: new RegExp(`(?:(?<!F)(?<!游离|Free\\s*)${k('T3')}|(?<!游离|Free\\s*)${k('三碘甲状腺原氨酸')}|${k('总T3')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'T4', regex: new RegExp(`(?:(?<!F)(?<!游离|Free\\s*)${k('T4')}|(?<!游离|Free\\s*)${k('甲状腺素')}|${k('总T4')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'TPOAb', regex: new RegExp(`(?:TPO-?Ab|${k('TPO抗体')}|${k('抗甲状腺过氧化物酶抗体')}|${k('甲状腺过氧化物酶')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'TGAb', regex: new RegExp(`(?:TGAb|A-TG|${k('TG抗体')}|${k('抗甲状腺球蛋白抗体')}|${k('甲状腺球蛋白抗体')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'TRAb', regex: new RegExp(`(?:TRAb|${k('TR抗体')}|${k('促甲状腺激素受体')}|${k('促甲状腺素受体')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'Tg', regex: new RegExp(`(?:(?<!抗|Anti\\s*|A-)${k('Tg')}|(?<!抗|Anti\\s*)${k('甲状腺球蛋白')})(?!抗)[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'Calcitonin', regex: new RegExp(`(?:${k('降钙素')}|CT|Calcitonin)[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'Calcium', regex: new RegExp(`(?:${k('血钙')}|(?<!降)钙|Ca)[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'Magnesium', regex: new RegExp(`(?:${k('血镁')}|镁|Mg)[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'Phosphorus', regex: new RegExp(`(?:${k('血磷')}|磷|P)[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'PTH', regex: new RegExp(`(?:PTH|${k('甲状旁腺激素')}|${k('甲状旁腺素')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'TSI', regex: new RegExp(`(?:TSI|${k('甲状腺刺激免疫球蛋白')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'TBAb', regex: new RegExp(`(?:TBAb|${k('促甲状腺素受体阻断抗体')}|${k('阻断抗体')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'CEA', regex: new RegExp(`(?:CEA|${k('癌胚抗原')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'VitaminD', regex: new RegExp(`(?:25-?OH-?D|${k('25羟维生素D')}|${k('维生素D')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'Albumin', regex: new RegExp(`(?:Albumin|Alb|${k('白蛋白')}|${k('血清白蛋白')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'ALP', regex: new RegExp(`(?:ALP|${k('碱性磷酸酶')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'ALT', regex: new RegExp(`(?:ALT|${k('丙氨酸氨基转移酶')}|${k('谷丙转氨酶')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'AST', regex: new RegExp(`(?:AST|${k('天门冬氨酸氨基转移酶')}|${k('谷草转氨酶')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'GGT', regex: new RegExp(`(?:GGT|γ-?GT|${k('谷氨酰转肽酶')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'Bilirubin', regex: new RegExp(`(?:TBil|Bilirubin|${k('总胆红素')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'WBC', regex: new RegExp(`(?:WBC|${k('白细胞')}|${k('白细胞计数')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/^]+)?`, 'i') },
-            { key: 'Neutrophils', regex: new RegExp(`(?:NEUT|${k('中性粒细胞')}|${k('中性粒')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/^]+)?`, 'i') },
-            { key: 'TC', regex: new RegExp(`(?:TC|${k('总胆固醇')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'LDL', regex: new RegExp(`(?:LDL-?C|LDL|${k('低密度脂蛋白')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'HDL', regex: new RegExp(`(?:HDL-?C|HDL|${k('高密度脂蛋白')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'Triglyceride', regex: new RegExp(`(?:Triglyceride|${k('甘油三酯')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'CK', regex: new RegExp(`(?:CK|${k('肌酸激酶')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'ESR', regex: new RegExp(`(?:ESR|${k('红细胞沉降率')}|${k('血沉')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') },
-            { key: 'CRP', regex: new RegExp(`(?:CRP|${k('C反应蛋白')})[:：\\s]*([<>0-9]+\\.?[0-9]*)\\s*([a-zA-Z/μ]+)?`, 'i') }
-        ];
-
-        for (const { key, regex } of patterns) {
+        for (const { key, regex } of INDICATOR_PATTERNS) {
             const match = allText.match(regex);
             if (match && match[1]) {
-                const keyMap = {
-                    'TSH': '促甲状腺激素', 'FT3': '游离T3', 'FT4': '游离T4', 'T3': '总T3', 'T4': '总T4',
-                    'TPOAb': 'TPO抗体', 'TGAb': 'TG抗体', 'TRAb': 'TR抗体', 'Tg': '甲状腺球蛋白',
-                    'Calcitonin': '降钙素', 'Calcium': '血钙', 'Magnesium': '血镁', 'Phosphorus': '血磷', 'PTH': '甲状旁腺激素',
-                    'TSI': 'TSI', 'TBAb': 'TBAb', 'CEA': '癌胚抗原', 'VitaminD': '25羟维生素D', 'Albumin': '白蛋白',
-                    'ALP': '碱性磷酸酶', 'ALT': '丙氨酸氨基转移酶', 'AST': '天门冬氨酸氨基转移酶',
-                    'GGT': '谷氨酰转肽酶', 'Bilirubin': '总胆红素', 'WBC': '白细胞', 'Neutrophils': '中性粒细胞',
-                    'TC': '总胆固醇', 'LDL': '低密度脂蛋白', 'HDL': '高密度脂蛋白', 'Triglyceride': '甘油三酯',
-                    'CK': '肌酸激酶', 'ESR': '红细胞沉降率', 'CRP': 'C反应蛋白'
-                };
-                const cnKey = keyMap[key] || key;
+                const cnKey = INDICATOR_CN_LABELS[key] || key;
                 const value = match[1];
                 const unit = match[2]; // 捕获到的单位
 
@@ -266,17 +312,22 @@ class OcrController {
                 if (unit) {
                     result[`${cnKey}单位`] = unit;
                 }
+                if (isSuspiciousReading(key, value)) {
+                    suspicious.push(cnKey);
+                }
                 logger.debug('化验单OCR匹配到指标', { indicator: cnKey, hasValue: value !== null && value !== undefined, unit });
             }
         }
 
         // 返回识别结果统计
         const recognizedCount = Object.keys(result).length;
-        logger.debug('化验单OCR解析完成', { recognizedCount });
+        logger.debug('化验单OCR解析完成', { recognizedCount, suspiciousCount: suspicious.length });
 
         return {
             indicators: result,
             count: recognizedCount,
+            // 明显偏离参考范围的读数，供复核界面重点提示
+            suspicious,
             rawText: allText.substring(0, 1000) // 返回部分原文用于复核
         };
     }

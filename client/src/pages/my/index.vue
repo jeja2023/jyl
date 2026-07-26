@@ -235,8 +235,13 @@ const handleLogout = () => {
   uni.showModal({
     title: '提示',
     content: '确定要退出登录吗？',
-    success: function (res) {
+    success: async function (res) {
       if (res.confirm) {
+        // 先让服务端作废该令牌，这样即使令牌被别处留存也无法继续使用。
+        // 网络失败不阻断退出流程，本地状态照常清理。
+        try {
+          await http.post('/api/auth/logout');
+        } catch (e) {}
         userStore.logout();
         uni.reLaunch({
           url: '/pages/login'

@@ -4,6 +4,7 @@ const Response = require('../utils/response');
 const { Op } = require('sequelize');
 const { logAction } = require('../utils/actionLog');
 const { getPagination } = require('../utils/pagination');
+const { invalidate: invalidateUserCache } = require('../utils/userCache');
 
 class AdminController {
     /**
@@ -61,7 +62,9 @@ class AdminController {
             }
 
             await user.update({ role, nickname, patientType });
-            
+            // 角色可能变了，立即失效认证缓存，不等 TTL
+            invalidateUserCache(user.id);
+
             logAction(ctx, '更新用户', '管理后台', `管理员更新了用户 ID:${user.id} 的信息`);
 
             return Response.success(ctx, null, '更新成功');
@@ -87,7 +90,8 @@ class AdminController {
             }
 
             await user.destroy();
-            
+            invalidateUserCache(user.id);
+
             logAction(ctx, '删除用户', '管理后台', `管理员删除了用户 ID:${id}`);
 
             return Response.success(ctx, null, '删除用户成功');

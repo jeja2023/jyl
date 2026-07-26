@@ -42,21 +42,35 @@ const cleanupOrphanFiles = async (ttlDays) => {
         const stat = await fs.stat(STORAGE_DIR).catch(() => null);
         if (!stat) return;
 
-        const records = await HealthRecord.findAll({
-            attributes: ['reportImage', 'ultrasoundImage']
-        });
-
+        // 分批扫描而不是一次性把全表的图片字段读进内存，
+        // 否则记录数增长后这个定时任务会成为内存峰值的来源
         const referenced = new Set();
-        for (const r of records) {
-            const imgs = [
-                ...parseImages(r.reportImage),
-                ...parseImages(r.ultrasoundImage)
-            ];
-            imgs.forEach((p) => {
-                if (!p) return;
-                const filename = p.split('/').pop();
-                if (filename) referenced.add(filename);
+        const batchSize = parseInt(process.env.CLEANUP_SCAN_BATCH || '500', 10);
+        let offset = 0;
+
+        for (;;) {
+            const records = await HealthRecord.findAll({
+                attributes: ['id', 'reportImage', 'ultrasoundImage'],
+                order: [['id', 'ASC']],
+                limit: batchSize,
+                offset
             });
+            if (records.length === 0) break;
+
+            for (const r of records) {
+                const imgs = [
+                    ...parseImages(r.reportImage),
+                    ...parseImages(r.ultrasoundImage)
+                ];
+                imgs.forEach((p) => {
+                    if (!p) return;
+                    const filename = String(p).split('/').pop();
+                    if (filename) referenced.add(filename);
+                });
+            }
+
+            if (records.length < batchSize) break;
+            offset += batchSize;
         }
 
         const files = await fs.readdir(STORAGE_DIR);

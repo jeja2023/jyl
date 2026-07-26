@@ -1,5 +1,5 @@
 const Router = require('koa-router');
-const ratelimit = require('koa-ratelimit');
+const { createRateLimiter } = require('../utils/rateLimiter');
 const { koaBody } = require('koa-body');
 const AuthController = require('../controllers/AuthController');
 const RecordController = require('../controllers/RecordController');
@@ -24,39 +24,29 @@ const optional = require('../middlewares/auth').optional;
 
 const router = new Router({ prefix: '/api' });
 
-const apiLimiter = ratelimit({
-    driver: 'memory',
-    db: new Map(),
+const apiLimiter = createRateLimiter({
     duration: 60000,
-    errorMessage: '请求太频繁，请稍后再试',
-    id: (ctx) => ctx.ip,
     max: parseInt(process.env.API_RATE_LIMIT || '120', 10),
-    disableHeader: false
+    errorMessage: '请求太频繁，请稍后再试'
 });
 router.use(apiLimiter);
 
-const authLimiter = ratelimit({
-    driver: 'memory',
-    db: new Map(),
+const authLimiter = createRateLimiter({
     duration: 60000,
-    errorMessage: '请求太频繁，请稍后再试',
-    id: (ctx) => ctx.ip,
-    max: 10,
-    disableHeader: false
+    max: parseInt(process.env.AUTH_RATE_LIMIT || '10', 10),
+    errorMessage: '请求太频繁，请稍后再试'
 });
 
-const smsLimiter = ratelimit({
-    driver: 'memory',
-    db: new Map(),
+const smsLimiter = createRateLimiter({
     duration: 60000,
-    errorMessage: '验证码请求太频繁，请稍后再试',
-    id: (ctx) => ctx.ip,
-    max: 3
+    max: parseInt(process.env.SMS_RATE_LIMIT || '3', 10),
+    errorMessage: '验证码请求太频繁，请稍后再试'
 });
 
 router.post('/auth/register', authLimiter, AuthController.register);
 router.post('/auth/login', authLimiter, AuthController.login);
-router.get('/auth/check-username', AuthController.checkUsername);
+// 该接口能判断用户名是否存在，不限流会被用来批量枚举账号
+router.get('/auth/check-username', authLimiter, AuthController.checkUsername);
 router.post('/auth/email/send', smsLimiter, AuthController.sendEmailCode);
 router.post('/auth/email/register', authLimiter, AuthController.emailRegister);
 router.post('/auth/sms/send', smsLimiter, AuthController.sendSmsCode);
@@ -69,6 +59,7 @@ router.get('/auth/stats', auth, AuthController.stats);
 router.get('/auth/profile', auth, AuthController.profile);
 router.post('/auth/profile/update', auth, AuthController.updateProfile);
 router.post('/auth/setPassword', auth, AuthController.setPassword);
+router.post('/auth/logout', auth, AuthController.logout);
 router.post('/auth/bindPhone', auth, AuthController.bindPhone);
 
 router.post('/record/add', auth, RecordController.create);

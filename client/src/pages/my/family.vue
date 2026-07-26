@@ -119,6 +119,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import http from '@/utils/request.js';
 import { PATIENT_TYPES, TREATMENT_STAGES } from '@/utils/thyroidIndicators.js';
+import { toDateStr } from '@/utils/date.js';
 
 const members = ref([]);
 const showForm = ref(false);
@@ -220,7 +221,7 @@ const onStageSelect = (e) => {
 
 const onBirthConfirm = (e) => {
   const date = new Date(e.value);
-  form.birthDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  form.birthDate = toDateStr(date);
   showBirth.value = false;
 };
 

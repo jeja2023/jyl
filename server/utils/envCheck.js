@@ -26,7 +26,17 @@ const optionalEnvVars = [
     { key: 'CLEANUP_INTERVAL_HOURS', description: '清理任务执行间隔(小时)', default: '6' },
     { key: 'VERIFY_CODE_CLEANUP_DAYS', description: '验证码清理天数(已使用)', default: '1' },
     { key: 'ORPHAN_FILE_TTL_DAYS', description: '孤儿文件清理阈值(天)', default: '7' },
-    { key: 'SHARE_EXPIRE', description: '分享链接有效期', default: '7d' }
+    { key: 'SHARE_EXPIRE', description: '分享链接有效期', default: '7d' },
+    { key: 'SHARE_LEGACY_JWT_ENABLED', description: '兼容旧版 JWT 分享链接(无法撤销，仅存量过渡期开启)', default: 'false' },
+    { key: 'USER_CACHE_TTL_MS', description: '认证用户信息缓存时长(毫秒)', default: '30000' },
+    { key: 'USER_CACHE_MAX', description: '认证用户缓存条目上限', default: '5000' },
+    { key: 'APK_URL_CACHE_TTL_MS', description: 'APK 下载地址扫描结果缓存时长(毫秒)', default: '60000' },
+    { key: 'EXPORT_MAX_ROWS', description: '单次导出最大记录数', default: '5000' },
+    { key: 'CLEANUP_SCAN_BATCH', description: '清理任务扫描批大小', default: '500' },
+    { key: 'REDIS_URL', description: '限流共享计数(多实例部署时配置，需 npm i ioredis)', default: '未配置，使用单进程内存限流' },
+    { key: 'AUTH_RATE_LIMIT', description: '登录/注册类接口限流(每分钟)', default: '10' },
+    { key: 'SMS_RATE_LIMIT', description: '验证码发送限流(每分钟)', default: '3' },
+    { key: 'RATE_LIMIT_SWEEP_MS', description: '内存限流过期条目清理间隔(毫秒)', default: '60000' }
 ];
 
 /**

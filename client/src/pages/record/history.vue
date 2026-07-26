@@ -77,6 +77,8 @@ import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 import { setCache, getCache } from '@/utils/cache.js';
 import { ALL_INDICATORS } from '@/utils/thyroidIndicators.js';
+import { formatDate as formatDateWith } from '@/utils/date.js';
+import { hasImageData } from '@/utils/reportImage.js';
 
 const userStore = useUserStore();
 const list = ref([]);
@@ -113,18 +115,7 @@ const normalizeRecord = (item) => ({
 const hasValue = (value) => value !== undefined && value !== null && value !== '' && value !== 'null';
 const hasLabData = (item) => ALL_INDICATORS.some(metric => hasValue(item[metric.key]));
 const hasBodyData = (item) => hasValue(item.weight) || hasValue(item.heartRate);
-const hasUltrasoundData = (item) => hasValue(item.thyroidLeft) || hasValue(item.noduleCount) || hasValue(item.tiradsLevel) || hasImages(item.ultrasoundImage);
-
-const hasImages = (imgData) => {
-  if (!imgData) return false;
-  if (Array.isArray(imgData)) return imgData.length > 0;
-  try {
-    const arr = JSON.parse(imgData);
-    return Array.isArray(arr) ? arr.length > 0 : !!imgData;
-  } catch (e) {
-    return !!imgData;
-  }
-};
+const hasUltrasoundData = (item) => hasValue(item.thyroidLeft) || hasValue(item.noduleCount) || hasValue(item.tiradsLevel) || hasImageData(item.ultrasoundImage);
 
 const filteredList = computed(() => {
   if (activeFilter.value === 'lab') return list.value.filter(hasLabData);
@@ -153,11 +144,7 @@ const getRecordTitle = (item) => {
   return types.length ? `${types.join(' + ')}记录` : '检查记录';
 };
 
-const formatDate = (dateStr) => {
-  if (!dateStr) return '----.--.--';
-  const d = new Date(dateStr);
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
-};
+const formatDate = (dateStr) => formatDateWith(dateStr, 'YYYY.MM.DD', '----.--.--');
 
 const formatMember = (member) => member ? `${member.name}${member.relation ? ' · ' + member.relation : ''}` : '';
 

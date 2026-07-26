@@ -197,7 +197,7 @@
               </view>
 
               <!-- B超状态标记 (如果是混合录入或纯B超) -->
-              <view class="us-entry" v-if="item.thyroidLeft || item.noduleCount || item.tiradsLevel || hasUltrasoundImages(item.ultrasoundImage)">
+              <view class="us-entry" v-if="item.thyroidLeft || item.noduleCount || item.tiradsLevel || hasImageData(item.ultrasoundImage)">
                  <view class="us-tag" :class="{'mini': hasBloodData(item)}">
                     <u-icon name="photo-fill" size="14" :color="hasBloodData(item) ? '#86909C' : '#3E7BFF'"></u-icon>
                     <text>B超报告</text>
@@ -230,6 +230,8 @@ import { buildRecordExportUrl, downloadExportFile } from '@/utils/exportFile.js'
 import { getIndicatorInfoFromRef } from '@/utils/indicator.js';
 import { setCache, getCache } from '@/utils/cache.js';
 import { TREND_INDICATORS, getDefaultTrendKeys, getDiseaseIndicatorProfile, normalizeTrendKeys } from '@/utils/thyroidIndicators.js';
+import { formatDate as formatDateWith } from '@/utils/date.js';
+import { hasImageData } from '@/utils/reportImage.js';
 
 const userStore = useUserStore();
 const list = ref([]);
@@ -635,22 +637,7 @@ const confirmTrendPicker = async () => {
   drawChart();
 };
 
-const formatDate = (dateStr) => {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
-};
-
-const hasUltrasoundImages = (imgData) => {
-  if (!imgData) return false;
-  if (Array.isArray(imgData)) return imgData.length > 0;
-  try {
-    const arr = JSON.parse(imgData);
-    return Array.isArray(arr) && arr.length > 0;
-  } catch (e) {
-    return !!imgData;
-  }
-};
+const formatDate = (dateStr) => formatDateWith(dateStr, 'YYYY.MM.DD');
 
 const drawChart = () => {
   const ctx = uni.createCanvasContext('trendChart');

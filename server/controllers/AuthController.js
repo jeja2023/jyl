@@ -12,6 +12,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { Op, UniqueConstraintError } = require('sequelize');
 const { logAction } = require('../utils/actionLog');
+const { invalidate: invalidateUserCache } = require('../utils/userCache');
+const { anyHasValue } = require('../utils/recordQuery');
 const { TREND_KEYS, getDiseaseIndicatorProfile, getDefaultTrendKeys } = require('../utils/indicatorAnalysis');
 const logger = require('../utils/logger');
 const pkg = require('../package.json');
@@ -41,11 +43,26 @@ const compareSemverParts = (left = '', right = '') => {
     return 0;
 };
 
+// /api/common/config 是登录页就会调用的公开接口，原本每次都同步 readdirSync 扫描
+// APK 目录，会阻塞事件循环。结果缓存一段时间，发新包最多滞后一个 TTL。
+const APK_URL_CACHE_TTL_MS = parseInt(process.env.APK_URL_CACHE_TTL_MS || '60000', 10);
+let apkUrlCache = { value: null, expireAt: 0 };
+
 const resolveDefaultApkDownloadUrl = () => {
     if (process.env.APK_DOWNLOAD_URL) {
         return process.env.APK_DOWNLOAD_URL;
     }
 
+    if (apkUrlCache.value && apkUrlCache.expireAt > Date.now()) {
+        return apkUrlCache.value;
+    }
+
+    const resolved = scanLatestApkUrl();
+    apkUrlCache = { value: resolved, expireAt: Date.now() + APK_URL_CACHE_TTL_MS };
+    return resolved;
+};
+
+const scanLatestApkUrl = () => {
     if (!fs.existsSync(APP_RELEASES_DIR)) {
         return FALLBACK_APK_DOWNLOAD_URL;
     }
@@ -167,16 +184,7 @@ class AuthController {
             HealthRecord.count({
                 where: {
                     UserId: id,
-                    [Op.or]: [
-                        { TSH: { [Op.ne]: null } },
-                        { FT3: { [Op.ne]: null } },
-                        { FT4: { [Op.ne]: null } },
-                        { T3: { [Op.ne]: null } },
-                        { T4: { [Op.ne]: null } },
-                        { Tg: { [Op.ne]: null } },
-                        { TGAb: { [Op.ne]: null } },
-                        { TPOAb: { [Op.ne]: null } }
-                    ]
+                    ...anyHasValue(['TSH', 'FT3', 'FT4', 'T3', 'T4', 'Tg', 'TGAb', 'TPOAb'])
                 }
             }),
             // 3. 家庭成员数量
@@ -196,7 +204,13 @@ class AuthController {
      */
     static generateToken(user) {
         return jwt.sign(
-            { id: user.id, username: user.username || user.phone || user.email },
+            {
+                id: user.id,
+                username: user.username || user.phone || user.email,
+                // 标准 iat 只有秒精度，登录后同一秒内登出会因为"同秒"而判不出失效。
+                // 额外带一个毫秒级签发时间，与 tokenInvalidBefore 精确比较。
+                iatMs: Date.now()
+            },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRE }
         );
@@ -236,18 +250,31 @@ class AuthController {
         if (!username || !password) {
             return Response.error(ctx, '用户名和密码不能为空');
         }
+        // 与邮箱/手机注册保持同一条密码强度下限
+        if (password.length < 6) {
+            return Response.error(ctx, '密码长度至少6位');
+        }
 
         const existUser = await User.findOne({ where: { username } });
         if (existUser) {
             return Response.error(ctx, '该用户已存在');
         }
 
-        const newUser = await User.create({
-            username,
-            password,
-            patientType,
-            nickname: nickname || username
-        });
+        let newUser;
+        try {
+            newUser = await User.create({
+                username,
+                password,
+                patientType,
+                nickname: nickname || username
+            });
+        } catch (err) {
+            // 并发注册同名账号时靠唯一索引兜底
+            if (isUniqueConstraintError(err)) {
+                return Response.error(ctx, '该用户已存在');
+            }
+            throw err;
+        }
 
         Response.success(ctx, {
             id: newUser.id,
@@ -574,37 +601,48 @@ class AuthController {
             return Response.error(ctx, '请输入6位验证码');
         }
 
-        // 验证验证码
-        const verifyCode = await VerifyCode.findOne({
-            where: {
-                target: phone,
-                code,
-                targetType: 'sms',
-                used: false,
-                expireAt: { [Op.gte]: new Date() }
-            },
-            order: [['createdAt', 'DESC']]
-        });
-
-        if (!verifyCode) {
-            return Response.error(ctx, '验证码错误或已过期');
-        }
-
-        // 标记验证码已使用
-        await verifyCode.update({ used: true });
-
-        // 查找或创建用户
-        let user = await User.findOne({ where: { phone } });
+        // 校验并消费验证码放在同一个事务里加行锁，避免同一验证码被并发请求重复使用
+        let user;
         let isNewUser = false;
+        try {
+            ({ user, isNewUser } = await sequelize.transaction(async (transaction) => {
+                const verifyCode = await VerifyCode.findOne({
+                    where: {
+                        target: phone,
+                        code,
+                        targetType: 'sms',
+                        used: false,
+                        expireAt: { [Op.gte]: new Date() }
+                    },
+                    order: [['createdAt', 'DESC']],
+                    transaction,
+                    lock: transaction.LOCK.UPDATE
+                });
 
-        if (!user) {
-            // 新用户自动注册
-            user = await User.create({
-                phone,
-                nickname: nickname || `甲友${phone.slice(-4)}`,
-                patientType: '其他'
-            });
-            isNewUser = true;
+                if (!verifyCode) {
+                    throw clientError('验证码错误或已过期');
+                }
+
+                await verifyCode.update({ used: true }, { transaction });
+
+                let found = await User.findOne({ where: { phone }, transaction });
+                let created = false;
+
+                if (!found) {
+                    found = await User.create({
+                        phone,
+                        nickname: nickname || `甲友${phone.slice(-4)}`,
+                        patientType: '其他'
+                    }, { transaction });
+                    created = true;
+                }
+
+                return { user: found, isNewUser: created };
+            }));
+        } catch (err) {
+            if (err?.isClientError) return Response.error(ctx, err.message);
+            if (isUniqueConstraintError(err)) return Response.error(ctx, '该手机号已注册，请重试');
+            throw err;
         }
 
         // 更新最后登录时间
@@ -753,6 +791,7 @@ class AuthController {
         }
 
         await user.update(updateData);
+        invalidateUserCache(id);
 
         Response.success(ctx, AuthController.formatUserInfo(user), '更新成功');
     }
@@ -769,35 +808,52 @@ class AuthController {
             return Response.error(ctx, '请输入正确的手机号');
         }
 
-        // 检查手机号是否已被其他用户使用
-        const existUser = await User.findOne({ where: { phone } });
-        if (existUser && existUser.id !== id) {
-            return Response.error(ctx, '该手机号已被其他账号绑定');
+        // 占用检查、验证码消费和绑定放在同一事务里，避免两个账号并发绑同一号码
+        let user;
+        try {
+            user = await sequelize.transaction(async (transaction) => {
+                const existUser = await User.findOne({
+                    where: { phone },
+                    transaction,
+                    lock: transaction.LOCK.UPDATE
+                });
+                if (existUser && existUser.id !== id) {
+                    throw clientError('该手机号已被其他账号绑定');
+                }
+
+                const verifyCode = await VerifyCode.findOne({
+                    where: {
+                        target: phone,
+                        code,
+                        targetType: 'sms',
+                        used: false,
+                        expireAt: { [Op.gte]: new Date() }
+                    },
+                    order: [['createdAt', 'DESC']],
+                    transaction,
+                    lock: transaction.LOCK.UPDATE
+                });
+
+                if (!verifyCode) {
+                    throw clientError('验证码错误或已过期');
+                }
+
+                await verifyCode.update({ used: true }, { transaction });
+
+                const target = await User.findByPk(id, { transaction });
+                if (!target) {
+                    throw clientError('用户不存在');
+                }
+                await target.update({ phone }, { transaction });
+                return target;
+            });
+        } catch (err) {
+            if (err?.isClientError) return Response.error(ctx, err.message);
+            if (isUniqueConstraintError(err)) return Response.error(ctx, '该手机号已被其他账号绑定');
+            throw err;
         }
 
-        // 验证验证码
-        const verifyCode = await VerifyCode.findOne({
-            where: {
-                target: phone,
-                code,
-                targetType: 'sms',
-                used: false,
-                expireAt: { [Op.gte]: new Date() }
-            },
-            order: [['createdAt', 'DESC']]
-        });
-
-        if (!verifyCode) {
-            return Response.error(ctx, '验证码错误或已过期');
-        }
-
-        // 标记验证码已使用
-        await verifyCode.update({ used: true });
-
-        // 绑定手机号
-        const user = await User.findByPk(id);
-        await user.update({ phone });
-
+        invalidateUserCache(id);
         Response.success(ctx, AuthController.formatUserInfo(user), '手机号绑定成功');
     }
 
@@ -828,10 +884,35 @@ class AuthController {
             }
         }
 
-        await user.update({ password: newPassword });
+        // 改密后让此前签发的所有令牌失效，避免旧设备继续保持登录。
+        // 当前请求用的令牌也会一起失效，所以下发一个新令牌让本机免于重新登录。
+        const invalidBefore = new Date();
+        await user.update({ password: newPassword, tokenInvalidBefore: invalidBefore });
+        invalidateUserCache(id);
 
-        Response.success(ctx, null, '密码修改成功');
+        const token = AuthController.generateToken(user);
+
+        Response.success(ctx, { token }, '密码修改成功');
         logAction(ctx, '修改密码', '认证', `用户 ${user.username || user.phone || 'ID:'+id} 修改了登录密码`);
+    }
+
+    /**
+     * 退出登录：作废当前用户此前签发的全部令牌
+     * POST /api/auth/logout
+     */
+    static async logout(ctx) {
+        const { id } = ctx.state.user;
+
+        const user = await User.findByPk(id);
+        if (!user) {
+            return Response.error(ctx, '用户不存在', 404);
+        }
+
+        await user.update({ tokenInvalidBefore: new Date() });
+        invalidateUserCache(id);
+
+        Response.success(ctx, null, '已退出登录');
+        logAction(ctx, '退出登录', '认证', `用户 ${user.username || user.phone || 'ID:' + id} 退出登录`);
     }
 
 
