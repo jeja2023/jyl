@@ -3,16 +3,18 @@
   "platforms": [
     "android"
   ],
-  "versionName": "1.8.11",
-  "versionCode": 191,
+  "versionName": "1.8.12",
+  "versionCode": 192,
   "minVersionCode": 0,
   "force": false,
-  "wgtUrl": "/storage/app-updates/jyl-1.8.11-191.wgt",
-  "size": 5435725,
-  "md5": "8ac9e69e6f41f17a72f0aee5c3e74115",
-  "sha256": "4733ed07edf6da7a13e286655e55c54b1afe211d02f4393af2b9a111449aa4d4",
+  "wgtUrl": "/storage/app-updates/jyl-1.8.12-192.wgt",
+  "size": 5435771,
+  "md5": "68e4738c9660001611534fcc11fb07b1",
+  "sha256": "ba1e4f2c57be56d3856f2b5986a66be2d39342af94c05cfb3862c528f1be2bb7",
   "releaseNotes": [
-    "修复登录页下载、复查日历删除与消息删除体验"
+    "修复记录归属越权与OCR指标误识别",
+    "支持退出登录后令牌立即失效",
+    "修正化验空值统计与导入重复记录"
   ],
-  "publishedAt": "2026-07-19T00:56:33.246Z"
+  "publishedAt": "2026-07-26T16:18:49.323Z"
 }

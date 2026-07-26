@@ -6,17 +6,21 @@
 
 ## 当前版本
 
-当前版本：`1.8.11`
+当前版本：`1.8.12`
 
-本版本修复登录页 APK 下载提示、复查日历删除与消息删除体验。
+本版本修复健康记录归属越权、OCR 指标误识别与化验空值统计问题，并补充登录状态失效机制。
 
-本次为前端与后端联合更新，Android 使用 `jyl-1.8.11-191.wgt` 热更新下发；由于后端按 `versionCode` 判断是否需要更新，已安装 `1.8.10 / 190` 的用户必须收到新的 `1.8.11 / 191` 包，不能复用旧 WGT。
+本次为前端与后端联合更新，Android 使用 `jyl-1.8.12-192.wgt` 热更新下发；由于后端按 `versionCode` 判断是否需要更新，已安装 `1.8.11 / 191` 的用户必须收到新的 `1.8.12 / 192` 包，不能复用旧 WGT。
 
-- 登录页下载：未配置 `APK_DOWNLOAD_URL` 时，后端会扫描 `storage/app-releases` 中真实存在的 APK 并选取版本号最高的一个，避免下载按钮报 `not found`。
-- 复查日历删除：删除请求改为通过 query 传 `id`，后端同时兼容 body、query 与 params。
-- 消息删除：同步兼容 query 传参，补充成功提示，缺少 `id` 或记录不存在时返回明确错误。
-- 自动更新：`client/src/manifest.json` 已同步为 `1.8.11 / 191`，`storage/app-updates/manifest.json` 已指向 `jyl-1.8.11-191.wgt`。
+- 记录归属：更新健康记录改为按字段白名单取值，请求体无法再篡改记录所属账号。
+- OCR 识别：指标别名统一加词边界，修复「总蛋白 TP」被误识别为血磷等问题，并标记明显异常的读数供复核。
+- 登录状态：新增退出登录接口，登出与修改密码后此前签发的令牌立即失效。
+- 数据统计：化验份数、`hasLab` 过滤与趋势查询不再把空字符串当作有效值。
+- 分享链接：旧版 JWT 分享链接默认关闭，可通过 `SHARE_LEGACY_JWT_ENABLED` 临时兼容存量。
+- 自动更新：`client/src/manifest.json` 已同步为 `1.8.12 / 192`，`storage/app-updates/manifest.json` 已指向 `jyl-1.8.12-192.wgt`。
 - 发布文档：详见 `更新日志.md`、`ANDROID_APK_BUILD.md` 和 `APP_RELEASE_CHECKLIST.md`。
+
+升级提示：本版本新增 `Users.tokenInvalidBefore` 字段，部署前必须先执行 `npm run migrate`，否则服务会因缺少该列而报错。
 
 ## 核心功能
 
@@ -196,8 +200,8 @@ npm run release:app
 ```text
 AppID: __UNI__F18FC4D
 包名: com.jiayoule.app
-versionName: 1.8.11
-versionCode: 191
+versionName: 1.8.12
+versionCode: 192
 生产 API: https://jyl.880301.xyz
 ```
 
@@ -220,7 +224,7 @@ http://localhost:3000/storage/app-releases/jyl-1.8.6.apk
 生产环境默认使用同源路径。如果需要使用 CDN 或对象存储，可在后端环境变量中设置：
 
 ```text
-APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.11.apk
+APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.12.apk
 ```
 
 ## App 热更新
@@ -231,7 +235,7 @@ APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.11.apk
 
 ```bash
 cd server
-npm run app:update:publish -- ..\client\dist\release\jyl-1.8.11-191.wgt 1.8.11 191 "修复登录页下载、复查日历删除与消息删除体验"
+npm run app:update:publish -- ..\client\dist\release\jyl-1.8.12-192.wgt 1.8.12 192 "修复记录归属越权与OCR指标误识别"
 ```
 
 发布前自检：
