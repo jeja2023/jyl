@@ -112,7 +112,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted } from 'vue';
+import { ref, computed } from 'vue';
 import { onLoad, onReachBottom, onPullDownRefresh } from '@dcloudio/uni-app';
 import http from '@/utils/request.js';
 import { useUserStore } from '@/store/index.js';

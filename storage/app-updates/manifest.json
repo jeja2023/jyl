@@ -1,20 +1,21 @@
 {
-  "enabled": true,
+  "enabled": false,
   "platforms": [
     "android"
   ],
-  "versionName": "1.8.12",
-  "versionCode": 192,
+  "versionName": "1.8.13",
+  "versionCode": 193,
   "minVersionCode": 0,
   "force": false,
-  "wgtUrl": "/storage/app-updates/jyl-1.8.12-192.wgt",
-  "size": 5435771,
-  "md5": "68e4738c9660001611534fcc11fb07b1",
-  "sha256": "ba1e4f2c57be56d3856f2b5986a66be2d39342af94c05cfb3862c528f1be2bb7",
+  "wgtUrl": "/storage/app-updates/jyl-1.8.13-193.wgt",
+  "size": 5436889,
+  "md5": "be84d3a8361a2f11d8c3b73ed09b559b",
+  "sha256": "163ca29e2fe27bf258d73d5f13b80a88972320f2b43ba6254a76a23917a96739",
   "releaseNotes": [
-    "修复记录归属越权与OCR指标误识别",
-    "支持退出登录后令牌立即失效",
-    "修正化验空值统计与导入重复记录"
+    "修复本人与家庭成员健康记录混合分析",
+    "账号注销真正删除服务端数据",
+    "修复限流与审计IP可被伪造",
+    "修复用药依从率失真"
   ],
-  "publishedAt": "2026-07-26T16:18:49.323Z"
+  "publishedAt": "2026-09-05T05:32:34.316Z"
 }

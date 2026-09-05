@@ -54,14 +54,15 @@ class CheckupController {
 
     static async suggest(ctx) {
         const userId = ctx.state.user.id;
-        const result = await suggestForUser(userId, ctx.query.memberId || null);
+        // 原样传下去，由 resolveMemberScope 统一判定；不传即"本人"
+        const result = await suggestForUser(userId, ctx.query.memberId);
         Response.success(ctx, result, '智能建议已生成');
     }
 
     static async generate(ctx) {
         const userId = ctx.state.user.id;
         const { memberId } = ctx.request.body || {};
-        const suggestion = await suggestForUser(userId, memberId || null);
+        const suggestion = await suggestForUser(userId, memberId);
         const existing = await CheckupReminder.findOne({
             where: {
                 UserId: userId,

@@ -1,6 +1,5 @@
 <script setup>
 import MetricItem from '@/components/MetricItem.vue';
-import { getIndicatorInfo } from '@/utils/indicator.js';
 
 defineProps({
   record: {

@@ -61,6 +61,8 @@ router.post('/auth/profile/update', auth, AuthController.updateProfile);
 router.post('/auth/setPassword', auth, AuthController.setPassword);
 router.post('/auth/logout', auth, AuthController.logout);
 router.post('/auth/bindPhone', auth, AuthController.bindPhone);
+// 注销账号：不可逆且会删库，套上认证类限流，避免被拿去暴力猜密码/验证码
+router.post('/auth/account/delete', auth, authLimiter, AuthController.deleteAccount);
 
 router.post('/record/add', auth, RecordController.create);
 router.get('/record/list', auth, RecordController.list);

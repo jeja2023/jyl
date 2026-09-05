@@ -1,8 +1,8 @@
 const HealthRecord = require('../models/HealthRecord');
-const User = require('../models/User');
-const FamilyMember = require('../models/FamilyMember');
 const MedicationPlan = require('../models/MedicationPlan');
 const { analyzeRecord, parseRanges } = require('../utils/indicatorAnalysis');
+const { resolveMemberScope, buildMemberWhere } = require('../utils/memberScope');
+const { loadOwnerProfile } = require('./OwnerProfileService');
 
 const PATIENT_BASE_DAYS = {
     '甲亢': 45,
@@ -66,27 +66,35 @@ const suggestNextDate = (recordDates, patientType, options = {}) => {
     };
 };
 
-const suggestForUser = async (userId, memberId = null) => {
-    const owner = memberId
-        ? await FamilyMember.findOne({ where: { id: memberId, UserId: userId } })
-        : await User.findByPk(userId, { attributes: ['id', 'patientType'] });
+/**
+ * 智能复查建议。
+ *
+ * 成员作用域缺省是"本人"。原先写的是 `if (memberId) where.memberId = memberId`，
+ * memberId 为空时不加任何成员条件，本人的复查建议实际是拿全家最近一条记录
+ * 算出来的：异常判定、历史间隔中位数、下次复查日期全都被家人的数据带偏。
+ * 同时档案只 SELECT 了 ['id','patientType']，参考范围恒为空。
+ */
+const suggestForUser = async (userId, rawMemberId = undefined) => {
+    const scope = resolveMemberScope(rawMemberId);
+    const owner = await loadOwnerProfile(userId, scope);
 
-    const where = { UserId: userId };
-    if (memberId) where.memberId = memberId;
+    const where = { UserId: userId, ...buildMemberWhere(scope) };
 
     const records = await HealthRecord.findAll({
         where,
-        order: [['recordDate', 'ASC']]
+        order: [['recordDate', 'ASC'], ['id', 'ASC']]
     });
 
     const rows = records.map(r => r.toJSON());
     const latest = rows[rows.length - 1] || null;
     const previous = rows[rows.length - 2] || null;
-    const analysis = latest ? analyzeRecord(latest, parseRanges(owner?.referenceRanges), previous) : null;
+    const patientType = owner?.patientType || '其他';
+    const analysis = latest
+        ? analyzeRecord(latest, parseRanges(owner?.referenceRanges), previous, patientType)
+        : null;
     const hasAbnormal = (analysis?.abnormalCount || 0) > 0;
     const hasActiveMedication = await MedicationPlan.count({ where: { UserId: userId, isActive: true } }) > 0;
 
-    const patientType = owner?.patientType || '其他';
     const { nextDate, intervalDays, baseDays } = suggestNextDate(
         rows.map(r => r.recordDate),
         patientType,
@@ -108,11 +116,13 @@ const suggestForUser = async (userId, memberId = null) => {
         intervalDays,
         baseDays,
         patientType,
-        memberId: memberId || null,
+        scope: { mode: scope.mode, memberId: scope.memberId },
+        memberId: scope.memberId,
         abnormalCount: analysis?.abnormalCount || 0,
         reasons,
         note: `智能复查建议：${nextDate} 左右复查（间隔约 ${intervalDays} 天）。${reasons.join('；')}`
     };
 };
+
 
 module.exports = { suggestNextDate, suggestForUser };

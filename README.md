@@ -6,21 +6,24 @@
 
 ## 当前版本
 
-当前版本：`1.8.12`
+当前版本：`1.8.13`
 
-本版本修复健康记录归属越权、OCR 指标误识别与化验空值统计问题，并补充登录状态失效机制。
+本版本集中修复全面检查列出的 9 项问题：Docker 镜像携带本地密钥、本人与家庭成员健康记录混合分析、账号注销未真正删除数据、限流与审计 IP 可被转发头伪造、迁移自检漏掉关键字段、生产依赖命中高危公告、用药依从率失真、服务在数据库就绪前监听、测试与工程守卫不足。
 
-本次为前端与后端联合更新，Android 使用 `jyl-1.8.12-192.wgt` 热更新下发；由于后端按 `versionCode` 判断是否需要更新，已安装 `1.8.11 / 191` 的用户必须收到新的 `1.8.12 / 192` 包，不能复用旧 WGT。
+本次为前端与后端联合更新，且**必须后端先行**：新增了 `TRUST_PROXY`、`APP_PUBLIC_BASE_URL` 环境变量并需要重建 Docker 镜像。因此 `jyl-1.8.13-193.wgt` 虽已打包，但 `storage/app-updates/manifest.json` 的 `enabled` 暂置为 `false`，后端部署完成后再开闸下发。
 
-- 记录归属：更新健康记录改为按字段白名单取值，请求体无法再篡改记录所属账号。
-- OCR 识别：指标别名统一加词边界，修复「总蛋白 TP」被误识别为血磷等问题，并标记明显异常的读数供复核。
-- 登录状态：新增退出登录接口，登出与修改密码后此前签发的令牌立即失效。
-- 数据统计：化验份数、`hasLab` 过滤与趋势查询不再把空字符串当作有效值。
-- 分享链接：旧版 JWT 分享链接默认关闭，可通过 `SHARE_LEGACY_JWT_ENABLED` 临时兼容存量。
-- 自动更新：`client/src/manifest.json` 已同步为 `1.8.12 / 192`，`storage/app-updates/manifest.json` 已指向 `jyl-1.8.12-192.wgt`。
-- 发布文档：详见 `更新日志.md`、`ANDROID_APK_BUILD.md` 和 `APP_RELEASE_CHECKLIST.md`。
+- 密钥外泄：新增根目录 `.dockerignore`，阻断 `server/.env`、`docker/.env_docker`、`certs/` 进入构建上下文。**已构建过旧镜像的部署必须轮换全部凭据。**
+- 数据归属：首页、洞察、复查建议、监测方案默认只统计本人数据，跨成员汇总需显式传 `memberId=all`；本人的自定义参考范围恢复生效。
+- 账号注销：新增 `POST /api/auth/account/delete`，在事务内删除全部个人健康数据与上传图片，百科与操作日志按隐私政策做匿名化。此前设置页只是本地提示、服务端不做任何删除。
+- 来源 IP：`TRUST_PROXY` 默认关闭，只认可信代理追加的最后 N 跳；审计日志不再直接读 `x-real-ip` / `x-forwarded-for`。
+- 依从率：按计划归属逐日核算，停用或改规则不再返回 200% / 300%，并做 100% 上限截断。
+- 健康检查：`/api/health` 在数据库断连时返回 **503**，服务改为等数据库就绪后才监听端口。
+- 依赖安全：koa / sequelize / mysql2 / nodemailer / uuid 全部升级，`npm audit` 由 12 high + 4 moderate 降至 **0 vulnerabilities**；Docker 基础镜像升到 `node:24-alpine`。
+- 工程守卫：新增前后端 ESLint、GitHub Actions CI，发布自检会在 `.dockerignore` 缺少密钥排除项时直接失败。测试从 75 个增加到 116 个。
+- 自动更新：`client/src/manifest.json` 已同步为 `1.8.13 / 193`，`storage/app-updates/manifest.json` 已指向 `jyl-1.8.13-193.wgt`（默认未开启下发）。
+- 发布文档：详见 `更新日志.md`、`部署说明.md`、`ANDROID_APK_BUILD.md` 和 `APP_RELEASE_CHECKLIST.md`。
 
-升级提示：本版本新增 `Users.tokenInvalidBefore` 字段，部署前必须先执行 `npm run migrate`，否则服务会因缺少该列而报错。
+升级提示：必须补充 `TRUST_PROXY`、`TRUST_PROXY_HOPS`、`APP_PUBLIC_BASE_URL` 三个环境变量；`npm run migrate:check` 已改为按模型定义全量比对，可能报出此前从未发现的缺列，请补迁移后再上线。完整顺序见 `部署说明.md`。
 
 ## 核心功能
 
@@ -90,7 +93,7 @@ jyl/
 
 ### 环境要求
 
-- Node.js 16 或更高版本
+- Node.js 22 或更高版本（Node 20 已于 2026-04-30 结束维护，Docker 镜像使用 `node:24-alpine`）
 - MySQL 5.7 或更高版本，推荐 MySQL 8
 - npm
 
@@ -200,8 +203,8 @@ npm run release:app
 ```text
 AppID: __UNI__F18FC4D
 包名: com.jiayoule.app
-versionName: 1.8.12
-versionCode: 192
+versionName: 1.8.13
+versionCode: 193
 生产 API: https://jyl.880301.xyz
 ```
 
@@ -235,8 +238,10 @@ APK_DOWNLOAD_URL=https://your-domain/path/to/jyl-1.8.12.apk
 
 ```bash
 cd server
-npm run app:update:publish -- ..\client\dist\release\jyl-1.8.12-192.wgt 1.8.12 192 "修复记录归属越权与OCR指标误识别"
+npm run app:update:publish -- ..\client\dist\release\jyl-1.8.13-193.wgt 1.8.13 193 "修复健康数据混算、账号注销与来源IP伪造"
 ```
+
+需要"先打包但暂不下发"时加 `--disabled`（写入 `enabled: false`），后端部署完成后把 `storage/app-updates/manifest.json` 的 `enabled` 改为 `true` 即开闸。1.8.13 就是这样发布的：改动依赖新环境变量与重建镜像，App 不能先于后端更新。
 
 发布前自检：
 
@@ -244,6 +249,8 @@ npm run app:update:publish -- ..\client\dist\release\jyl-1.8.12-192.wgt 1.8.12 1
 cd server
 npm run release:check
 ```
+
+自检会校验三处版本号一致性、热更新包存在性，以及 `.dockerignore` 是否排除了 `server/.env` 等密钥文件——最后这条缺失时直接失败，不是警告。
 
 以下变更需要重新打 APK：
 
@@ -258,33 +265,45 @@ npm run release:check
 
 ## 测试与校验
 
-后端测试：
+后端一键校验（lint + 单元测试 + 生产依赖高危审计）：
 
 ```bash
 cd server
-npm test
+npm run verify
 ```
 
-数据库迁移自检：
+也可以分开执行：
+
+```bash
+cd server
+npm test           # 116 个单元测试
+npm run lint       # ESLint
+npm run audit:prod # 生产依赖出现 high/critical 即失败
+```
+
+数据库迁移自检（按模型定义全量比对，缺任何字段都会失败）：
 
 ```bash
 cd server
 npm run migrate:check
 ```
 
-发布自检：
+发布自检（版本号一致性 + 热更新包 + `.dockerignore` 密钥守卫）：
 
 ```bash
 cd server
 npm run release:check
 ```
 
-前端构建校验：
+前端校验：
 
 ```bash
 cd client
+npm run lint
 npm run build:h5
 ```
+
+上述检查同时由 GitHub Actions 在 push / PR 时执行，定义见 `.github/workflows/ci.yml`。
 
 App 发布前建议同时检查：
 

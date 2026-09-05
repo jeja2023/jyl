@@ -1,0 +1,51 @@
+# Docker 构建上下文排除清单
+#
+# docker-compose.yml 里 context 是项目根目录，所以这个文件必须放在根目录，
+# 放到 docker/ 下不生效。
+#
+# 第一段是安全底线：这些文件里是真实密钥（JWT_SECRET、DB_PASS、ADMIN_PASS、
+# 腾讯云 / 微信 / SMTP 凭据）。一旦进入构建上下文就会被 COPY 固化进镜像层，
+# 任何拿到镜像的人都能 docker history / 解包读出明文，运行时用 env_file
+# 覆盖也删不掉已经写进层里的那份。
+# 注意只排除真正含密钥的文件，*.example 与 client/.env.production
+# （只有一个公开域名，且前端构建需要读）保留。
+
+server/.env
+server/.env.local
+server/.env.*.local
+client/.env.local
+client/.env.*.local
+docker/.env_docker
+certs/
+
+# 依赖与构建产物：容器内会重新 npm ci 和构建。
+# 尤其是 node_modules —— 宿主机是 Windows，直接 COPY 进 alpine 会覆盖容器里
+# 装好的依赖，带原生绑定的包会直接跑不起来。
+**/node_modules
+client/dist
+client/unpackage
+client/.hbuilderx
+
+# 运行期数据：storage 由 docker-compose 以卷挂载，不需要进镜像
+storage/
+
+# 版本库与本地工具配置
+.git
+.gitignore
+.github
+.vscode
+.idea
+.claude
+
+# 根目录文档与开发脚本：不参与运行
+# （*.md 只匹配根目录一层，server/migrations/README.md 不受影响）
+*.md
+convert_ico.py
+dev.py
+
+# 测试与日志
+server/test
+**/*.log
+npm-debug.log*
+**/.DS_Store
+**/Thumbs.db

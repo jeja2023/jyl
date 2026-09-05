@@ -312,7 +312,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue';
+import { ref, reactive, computed, watch } from 'vue';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 import { getBaseURL } from '@/utils/config.js';
@@ -329,12 +329,9 @@ const showUltrasoundCalendar = ref(false);
 const showMemberSheet = ref(false);
 const showMore = ref(false);
 const showCalcium = ref(false);
-const showUltrasound = ref(false);
 const activeTab = ref('lab');
 const datePickerValue = ref(Date.now());
 const ultrasoundPickerValue = ref(Date.now());
-const minSelectDate = ref('1950-01-01');
-const maxSelectDate = ref(uni.$u.timeFormat(new Date(), 'yyyy-mm-dd'));
 
 const fmtDate = (d) => {
     if (!d) return '';
@@ -983,58 +980,6 @@ const processUploadedImage = async (filePath, type) => {
   } catch (err) {
     console.error('OCR recognition failed:', err);
     uni.$u.toast('图片已上传，OCR识别失败，可手动录入');
-  } finally {
-    if (isUltrasound) ultrasoundLoading.value = false;
-    else ocrLoading.value = false;
-  }
-};
-
-const processImageData = async (filePath, type) => {
-  const isUltrasound = type === 'ultrasound';
-  if (isUltrasound) ultrasoundLoading.value = true;
-  else ocrLoading.value = true;
-
-  try {
-    const base64 = await fileToBase64(filePath);
-
-    if (import.meta.env.DEV) console.debug('[OCR] 开始识别...');
-    const ocrResult = await http.post('/api/ocr/recognize', { image: base64, type });
-
-    if (ocrResult && ocrResult.indicators) {
-      const { normalized, units } = normalizeOcrIndicators(ocrResult.indicators);
-      const review = mergeOcrReview(type, normalized, units, ocrResult.rawText);
-      openOcrReview(type);
-
-      if (optionalFields.value.some(item => normalized[item.key])) showMore.value = true;
-      if (calciumOptionalFields.value.some(item => normalized[item.key])) showCalcium.value = true;
-      if (isUltrasound) activeTab.value = 'ultrasound';
-
-      if (review && review.pendingCount > 0) {
-        uni.$u.toast(`已识别 ${review.pendingCount} 项待复核`);
-      }
-    }
-
-    if (import.meta.env.DEV) console.debug('[上传] 开始上传图片...');
-    let uploadResult;
-    try {
-      uploadResult = await uploadReportFile(filePath, type);
-    } catch (uploadErr) {
-      if (import.meta.env.DEV) console.warn('uploadFile 失败，改用 base64 上传', uploadErr);
-      uploadResult = await http.post('/api/upload/report', { image: base64, type });
-    }
-
-    if (uploadResult && uploadResult.path) {
-      if (isUltrasound) ultrasoundImages.value.push(uploadResult.path);
-      else reportImages.value.push(uploadResult.path);
-
-      const review = ocrReview[type];
-      if (review) {
-        if (!review.images) review.images = [];
-        review.images.push(uploadResult.path);
-      }
-    }
-  } catch (err) {
-    console.error('OCR 处理失败:', err);
   } finally {
     if (isUltrasound) ultrasoundLoading.value = false;
     else ocrLoading.value = false;

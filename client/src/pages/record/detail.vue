@@ -153,7 +153,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
@@ -170,10 +170,7 @@ const props = defineProps({
   id: { type: [String, Number], required: true }
 });
 
-const onBack = () => {
-  uni.navigateBack();
-};
-
+// 返回由 u-navbar 的 autoBack 处理，无需自定义 onBack
 const record = ref({});
 const showAction = ref(false);
 const showDeleteConfirm = ref(false);

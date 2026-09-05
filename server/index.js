@@ -18,7 +18,23 @@ if (!validateEnv()) {
 }
 
 const app = new Koa();
-app.proxy = true;
+
+/**
+ * 只有部署在可信反向代理后面才解析转发头，默认关闭。
+ *
+ * 原先无条件 app.proxy = true：ctx.ip 直接取 X-Forwarded-For 首段，
+ * 而限流器的 key 就是 ctx.ip，任何客户端换一个转发头就能拿到新的计数桶，
+ * 登录爆破限流和验证码限流都能绕过，操作日志里的 IP 也可以随意伪造。
+ *
+ * maxIpsCount 只认最靠近服务端的 N 跳（由可信代理自己追加的部分），
+ * 客户端塞在左侧的伪造条目会被切掉。默认 1，即"服务端前面只有一层代理"。
+ */
+const trustProxy = process.env.TRUST_PROXY === 'true';
+app.proxy = trustProxy;
+app.maxIpsCount = trustProxy
+    ? Math.max(parseInt(process.env.TRUST_PROXY_HOPS || '1', 10) || 1, 1)
+    : 0;
+
 const port = process.env.PORT || 3000;
 const logger = require('./utils/logger');
 const { startCleanupJobs } = require('./utils/cleanup');
@@ -62,11 +78,8 @@ publicStorageDirs.forEach((dir) => {
 // 打印库连接诊断信息
 console.log(`[启动] 数据库连接检测: HOST=${process.env.DB_HOST || 'localhost'}, USER=${process.env.DB_USER}`);
 
-// 数据库服务 初始化
+// 数据库服务 初始化（在 listen 之前完成，见文件末尾的 start()）
 const DbService = require('./services/DbService');
-DbService.init().then(() => {
-    startCleanupJobs();
-});
 
 // 中间件
 const errorHandler = require('./middlewares/errorHandler');
@@ -146,14 +159,17 @@ publicStorageDirs.forEach((dir) => {
 const apiRouter = require('./routes/index');
 
 // 健康检查接口
+// 数据库不可用时必须返回 503：之前恒返回 200 + status:'ok'，只把断连写在
+// database 字段里，任何按状态码判活的探针（K8s httpGet、docker HEALTHCHECK）
+// 都会认为服务正常，故障期间流量继续被打进来。
 apiRouter.get('/health', async (ctx) => {
-    const DbService = require('./services/DbService');
-    const dbStatus = await DbService.checkConnection();
+    const dbConnected = await DbService.checkConnection();
+    ctx.status = dbConnected ? 200 : 503;
     ctx.body = {
-        status: 'ok',
+        status: dbConnected ? 'ok' : 'unavailable',
         uptime: process.uptime(),
         timestamp: Date.now(),
-        database: dbStatus ? 'connected' : 'disconnected',
+        database: dbConnected ? 'connected' : 'disconnected',
         version: pkg.version
     };
 });
@@ -268,15 +284,31 @@ app.on('error', (err) => {
 });
 
 // 启动服务
-app.listen(port, () => {
-    console.log('');
-    console.log('╔══════════════════════════════════════════╗');
-    console.log('║          甲友乐 JYL Server               ║');
-    console.log('╠══════════════════════════════════════════╣');
-    console.log(`║  🌐 服务端口: http://localhost:${port}      ║`);
-    console.log('║  📊 数据库: MySQL                        ║');
-    console.log('║  🔐 认证方式: JWT                        ║');
-    console.log('║  📁 文件存储: storage/reports            ║');
-    console.log('╚══════════════════════════════════════════╝');
-    console.log('');
+//
+// 必须先 await 数据库就绪再 listen。之前 DbService.init() 没有 await，
+// listen 紧接着同步执行，而 init 最多重试 10 次 × 5 秒，
+// 期间端口已经打开、请求进得来但每一个都因为库不可用而失败。
+const start = async () => {
+    await DbService.init();
+    startCleanupJobs();
+
+    app.listen(port, () => {
+        console.log('');
+        console.log('╔══════════════════════════════════════════╗');
+        console.log('║          甲友乐 JYL Server               ║');
+        console.log('╠══════════════════════════════════════════╣');
+        console.log(`║  🌐 服务端口: http://localhost:${port}      ║`);
+        console.log('║  📊 数据库: MySQL                        ║');
+        console.log('║  🔐 认证方式: JWT                        ║');
+        console.log('║  📁 文件存储: storage/reports            ║');
+        console.log('╚══════════════════════════════════════════╝');
+        console.log('');
+        console.log(`[启动] 反向代理转发头: ${trustProxy ? `信任最后 ${app.maxIpsCount} 跳` : '不信任（TRUST_PROXY 未开启）'}`);
+        console.log('');
+    });
+};
+
+start().catch((err) => {
+    console.error('[启动失败]', err.message);
+    process.exit(1);
 });

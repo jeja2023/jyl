@@ -1,9 +1,6 @@
 const HealthRecord = require('../models/HealthRecord');
 const MedicationPlan = require('../models/MedicationPlan');
-const User = require('../models/User');
-const FamilyMember = require('../models/FamilyMember');
 const {
-    METRIC_KEYS,
     TREND_KEYS,
     analyzeRecord,
     getDefaultTrendKeys,
@@ -12,6 +9,8 @@ const {
     getTrendMeta,
     parseRanges
 } = require('../utils/indicatorAnalysis');
+const { resolveMemberScope, buildMemberWhere } = require('../utils/memberScope');
+const { loadOwnerProfile } = require('./OwnerProfileService');
 
 const TREATMENT_RULES = [
     {
@@ -89,19 +88,25 @@ const medicationTextFromPlans = (plans) => plans
     .map(plan => [plan.medicineName, plan.dosage, plan.weeklyDosage, plan.scheduleType, plan.intervalDays, plan.notes].filter(Boolean).join(' '))
     .join(' ');
 
-const buildMonitoringPlan = async (userId, memberId = null) => {
-    const owner = memberId
-        ? await FamilyMember.findOne({ where: { id: memberId, UserId: userId } })
-        : await User.findByPk(userId, { attributes: ['id', 'patientType', 'trendIndicators'] });
+/**
+ * 生成个体化监测方案。
+ *
+ * 成员作用域缺省是"本人"（memberId IS NULL）。原先的条件
+ * `if (memberId !== null && memberId !== undefined && memberId !== '')`
+ * 把三种缺省值全排除在过滤之外，本人的监测方案实际是按全家最新一条记录
+ * 挑出的"最近异常追踪"项，数据质量评分也在算别人的化验单。
+ */
+const buildMonitoringPlan = async (userId, rawMemberId = undefined) => {
+    const scope = resolveMemberScope(rawMemberId);
+    const owner = await loadOwnerProfile(userId, scope);
     const patientType = owner?.patientType || '其他';
     const treatmentStage = owner?.treatmentStage || '日常随访';
 
-    const where = { UserId: userId };
-    if (memberId !== null && memberId !== undefined && memberId !== '') where.memberId = memberId || null;
+    const where = { UserId: userId, ...buildMemberWhere(scope) };
 
     const records = await HealthRecord.findAll({
         where,
-        order: [['recordDate', 'DESC']],
+        order: [['recordDate', 'DESC'], ['id', 'DESC']],
         limit: 2
     });
     const latest = records[0]?.toJSON() || null;
@@ -185,6 +190,7 @@ const buildMonitoringPlan = async (userId, memberId = null) => {
         : 0;
 
     return {
+        scope: { mode: scope.mode, memberId: scope.memberId },
         patientType,
         treatmentStage,
         activeMedicationCount: medicationPlans.length,

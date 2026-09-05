@@ -1,6 +1,6 @@
 # Android APK 与热更新发布指南
 
-当前版本：`1.8.10`（`versionCode: 190`）
+当前版本：`1.8.13`（`versionCode: 193`）
 
 目标：用户首次安装 APK 后，后续普通前端更新通过 wgt 热更新完成，用户无需反复卸载或重新安装 APK。
 
@@ -69,7 +69,7 @@ npm run build:app
 
 6. 发布 APK 下载入口：
 
-- 将正式 APK 同步到 `storage/app-releases/jyl-1.8.10.apk`
+- 将正式 APK 同步到 `storage/app-releases/jyl-<版本号>.apk`（后端按目录扫描取版本号最高的包，不写死文件名）
 - 登录页 H5 会显示“下载安卓版”，用户可直接下载安装包
 - 如果使用独立 CDN 或对象存储，可通过 `APK_DOWNLOAD_URL` 环境变量覆盖下载地址
 
@@ -81,18 +81,28 @@ npm run build:app
 - 分享、家庭成员、用药提醒
 - `/api/app/update/check` 热更新检查
 
-## 1.8.10 自动更新设置
+## 1.8.13 自动更新设置
 
-本次 `1.8.10 / 190` 只修改前端页面显示、参考范围判定和样式，不涉及原生权限、模块、插件、包名、证书、图标、启动图或生产 API 地址，因此可走 WGT 热更新，不需要重新打 APK。
+本次 `1.8.13 / 193` 只改动前端 JS/样式和服务端逻辑，不涉及原生权限、模块、插件、包名、证书、图标、启动图或生产 API 地址，因此可以走 WGT 热更新，不需要重新打 APK。
+
+但**必须后端先行**：本次服务端新增了 `TRUST_PROXY`、`APP_PUBLIC_BASE_URL` 环境变量并需要重建 Docker 镜像，前端也开始使用 `memberId=self` 参数和 `POST /api/auth/account/delete` 接口。若 App 先热更而后端仍是旧版：
+
+- `memberId=self` 会被旧后端当成家庭成员 ID 塞进查询，首页最新化验直接查不到数据
+- 设置页的注销账号会请求到不存在的路由，返回 404
+
+因此 `jyl-1.8.13-193.wgt` 采用 `--disabled` 发布，`storage/app-updates/manifest.json` 的 `enabled` 为 `false`，后端部署完成并确认 `/api/health` 返回 200 后，把它改为 `true` 才开始下发。
 
 自动更新必须同时满足：
 
-- `client/src/manifest.json` 已更新为 `versionName: 1.8.10`、`versionCode: 190`
-- 发布后的 `storage/app-updates/manifest.json` 同样为 `1.8.10 / 190`
-- manifest 中 `wgtUrl` 指向 `/storage/app-updates/jyl-1.8.10-190.wgt`
-- 从已安装 `1.8.9 / 189` 的 Android App 发起检查时，后端返回 `hasUpdate: true`
+- `client/src/manifest.json` 已更新为 `versionName: 1.8.13`、`versionCode: 193`
+- 发布后的 `storage/app-updates/manifest.json` 同样为 `1.8.13 / 193`
+- manifest 中 `wgtUrl` 指向 `/storage/app-updates/jyl-1.8.13-193.wgt`
+- manifest 中 `enabled` 为 `true`（否则更新检查一律返回 `hasUpdate: false, reason: 'disabled'`）
+- 从已安装 `1.8.12 / 192` 的 Android App 发起检查时，后端返回 `hasUpdate: true`
 
-注意：后端更新检查会阻止 `versionCode` 倒退或同版本覆盖。若只是覆盖 `jyl-1.8.9-189.wgt`，已装 `1.8.9 / 189` 的用户不会收到这次修复。
+注意：后端更新检查会阻止 `versionCode` 倒退或同版本覆盖。若只是覆盖 `jyl-1.8.12-192.wgt`，已装 `1.8.12 / 192` 的用户不会收到这次修复。
+
+另外从本版本起，客户端只接受**与 API 同源**的更新包地址（或构建时通过 `VITE_UPDATE_ORIGINS` 显式配置的白名单）。此前"只要是 https 就视为可信"，服务端一旦被 Host 头注入就会安装攻击者域名下的包。如果你把 wgt 放在独立 CDN，必须在构建时配置该白名单。
 
 ## wgt 热更新发布
 
@@ -109,15 +119,21 @@ npm run release:app
 输出文件示例：
 
 ```text
-client/dist/release/jyl-1.8.10-190.wgt
-client/dist/release/jyl-1.8.10-190.wgt.json
+client/dist/release/jyl-1.8.13-193.wgt
+client/dist/release/jyl-1.8.13-193.wgt.json
 ```
 
 3. 发布到后端：
 
 ```bash
 cd server
-npm run app:update:publish -- ..\client\dist\release\jyl-1.8.10-190.wgt 1.8.10 190 "修复记录详情参考范围显示并优化趋势页单位字号"
+npm run app:update:publish -- ..\client\dist\release\jyl-1.8.13-193.wgt 1.8.13 193 "修复健康数据混算、账号注销与来源IP伪造"
+```
+
+服务端接口有变更、需要"先打包但暂不下发"时加 `--disabled`：
+
+```bash
+npm run app:update:publish -- ..\client\dist\release\jyl-1.8.13-193.wgt 1.8.13 193 "更新说明" --disabled
 ```
 
 强制更新示例：

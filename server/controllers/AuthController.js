@@ -14,9 +14,17 @@ const { Op, UniqueConstraintError } = require('sequelize');
 const { logAction } = require('../utils/actionLog');
 const { invalidate: invalidateUserCache } = require('../utils/userCache');
 const { anyHasValue } = require('../utils/recordQuery');
+const { memberWhereFrom, ALL: MEMBER_SCOPE_ALL } = require('../utils/memberScope');
 const { TREND_KEYS, getDiseaseIndicatorProfile, getDefaultTrendKeys } = require('../utils/indicatorAnalysis');
+// 整个模块引入而不是解构：解构会在加载时固化函数引用，测试里就没法替换掉真实的删库逻辑
+const AccountDeletionService = require('../services/AccountDeletionService');
 const logger = require('../utils/logger');
 const pkg = require('../package.json');
+
+/** 注销账号的确认短语，与前端设置页的提示保持一致 */
+const DELETE_ACCOUNT_CONFIRM_TEXT = '确认注销';
+/** 注销事件写入操作日志时的用户名占位，账号行此时已删除 */
+const DELETED_ACCOUNT_LOG_NAME = '已注销用户';
 const APP_RELEASES_DIR = path.resolve(__dirname, '..', '..', 'storage', 'app-releases');
 const FALLBACK_APK_DOWNLOAD_URL = '/storage/app-releases/jyl-1.8.6.apk';
 
@@ -169,14 +177,20 @@ class AuthController {
     /**
      * 获取用户统计数据
      * GET /api/auth/stats
+     *
+     * 这里是"账号累计"口径：记录天数与化验份数缺省跨全部成员统计
+     * （家庭成员数量本身就是并列展示的另一个计数）。
+     * 它不做异常判定、不套参考范围，所以混算不会产生错误的医学结论。
+     * 需要只看本人时传 memberId=self，看单个成员传 memberId=<成员ID>。
      */
     static async stats(ctx) {
         const { id } = ctx.state.user;
+        const memberWhere = memberWhereFrom(ctx.query.memberId, { defaultMode: MEMBER_SCOPE_ALL });
 
         const [daysCount, labCount, familyCount] = await Promise.all([
             // 1. 记录天数 (不同日期的记录数)
             HealthRecord.count({
-                where: { UserId: id },
+                where: { UserId: id, ...memberWhere },
                 distinct: true,
                 col: 'recordDate'
             }),
@@ -184,6 +198,7 @@ class AuthController {
             HealthRecord.count({
                 where: {
                     UserId: id,
+                    ...memberWhere,
                     ...anyHasValue(['TSH', 'FT3', 'FT4', 'T3', 'T4', 'Tg', 'TGAb', 'TPOAb'])
                 }
             }),
@@ -917,6 +932,95 @@ class AuthController {
 
 
     /**
+     * 注销账号：删除该账号的全部个人数据
+     * POST /api/auth/account/delete
+     *
+     * 这是不可逆操作，所以要求三重条件同时满足：
+     *  1. 已登录（路由上的 auth 中间件）；
+     *  2. 手输确认短语，防止误触；
+     *  3. 二次身份校验——有密码的账号必须输密码，
+     *     纯验证码登录（微信/短信）的账号必须提供发送到本人手机/邮箱的验证码。
+     *     只靠"持有令牌"是不够的：手机被临时借用或令牌泄露都能一键删光健康数据。
+     */
+    static async deleteAccount(ctx) {
+        const { id } = ctx.state.user;
+        const { confirmText, password, code } = ctx.request.body || {};
+
+        if (String(confirmText || '').trim() !== DELETE_ACCOUNT_CONFIRM_TEXT) {
+            return Response.error(ctx, `请输入“${DELETE_ACCOUNT_CONFIRM_TEXT}”以确认此操作`, 400);
+        }
+
+        const user = await User.findByPk(id);
+        if (!user) {
+            return Response.error(ctx, '用户不存在', 404);
+        }
+
+        if (user.password) {
+            if (!password) {
+                return Response.error(ctx, '请输入登录密码以确认注销', 400);
+            }
+            if (!(await user.comparePassword(password))) {
+                // 刻意用 400 而不是 401：前端拦截器把所有 401 一律当成"登录已过期"，
+                // 会强制登出并跳回登录页。注销流程里用户是登录着的，
+                // 输错一次密码就被踢出去、还提示"登录已过期"，既误导又要重来一遍。
+                return Response.error(ctx, '密码错误，请重新输入', 400);
+            }
+        } else {
+            // 没有设置密码的账号只能走验证码，且目标必须是账号自己绑定的手机/邮箱
+            const target = user.phone || user.email;
+            const targetType = user.phone ? 'sms' : 'email';
+            if (!target) {
+                return Response.error(ctx, '当前账号未设置密码且未绑定手机/邮箱，请先设置密码后再注销', 400);
+            }
+            if (!code || !/^\d{6}$/.test(String(code))) {
+                return Response.error(ctx, '请输入发送到本人手机/邮箱的6位验证码', 400);
+            }
+
+            const consumed = await sequelize.transaction(async (transaction) => {
+                const verifyCode = await VerifyCode.findOne({
+                    where: {
+                        target,
+                        code: String(code),
+                        targetType,
+                        used: false,
+                        expireAt: { [Op.gte]: new Date() }
+                    },
+                    order: [['createdAt', 'DESC']],
+                    transaction,
+                    lock: transaction.LOCK.UPDATE
+                });
+                if (!verifyCode) return false;
+                await verifyCode.update({ used: true }, { transaction });
+                return true;
+            });
+
+            if (!consumed) {
+                // 同上，不用 401，避免被前端当成会话失效
+                return Response.error(ctx, '验证码错误或已过期', 400);
+            }
+        }
+
+        const result = await AccountDeletionService.deleteAccount(id);
+        if (!result) {
+            return Response.error(ctx, '用户不存在', 404);
+        }
+
+        invalidateUserCache(id);
+
+        // 账号行已经删掉，日志里的 userId 只能显式传：ctx.state.user 指向的已是不存在的账号
+        logAction(
+            ctx,
+            '注销账号',
+            '认证',
+            `账号 ${result.identity.username || result.identity.phone || result.identity.email || `ID:${id}`} 已注销：${JSON.stringify(result.summary)}`,
+            'success',
+            { id: null, username: DELETED_ACCOUNT_LOG_NAME }
+        );
+
+        Response.success(ctx, { deleted: result.summary }, '账号及全部数据已删除');
+    }
+
+    /**
      * 获取公开系统配置
      * GET /api/common/config
      */
@@ -931,3 +1035,5 @@ class AuthController {
 }
 
 module.exports = AuthController;
+module.exports.DELETE_ACCOUNT_CONFIRM_TEXT = DELETE_ACCOUNT_CONFIRM_TEXT;
+

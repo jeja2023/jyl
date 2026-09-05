@@ -1,14 +1,21 @@
 {
   "name": "jyl-server",
-  "version": "1.8.12",
+  "version": "1.8.13",
   "description": "甲友乐后端服务 - 甲状腺健康管理平台",
   "main": "index.js",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
     "migrate": "sequelize-cli db:migrate",
     "migrate:undo": "sequelize-cli db:migrate:undo",
     "migrate:check": "node scripts/check-migrations.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "audit:prod": "npm audit --omit=dev --audit-level=high",
+    "verify": "npm run lint && npm test && npm run audit:prod",
     "release:check": "node scripts/release-check.js",
     "app:update:publish": "node scripts/publish-app-update.js",
     "test": "node --test",
@@ -41,15 +48,20 @@
     "koa-router": "^14.0.0",
     "koa-static": "^5.0.0",
     "mysql2": "^3.16.2",
-    "nodemailer": "^8.0.1",
+    "nodemailer": "^10.0.0",
     "sequelize": "^6.37.7",
     "xss": "^1.0.15"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
     "nodemon": "^3.1.11",
     "sequelize-cli": "^6.6.2"
   },
   "optionalDependencies": {
     "ioredis": "^5.6.1"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
   }
 }

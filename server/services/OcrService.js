@@ -1,6 +1,5 @@
 const crypto = require('crypto');
 const https = require('https');
-const logger = require('../utils/logger');
 
 /**
  * OCR 业务逻辑服务
@@ -138,17 +137,6 @@ class OcrService {
         allText = allText.replace(/（/g, '(').replace(/）/g, ')').replace(/：/g, ':').replace(/，/g, ',');
 
         const result = { ultrasoundNote: allText };
-
-        const parseSize = (text) => {
-            if (!text) return null;
-            const match = text.match(/([0-9]+\.?[0-9]*)[\s]*[×*xX][\s]*([0-9]+\.?[0-9]*)[\s]*(?:[×*xX][\s]*([0-9]+\.?[0-9]*))?[\s]*(mm|cm|毫米|厘米)?/i);
-            if (match) {
-                let [_, l, w, h, unit] = match;
-                const conv = (n) => (unit === 'cm' || unit === '厘米') ? parseFloat((n * 10).toFixed(1)) : parseFloat(n);
-                return `${conv(l)}×${conv(w)}${h ? '×' + conv(h) : ''}mm`;
-            }
-            return null;
-        };
 
         // 状态识别
         if (allText.match(/右[侧叶][^左]*?(?:已切除|未见显示|缺如)/)) result.thyroidRight = '已切除';

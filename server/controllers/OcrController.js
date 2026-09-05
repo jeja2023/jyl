@@ -368,7 +368,6 @@ class OcrController {
         // --- 2. 段落分块逻辑 (辅助定位) ---
         const leftPart = allText.match(/左[侧叶][^右峡结论提示]+/) || [''];
         const rightPart = allText.match(/右[侧叶][^左峡结论提示]+/) || [''];
-        const conclPart = allText.match(/(?:提示|结论|诊断|意见):?([^]*)$/) || [allText, ''];
 
         // --- 0. 日期提取 ---
         // 匹配 202x-xx-xx 或 202x年xx月xx日

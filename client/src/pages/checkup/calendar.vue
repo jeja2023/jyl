@@ -118,12 +118,6 @@ onMounted(() => {
   loadReminders();
 });
 
-const openAddModal = () => {
-  newReminder.date = '';
-  newReminder.note = '';
-  showAdd.value = true;
-};
-
 const selectDate = (e) => {
   if (e && e.length > 0) {
     newReminder.date = e[0];

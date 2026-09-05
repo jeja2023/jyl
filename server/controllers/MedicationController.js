@@ -3,7 +3,7 @@ const MedicationLog = require('../models/MedicationLog');
 const MedicationAdjustment = require('../models/MedicationAdjustment');
 const Response = require('../utils/response');
 const { logAction } = require('../utils/actionLog');
-const { calculateStats } = require('../services/MedicationService');
+const { calculateStats, MAX_STATS_DAYS } = require('../services/MedicationService');
 const { Op } = require('sequelize');
 const logger = require('../utils/logger');
 const { getPlanDosageForDate, getPlanStartDate, isPlanDoseDate, stringifyWeeklyDosage } = require('../utils/medicationDosage');
@@ -223,8 +223,8 @@ class MedicationController {
     // 服药统计 (有一天算一天)
     static async stats(ctx) {
         const userId = ctx.state.user.id;
-        // 如果客户端未传 days，默认为 0，表示从头开始算
-        const days = parseInt(ctx.query.days || '0', 10);
+        // 如果客户端未传 days，默认为 0，表示从头开始算；上限在 calculateStats 内再兜一层
+        const days = Math.min(Math.max(parseInt(ctx.query.days || '0', 10) || 0, 0), MAX_STATS_DAYS);
         const result = await calculateStats(userId, days);
         Response.success(ctx, result);
     }

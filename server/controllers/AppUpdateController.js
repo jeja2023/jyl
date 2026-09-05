@@ -11,6 +11,21 @@ const toInt = (value, fallback = 0) => {
     return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+/**
+ * 把 manifest 里的包地址补成客户端可用的地址。
+ *
+ * 安全要点：绝不能用请求头拼绝对地址。x-forwarded-host 和 Host（ctx.host）
+ * 在没有可信代理的部署里都由客户端完全控制（对应 Koa 3 的 Host 头注入公告），
+ * 一旦被污染，客户端拿到的 downloadUrl 就落在攻击者域名下，
+ * 而热更新包会被直接安装。
+ *
+ * 取值顺序：
+ *  1. manifest 里本身就是绝对地址 → 原样返回；
+ *  2. 配置了公开域名 → 用配置值（唯一推荐的生产做法）；
+ *  3. 明确开启了 TRUST_PROXY → 才允许用代理写入的转发头；
+ *  4. 其余情况 → 返回相对路径，交给客户端用自己的 baseURL 解析。
+ *     相对路径天然同源，伪造不了。
+ */
 const normalizeUrl = (ctx, url) => {
     if (!url) return '';
     if (/^https?:\/\//i.test(url)) return url;
@@ -22,14 +37,20 @@ const normalizeUrl = (ctx, url) => {
         return new URL(url, publicBase).toString();
     }
 
-    const forwardedProto = String(ctx.get?.('x-forwarded-proto') || '').split(',')[0].trim();
-    const forwardedHost = String(ctx.get?.('x-forwarded-host') || '').split(',')[0].trim();
+    if (process.env.TRUST_PROXY !== 'true') {
+        return url;
+    }
+
+    const forwardedProto = String(ctx.get?.('x-forwarded-proto') || '').split(',').pop().trim();
+    const forwardedHost = String(ctx.get?.('x-forwarded-host') || '').split(',').pop().trim();
     const host = forwardedHost || ctx.host;
-    const isLocalHost = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)($|:)/i.test(host || '');
+    if (!host) return url;
+
+    const isLocalHost = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)($|:)/i.test(host);
     const protocol = forwardedProto || (process.env.NODE_ENV === 'production' && !isLocalHost ? 'https' : ctx.protocol) || 'http';
-    const origin = host ? `${protocol}://${host}` : ctx.origin;
-    return new URL(url, origin).toString();
+    return new URL(url, `${protocol}://${host}`).toString();
 };
+
 
 const readManifest = () => {
     if (!fs.existsSync(manifestPath)) {

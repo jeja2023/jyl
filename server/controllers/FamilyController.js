@@ -35,7 +35,9 @@ class FamilyController {
 
     static async update(ctx) {
         const userId = ctx.state.user.id;
-        const { id, UserId, ...payload } = ctx.request.body;
+        // UserId 刻意从请求体里剥掉：归属只能由登录态决定，
+        // 否则提交 { UserId: 别人的ID } 就能把成员改挂到其他账号下
+        const { id, UserId: _ignoredUserId, ...payload } = ctx.request.body;
         if (!id) return Response.error(ctx, '缺少成员ID');
 
         const member = await FamilyMember.findOne({ where: { id, UserId: userId } });

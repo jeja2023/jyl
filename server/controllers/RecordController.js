@@ -9,6 +9,7 @@ const { DEFAULT_RANGES, TREND_KEYS } = require('../utils/indicatorAnalysis');
 const logger = require('../utils/logger');
 const { getPagination } = require('../utils/pagination');
 const { anyHasValue } = require('../utils/recordQuery');
+const { resolveMemberScope, buildMemberWhere, ALL } = require('../utils/memberScope');
 
 const LAB_KEYS = Object.keys(DEFAULT_RANGES);
 
@@ -59,11 +60,13 @@ class RecordController {
 
     static async export(ctx) {
         const userId = ctx.state.user.id;
-        const { id, memberId } = ctx.query;
+        const { id } = ctx.query;
 
-        const where = { UserId: userId };
+        // 导出是"清单"语义，缺省保持跨成员（Excel 里有"所属成员"列区分）；
+        // 需要只导本人时传 memberId=self，导单个成员时传 memberId=<id>
+        const scope = resolveMemberScope(ctx.query.memberId, { defaultMode: ALL });
+        const where = { UserId: userId, ...buildMemberWhere(scope) };
         if (id) where.id = id;
-        if (memberId) where.memberId = memberId;
 
         // 导出会把整份结果读进内存生成 Excel，给个上限避免单次请求把进程内存打满
         const exportLimit = parseInt(process.env.EXPORT_MAX_ROWS || '5000', 10);
@@ -351,7 +354,10 @@ class RecordController {
         const { hasLab } = ctx.query;
         const { limit, offset } = getPagination(ctx.query, { defaultPageSize: 20, maxPageSize: 100 });
 
-        const where = { UserId: userId };
+        // 列表是"清单"语义，缺省保持跨成员（每行都带 FamilyMember 标签可区分）；
+        // 需要只看本人时传 memberId=self
+        const scope = resolveMemberScope(ctx.query.memberId, { defaultMode: ALL });
+        const where = { UserId: userId, ...buildMemberWhere(scope) };
         if (hasLab == 1) {
             Object.assign(where, anyHasValue(LAB_KEYS));
         }
@@ -396,13 +402,17 @@ class RecordController {
 
     static async trend(ctx) {
         const userId = ctx.state.user.id;
+        // 趋势曲线是单个人的指标走势，缺省必须只取本人。
+        // 原先不带任何成员条件，本人和家人的 TSH 会被画进同一条折线。
+        const scope = resolveMemberScope(ctx.query.memberId);
         const list = await HealthRecord.findAll({
             where: {
                 UserId: userId,
+                ...buildMemberWhere(scope),
                 ...anyHasValue(TREND_KEYS)
             },
             attributes: ['recordDate', ...TREND_KEYS],
-            order: [['recordDate', 'DESC']],
+            order: [['recordDate', 'DESC'], ['id', 'DESC']],
             limit: 12
         });
         Response.success(ctx, list.reverse());

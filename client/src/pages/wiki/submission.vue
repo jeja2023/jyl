@@ -74,6 +74,7 @@
 
 <script setup>
 import { ref, reactive } from 'vue';
+import { onLoad } from '@dcloudio/uni-app';
 import http from '@/utils/request.js';
 import { buildReportImageUrl } from '@/utils/reportImage.js';
 import { useUserStore } from '@/store/index.js';
@@ -93,6 +94,53 @@ const submitting = ref(false);
 const categories = ['疾病知识', '用药指南', '饮食调理', '生活方式', '检查解读', '经验分享'];
 const formats = ref({});
 let editorCtx = null;
+
+// 编辑模式的文章 ID。
+// 之前 submit() 里直接读 articleId.value 但这个变量从未声明，
+// 每次提交都在 try 块里抛 ReferenceError 又被 catch 静默吃掉——
+// 投稿和编辑两条路径都提交不上去，界面上只是按钮恢复可点、没有任何提示。
+// my-articles.vue 是按 `/pages/wiki/submission?id=xxx` 跳过来的，这里补上接收。
+const articleId = ref(null);
+// 编辑模式下等编辑器就绪后再灌入正文
+const pendingContent = ref('');
+
+onLoad((options) => {
+  const id = options?.id;
+  if (!id) return;
+
+  articleId.value = id;
+  uni.setNavigationBarTitle({ title: '编辑投稿' });
+  loadArticle(id);
+});
+
+/** 拉取待编辑的投稿内容 */
+const loadArticle = async (id) => {
+  try {
+    const detail = await http.get(`/api/wiki/${id}`);
+    if (!detail) return;
+
+    form.title = detail.title || '';
+    form.category = detail.category || '';
+    form.cover = detail.cover || '';
+    form.content = detail.content || '';
+    pendingContent.value = form.content;
+
+    if (detail.cover) {
+      fileList.value = [{ url: buildReportImageUrl(detail.cover), status: 'success' }];
+    }
+    // 编辑器可能已经就绪，此时直接灌入
+    applyPendingContent();
+  } catch (e) {
+    uni.showToast({ title: '加载投稿内容失败', icon: 'none' });
+  }
+};
+
+/** 把待填充的正文写进编辑器，编辑器与数据谁先到都能生效 */
+const applyPendingContent = () => {
+  if (!editorCtx || !pendingContent.value) return;
+  editorCtx.setContents({ html: pendingContent.value });
+  pendingContent.value = '';
+};
 
 const goBack = () => {
   uni.navigateBack();
@@ -179,7 +227,8 @@ const deletePic = (event) => {
 const onEditorReady = () => {
   uni.createSelectorQuery().select('#editor').context((res) => {
     editorCtx = res.context;
-    // 如果是编辑模式，这里可以设置内容
+    // 编辑模式下正文可能已经先拉回来了，这里补灌进去
+    applyPendingContent();
   }).exec();
 };
 
@@ -213,16 +262,20 @@ const insertImage = () => {
 }
 
 const submit = async () => {
+    if (!editorCtx) {
+        return uni.showToast({ title: '编辑器还在加载，请稍候', icon: 'none' });
+    }
+
     // 再次从 editor 获取最新内容，双保险
     editorCtx.getContents({
         success: async (res) => {
              form.content = res.html;
-             
+
              if(!form.title) return uni.showToast({title: '请填写标题', icon:'none'});
              if(!form.category) return uni.showToast({title: '请选择分类', icon:'none'});
              // 处理富文本，如果为空，通常只有 <p><br></p>
              if(!form.content || form.content === '<p><br></p>') return uni.showToast({title: '请填写内容', icon:'none'});
-             
+
              submitting.value = true;
              try {
                  if (articleId.value) {
@@ -238,6 +291,7 @@ const submit = async () => {
                      uni.navigateBack();
                  }, 1500);
              } catch(e) {
+                 // 拦截器已经提示过错误，这里只恢复按钮可点状态
                  submitting.value = false;
              }
         }

@@ -1,6 +1,6 @@
 # App 发布检查清单
 
-当前版本：`1.8.10`（`versionCode: 190`）
+当前版本：`1.8.13`（`versionCode: 193`）
 
 ## 首次 APK
 
@@ -8,13 +8,13 @@
 - `client/.env.production` 已配置正式 `VITE_API_BASE`
 - `client/src/manifest.json` 已配置 DCloud AppID
 - Android 包名已确定且不会随意变更
-- `versionName` / `versionCode` 已递增到 `1.8.10 / 190`
+- `versionName` / `versionCode` 已递增到 `1.8.13 / 193`
 - Android 签名证书已备份
 - 权限列表已按最小权限原则检查
 - Android 图标均为英文文件名 PNG
 - `npm run build:app` 构建成功
 - HBuilderX 或 Linux HBuilderX CLI 正式 APK 打包成功
-- APK 已上传或同步到 `storage/app-releases/jyl-1.8.10.apk`
+- APK 已上传或同步到 `storage/app-releases/jyl-<版本号>.apk`
 - 登录页“下载安卓版”入口可访问并能下载 APK
 - 真机完成核心流程验收
 - 热更新检查接口可访问
@@ -27,20 +27,39 @@
 - `client/dist/release/*.wgt.json` 中 size、md5、sha256 已生成
 - `npm run app:update:publish` 发布成功
 - `storage/app-updates/manifest.json` 的版本号正确
-- `storage/app-updates/manifest.json` 已指向 `jyl-1.8.10-190.wgt`
-- 从 `1.8.9 / 189` 真机检查更新时可发现 `1.8.10 / 190`
+- `storage/app-updates/manifest.json` 已指向 `jyl-1.8.13-193.wgt`
+- 从 `1.8.12 / 192` 真机检查更新时可发现 `1.8.13 / 193`
 - `npm run release:check` 发布自检通过
 - 真机验证可发现更新、下载、安装并重启
 - 强制更新仅用于兼容性或安全修复
+- **后端接口有变更时，必须确认后端已先行部署，再把 `manifest.json` 的 `enabled` 置为 `true`**
 
 ## 安全发布检查
 
+- 根目录 `.dockerignore` 存在，且排除 `server/.env`、`docker/.env_docker`、`certs/`、`node_modules`（`npm run release:check` 会硬校验，缺失即失败）
+- 构建过旧镜像的部署已轮换 `JWT_SECRET`、数据库密码、`ADMIN_PASS` 及第三方凭据，并删除旧镜像与远端历史 tag
 - `/storage` 仅公开 `app-updates` 与 `app-releases`，不公开 `reports` 与 `logs`
 - 报告图片通过 `/api/report/image/:filename` 鉴权访问
 - 分享页图片访问必须校验有效分享 token，撤销/过期/隐藏图片时不可访问
 - 请求日志不记录 `authToken`、`shareToken`、`token` 查询参数
 - 生产环境已配置 `CORS_ORIGINS`，或明确接受拒绝带 Origin 的跨域请求
+- 生产环境已按实际拓扑设置 `TRUST_PROXY`：有反向代理时为 `true`，端口直接暴露时必须为 `false`
+- 生产环境已配置 `APP_PUBLIC_BASE_URL`，避免热更新地址回退到相对路径
 - 生产环境未通过 Nginx、CDN 或对象存储额外公开 `storage/logs` 与 `storage/reports`
+- `npm run audit:prod` 无 high/critical 公告
+
+## 1.8.13 发布重点
+
+- 本次是安全与数据正确性集中修复，覆盖全面检查列出的 9 项问题
+- **必须后端先行**：新增 `TRUST_PROXY`、`TRUST_PROXY_HOPS`、`APP_PUBLIC_BASE_URL` 环境变量，且需要重建 Docker 镜像
+- 因此 `jyl-1.8.13-193.wgt` 已打包但 `manifest.json` 的 `enabled` 为 `false`，后端部署完成后再开闸
+- App 先于后端热更会出问题：`memberId=self` 会被旧后端当成家庭成员 ID，账号注销接口不存在
+- 镜像密钥外泄已修复（新增 `.dockerignore`），已构建旧镜像的部署必须轮换全部凭据
+- 首页、洞察、复查建议、监测方案不再混入家庭成员数据，展示的异常数与复查日期会变化
+- 服药依从率按计划归属逐日核算，不再出现 200% / 300%，数值可能低于升级前
+- `/api/health` 在数据库断连时返回 503，监控按状态码判活现在才有效
+- 依赖升级后 `npm audit` 为 0 vulnerabilities，Docker 基础镜像升到 `node:24-alpine`
+- 新增账号注销接口，设置页的"注销账号"从此真正删除服务端数据
 
 ## 1.8.10 发布重点
 

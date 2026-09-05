@@ -1,5 +1,6 @@
 const ratelimit = require('koa-ratelimit');
 const logger = require('./logger');
+const { getClientIp } = require('./clientIp');
 
 /**
  * 限流器封装，解决原先直接用 koa-ratelimit 的两个问题：
@@ -66,6 +67,15 @@ const getRedisClient = () => {
 };
 
 /**
+ * 限流计数的默认 key。
+ *
+ * 必须走 getClientIp（也就是 ctx.ip），它由 app.proxy / app.maxIpsCount 裁决。
+ * 千万不要在这里读 x-forwarded-for 之类的头：那等于让调用方自己指定计数桶，
+ * 每次换一个值就是一份全新的额度，登录爆破和验证码限流全部形同虚设。
+ */
+const defaultRateLimitId = (ctx) => getClientIp(ctx);
+
+/**
  * 创建一个限流中间件
  * @param {object} options duration(ms)、max、errorMessage、id
  */
@@ -74,7 +84,7 @@ const createRateLimiter = ({ duration, max, errorMessage, id }) => {
         duration,
         max,
         errorMessage,
-        id: id || ((ctx) => ctx.ip),
+        id: id || defaultRateLimitId,
         disableHeader: false
     };
 
@@ -90,4 +100,4 @@ const createRateLimiter = ({ duration, max, errorMessage, id }) => {
     return ratelimit({ ...base, driver: 'memory', db: store });
 };
 
-module.exports = { createRateLimiter, sweepMemoryStores, memoryStores };
+module.exports = { createRateLimiter, defaultRateLimitId, sweepMemoryStores, memoryStores };

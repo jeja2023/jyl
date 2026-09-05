@@ -36,7 +36,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import http from '@/utils/request.js';
 import { toLocaleDateStr } from '@/utils/date.js';
@@ -91,8 +91,7 @@ const editArticle = (item) => {
             url: `/pages/wiki/list?id=${item.id}`
         });
     } else {
-        // 跳转去编辑
-        // 下一步我会修改 submission 支持传入 id
+        // 草稿 / 待审核 / 被驳回的投稿跳去编辑，submission 页按 id 载入原文
         uni.navigateTo({
             url: `/pages/wiki/submission?id=${item.id}`
         });

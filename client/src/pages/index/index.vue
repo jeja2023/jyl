@@ -26,8 +26,10 @@ const checkReminders = async () => {
 const fetchLastRecord = async () => {
   if (!userStore.isLogin) return;
   try {
-    // 增加 hasLab 参数，由后端过滤掉纯 B 超记录，确保显示的是最后一次真实血检
-    const res = await http.get('/api/record/list', { params: { limit: 1, hasLab: 1 } });
+    // hasLab 让后端过滤掉纯 B 超记录，确保显示的是最后一次真实血检
+    // memberId=self 只取本人：不限定的话最新一条可能是家庭成员的化验单，
+    // 首页却会按本人的病种和参考范围去解读
+    const res = await http.get('/api/record/list', { params: { limit: 1, hasLab: 1, memberId: 'self' } });
     if (res.list && res.list.length > 0) {
       const record = res.list[0];
       // 解析单位信息
@@ -110,13 +112,6 @@ const goToDetail = (id) => {
 const goToNotification = () => {
     if (!userStore.isLogin) return goToLogin();
     uni.navigateTo({ url: '/pages/notification/index' });
-};
-
-const getTshColor = (tsh) => {
-  if (!tsh) return 'color-gray';
-  if (tsh > 4.2) return 'color-error';
-  if (tsh < 0.27) return 'color-warning';
-  return 'color-success';
 };
 
 // getIndicatorInfo 已从 @/utils/indicator.js 导入

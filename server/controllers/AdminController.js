@@ -11,7 +11,7 @@ class AdminController {
      * 获取用户列表
      */
     static async listUsers(ctx) {
-        const { page = 1, pageSize = 20, keyword = '' } = ctx.query;
+        const { keyword = '' } = ctx.query;
         const pagination = getPagination(ctx.query, { defaultPageSize: 20, maxPageSize: 100 });
 
         const where = {};
@@ -104,7 +104,7 @@ class AdminController {
      * 获取系统日志
      */
     static async listLogs(ctx) {
-        const { page = 1, pageSize = 20, action = '', username = '' } = ctx.query;
+        const { action = '', username = '' } = ctx.query;
         const pagination = getPagination(ctx.query, { defaultPageSize: 20, maxPageSize: 100 });
 
         const where = {};

@@ -1,0 +1,80 @@
+name: CI
+
+# 之前仓库里没有任何 CI 定义，所有回归风险都压在人工执行 npm test 上。
+# 这条流水线把三件事变成合并前的硬门槛：lint、测试、生产依赖高危审计。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  server:
+    name: 服务端 lint + 测试 + 依赖审计
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: 单元测试
+        run: npm test
+
+      # 生产依赖出现 high/critical 直接失败。koa 的 Host 头注入、
+      # sequelize 的 JSON cast 注入这类公告过去只能靠人想起来手动跑 audit。
+      - name: 生产依赖高危审计
+        run: npm run audit:prod
+
+  client:
+    name: 前端 lint + 构建
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      # 前端没有单测，构建能过是当前唯一的自动化底线
+      - name: H5 构建
+        run: npm run build:h5
+
+  release-check:
+    name: 版本一致性与密钥外泄守卫
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # 不依赖 node_modules。--skip-package 是因为热更新 wgt 包不入库，
+      # 版本一致性和 .dockerignore 密钥守卫仍然是硬校验。
+      - name: 发布自检
+        working-directory: server
+        run: node scripts/release-check.js --skip-package

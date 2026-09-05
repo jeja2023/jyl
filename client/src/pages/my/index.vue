@@ -178,10 +178,6 @@ const goProfile = () => {
   uni.navigateTo({ url: '/pages/my/profile' });
 };
 
-const goSettings = () => {
-  uni.navigateTo({ url: '/pages/my/settings' });
-};
-
 const goRecordHistory = () => {
   if (!userStore.isLogin) {
     uni.navigateTo({ url: '/pages/login' });

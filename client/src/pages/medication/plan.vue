@@ -838,18 +838,6 @@ const fetchLogs = async () => {
   }
 };
 
-const formatDateLabel = (dateStr) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return `${date.getMonth() + 1}月${date.getDate()}日`;
-};
-
-const formatDateWithYear = (dateStr) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
-};
-
 // 日历逻辑
 const calendarDays = computed(() => {
     const year = viewYear.value;

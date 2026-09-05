@@ -36,7 +36,20 @@ const optionalEnvVars = [
     { key: 'REDIS_URL', description: '限流共享计数(多实例部署时配置，需 npm i ioredis)', default: '未配置，使用单进程内存限流' },
     { key: 'AUTH_RATE_LIMIT', description: '登录/注册类接口限流(每分钟)', default: '10' },
     { key: 'SMS_RATE_LIMIT', description: '验证码发送限流(每分钟)', default: '3' },
-    { key: 'RATE_LIMIT_SWEEP_MS', description: '内存限流过期条目清理间隔(毫秒)', default: '60000' }
+    { key: 'RATE_LIMIT_SWEEP_MS', description: '内存限流过期条目清理间隔(毫秒)', default: '60000' },
+    { key: 'TRUST_PROXY', description: '是否信任反向代理的 X-Forwarded-* 头(仅在确实有代理时开启，否则限流与审计 IP 可被伪造)', default: 'false' },
+    { key: 'TRUST_PROXY_HOPS', description: '服务端前面的可信代理层数，只认最后 N 跳转发头', default: '1' },
+    { key: 'APP_PUBLIC_BASE_URL', description: 'App 安装包/热更新包的公开访问域名(生产环境建议必填，否则回退相对路径)', default: '未配置，返回相对路径由客户端拼接' }
+];
+
+/**
+ * 生产环境下应当显式配置、否则会退化为不安全或不完整行为的变量。
+ * 只告警不阻断启动：缺了仍能跑，但必须让运维看见。
+ */
+const productionAdvisoryVars = [
+    { key: 'CORS_ORIGINS', reason: '未配置将拒绝所有带 Origin 的跨域请求' },
+    { key: 'TRUST_PROXY', reason: '部署在 Nginx/网关后面时必须设为 true，否则限流与审计记录到的都是代理 IP' },
+    { key: 'APP_PUBLIC_BASE_URL', reason: '未配置时热更新包地址只能返回相对路径' }
 ];
 
 /**
@@ -64,9 +77,19 @@ const validateEnv = () => {
     }
 
     // 提示可选变量使用默认值
-    for (const { key, description, default: defaultValue } of optionalEnvVars) {
+    for (const { key, default: defaultValue } of optionalEnvVars) {
         if (!process.env[key]) {
             console.log(`  ℹ️  ${key} 未设置，使用默认值: ${defaultValue}`);
+        }
+    }
+
+    if (process.env.NODE_ENV === 'production') {
+        const advisories = productionAdvisoryVars.filter(({ key }) => !process.env[key]);
+        if (advisories.length > 0) {
+            console.warn('');
+            console.warn('⚠️  生产环境建议显式配置以下变量:');
+            advisories.forEach(({ key, reason }) => console.warn(`  - ${key}: ${reason}`));
+            console.warn('');
         }
     }
 
@@ -74,4 +97,4 @@ const validateEnv = () => {
     return true;
 };
 
-module.exports = { validateEnv };
+module.exports = { validateEnv, requiredEnvVars, optionalEnvVars, productionAdvisoryVars };

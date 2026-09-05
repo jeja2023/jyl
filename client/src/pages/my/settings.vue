@@ -90,11 +90,51 @@
         <view class="cancel-link" @click="showPasswordModal = false">取消</view>
       </view>
     </u-popup>
+
+    <!-- 注销账号弹窗：不可逆操作，必须手输确认短语 + 二次身份校验 -->
+    <u-popup :show="showDeleteModal" mode="center" round="20" @close="closeDeleteModal" :lockScroll="true">
+      <view class="password-popup">
+        <text class="popup-title danger">注销账号</text>
+
+        <view class="delete-warning">
+          <text>注销后，您的健康记录、家庭成员、用药与复查数据将被永久删除，无法恢复。</text>
+        </view>
+
+        <view class="input-group">
+          <text class="input-label">请输入“{{ DELETE_CONFIRM_TEXT }}”</text>
+          <u--input v-model="deleteForm.confirmText" :placeholder="DELETE_CONFIRM_TEXT" border="surround"></u--input>
+        </view>
+
+        <view class="input-group" v-if="hasPassword">
+          <text class="input-label">登录密码</text>
+          <u--input v-model="deleteForm.password" type="password" placeholder="请输入登录密码" border="surround"></u--input>
+        </view>
+
+        <view class="input-group" v-else>
+          <text class="input-label">验证码</text>
+          <view class="code-row">
+            <u--input v-model="deleteForm.code" type="number" maxlength="6" placeholder="6位验证码" border="surround"></u--input>
+            <u-button
+              size="small"
+              type="primary"
+              plain
+              :text="codeCountdown > 0 ? `${codeCountdown}s` : '获取验证码'"
+              :disabled="codeCountdown > 0 || sendingCode"
+              @click="sendDeleteCode"
+            ></u-button>
+          </view>
+          <text class="input-hint">验证码将发送至 {{ verifyTargetLabel }}</text>
+        </view>
+
+        <u-button type="error" text="永久注销账号" shape="circle" @click="submitDeleteAccount" :loading="deleting"></u-button>
+        <view class="cancel-link" @click="closeDeleteModal">取消</view>
+      </view>
+    </u-popup>
   </view>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useUserStore } from '@/store/index.js';
 import http from '@/utils/request.js';
 
@@ -111,12 +151,40 @@ const passwordForm = ref({
   confirmPassword: ''
 });
 
+// 注销账号相关状态
+const showDeleteModal = ref(false);
+const deleting = ref(false);
+const sendingCode = ref(false);
+const codeCountdown = ref(0);
+let countdownTimer = null;
+const deleteForm = ref({
+  confirmText: '',
+  password: '',
+  code: ''
+});
+
+const clearCountdown = () => {
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+    countdownTimer = null;
+  }
+  codeCountdown.value = 0;
+};
+
 // 邮箱脱敏
 const maskedEmail = computed(() => {
   const email = userInfo.value?.email;
   if (!email) return '未绑定';
   const [name, domain] = email.split('@');
   return name.length > 3 ? `${name.slice(0, 3)}***@${domain}` : `***@${domain}`;
+});
+
+// 注销验证码的发送目标（脱敏展示）
+const verifyTargetLabel = computed(() => {
+  const phone = userInfo.value?.phone;
+  if (phone) return `手机 ${String(phone).slice(0, 3)}****${String(phone).slice(-4)}`;
+  if (userInfo.value?.email) return `邮箱 ${maskedEmail.value}`;
+  return '未绑定的手机/邮箱';
 });
 
 // 计算缓存大小
@@ -200,41 +268,100 @@ const handleClearCache = () => {
 
 
 // 注销账号
+//
+// 这里以前只有一行 `// TODO: 调用注销接口`，然后直接 toast「账号已注销」
+// 并清掉本地状态——用户被明确告知数据已删除，服务端其实什么都没做。
+// 现在真正调用服务端删除接口，并且只有接口成功才登出。
+const DELETE_CONFIRM_TEXT = '确认注销';
+
 const handleDeleteAccount = () => {
   uni.showModal({
     title: '危险操作',
     content: '注销后您的所有数据将被永久删除，此操作不可恢复！',
     confirmColor: '#F05050',
-    confirmText: '确认注销',
+    confirmText: '继续',
     success: (res) => {
       if (res.confirm) {
-        uni.showModal({
-          title: '再次确认',
-          content: '请输入“确认注销”以继续',
-          editable: true,
-          placeholderText: '确认注销',
-          success: async (res2) => {
-            if (res2.confirm && res2.content === '确认注销') {
-              try {
-                // TODO: 调用注销接口
-                uni.$u.toast('账号已注销');
-                userStore.logout();
-                uni.reLaunch({ url: '/pages/login' });
-              } catch (e) {
-                uni.$u.toast('注销失败');
-              }
-            } else if (res2.confirm) {
-              uni.$u.toast('输入不正确');
-            }
-          }
-        });
+        deleteForm.value = { confirmText: '', password: '', code: '' };
+        showDeleteModal.value = true;
       }
     }
   });
 };
 
+const closeDeleteModal = () => {
+  showDeleteModal.value = false;
+  deleteForm.value = { confirmText: '', password: '', code: '' };
+};
+
+// 没设置密码的账号（微信/短信登录）用验证码做二次校验，
+// 复用登录验证码通道，目标必须是账号自己绑定的手机/邮箱
+const sendDeleteCode = async () => {
+  const phone = userInfo.value?.phone;
+  const email = userInfo.value?.email;
+  if (!phone && !email) {
+    return uni.$u.toast('账号未绑定手机或邮箱，请先设置密码');
+  }
+
+  sendingCode.value = true;
+  try {
+    if (phone) {
+      await http.post('/api/auth/sms/send', { phone, type: 'login' });
+    } else {
+      await http.post('/api/auth/email/send', { email, type: 'login' });
+    }
+    uni.$u.toast('验证码已发送');
+    codeCountdown.value = 60;
+    countdownTimer = setInterval(() => {
+      codeCountdown.value -= 1;
+      if (codeCountdown.value <= 0) clearCountdown();
+    }, 1000);
+  } catch (e) {
+    // 错误已由拦截器提示
+  } finally {
+    sendingCode.value = false;
+  }
+};
+
+const submitDeleteAccount = async () => {
+  if (deleteForm.value.confirmText.trim() !== DELETE_CONFIRM_TEXT) {
+    return uni.$u.toast(`请输入“${DELETE_CONFIRM_TEXT}”`);
+  }
+  if (hasPassword.value && !deleteForm.value.password) {
+    return uni.$u.toast('请输入登录密码');
+  }
+  if (!hasPassword.value && !/^\d{6}$/.test(deleteForm.value.code)) {
+    return uni.$u.toast('请输入6位验证码');
+  }
+
+  deleting.value = true;
+  try {
+    await http.post('/api/auth/account/delete', {
+      confirmText: deleteForm.value.confirmText.trim(),
+      password: hasPassword.value ? deleteForm.value.password : undefined,
+      code: hasPassword.value ? undefined : deleteForm.value.code
+    });
+
+    clearCountdown();
+    showDeleteModal.value = false;
+    uni.$u.toast('账号及全部数据已删除');
+    userStore.logout();
+    // 本地缓存里可能还留着健康数据快照，一并清掉
+    try { uni.clearStorageSync(); } catch (e) { /* 忽略 */ }
+    setTimeout(() => uni.reLaunch({ url: '/pages/login' }), 800);
+  } catch (e) {
+    // 失败时绝不能登出，否则又变成"看起来注销了其实没删"
+  } finally {
+    deleting.value = false;
+  }
+};
+
 onMounted(() => {
   calculateCacheSize();
+});
+
+onUnmounted(() => {
+  clearCountdown();
 });
 </script>
 
@@ -327,16 +454,52 @@ onMounted(() => {
     text-align: center;
     display: block;
     margin-bottom: 40rpx;
+
+    &.danger { color: #F05050; }
   }
-  
+
+  // 注销弹窗的风险提示
+  .delete-warning {
+    background: #FFF2F0;
+    border-radius: 16rpx;
+    padding: 24rpx;
+    margin-bottom: 32rpx;
+
+    text {
+      font-size: 26rpx;
+      line-height: 1.6;
+      color: #C9302C;
+    }
+  }
+
   .input-group {
     margin-bottom: 24rpx;
-    
+
     .input-label {
       font-size: 26rpx;
       color: #4E5969;
       margin-bottom: 12rpx;
       display: block;
+    }
+
+    .input-hint {
+      font-size: 22rpx;
+      color: #86909C;
+      margin-top: 10rpx;
+      display: block;
+    }
+
+    // 验证码输入框与发送按钮同行
+    .code-row {
+      display: flex;
+      align-items: center;
+      gap: 16rpx;
+
+      // 用 :deep() 而不是 /deep/：后者以斜杠开头，
+      // sass 的 modern-compiler 会解析失败导致整个构建挂掉
+      :deep(.u-input) {
+        flex: 1;
+      }
     }
   }
   

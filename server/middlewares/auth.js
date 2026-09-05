@@ -79,7 +79,9 @@ const optionalAuth = async (ctx, next) => {
             if (user && !isTokenRevoked(decoded, user)) {
                 ctx.state.user = user;
             }
-        } catch (err) { }
+        } catch (err) {
+            // 可选认证：令牌无效就当作未登录继续放行，不需要处理
+        }
     }
     await next();
 };
